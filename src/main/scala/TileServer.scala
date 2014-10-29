@@ -6,11 +6,11 @@ import com.socrata.http.server.{HttpResponse, HttpService}
 import javax.servlet.http.HttpServletRequest
 import org.slf4j.LoggerFactory
 
-class Router(helloService: => HttpService) {
+class Router(healthService: => HttpService) {
   val logger = LoggerFactory.getLogger(getClass)
 
   val routes = Routes(
-    Route("/hello", helloService))
+    Route("/health", healthService))
 
   def route(req: HttpServletRequest): HttpResponse =
     routes(req.requestPath) match {
@@ -21,13 +21,13 @@ class Router(helloService: => HttpService) {
     }
 }
 
-object Hello extends App {
-  val router = new Router(new HelloService())
+object TileServer extends App {
+  val router = new Router(new HealthService())
   val handler = router.route _
 
   val server = new SocrataServerJetty(
     handler = handler,
-    port = 8080)
+    port = 2048)
 
   server.run()
 }
