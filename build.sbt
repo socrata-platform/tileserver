@@ -11,7 +11,9 @@ resolvers ++= Seq(
 )
 
 libraryDependencies ++= Seq(
-  "com.socrata" %% "socrata-http-jetty" % "2.0.0"
+  "com.socrata"    %% "socrata-http-jetty" % "2.0.0",
+  "org.scalacheck" %% "scalacheck"         % "1.10.0" % "test" withSources() withJavadoc(),
+  "org.scalatest"   % "scalatest_2.10"     % "2.2.0"  % "test" withSources() withJavadoc()
 )
 
 testOptions in Test += Tests.Argument(TestFrameworks.ScalaTest, "-oD")
