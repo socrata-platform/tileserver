@@ -1,4 +1,4 @@
-name := "helloworld"
+name := "tileserver"
 
 organization := "com.socrata"
 
@@ -11,10 +11,19 @@ resolvers ++= Seq(
 )
 
 libraryDependencies ++= Seq(
-  "com.socrata"    %% "socrata-http-jetty" % "2.5.0-SNAPSHOT",
-  "org.scalacheck" %% "scalacheck"         % "1.10.0" % "test" withSources() withJavadoc(),
-  "org.scalatest"  %% "scalatest"          % "2.2.0"  % "test" withSources() withJavadoc()
+  "com.rojoma"              %% "rojoma-json-v3"      % "3.2.0",
+  "com.rojoma"              %% "simple-arm-v2"       % "2.0.0",
+  "net.databinder.dispatch" %% "dispatch-core"       % "0.11.2",
+  "com.socrata"             %% "socrata-http-client" % "3.0.0-SNAPSHOT",
+  "com.socrata"             %% "socrata-http-jetty"  % "3.0.0-SNAPSHOT",
+  "org.slf4j"                % "slf4j-simple"        % "1.7.2",
+  "org.apache.commons"       % "commons-io"          % "1.3.2"
 )
+
+// libraryDependencies ++= Seq(
+//   "org.scalacheck"          %% "scalacheck"         % "1.10.0" % "test",
+//   "org.scalatest"           %% "scalatest"          % "2.2.0"  % "test"
+// )
 
 testOptions in Test += Tests.Argument(TestFrameworks.ScalaTest, "-oD")
 

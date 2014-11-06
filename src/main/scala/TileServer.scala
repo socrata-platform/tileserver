@@ -1,16 +1,15 @@
 import com.socrata.http.server.SocrataServerJetty
 import com.socrata.http.server.implicits._
-import com.socrata.http.server.responses.{BadRequest, Content}
+import com.socrata.http.server.responses._
 import com.socrata.http.server.routing.TypedPathComponent
 import com.socrata.http.server.routing.SimpleRouteContext.{Route, Routes}
-import com.socrata.http.server.{HttpResponse, HttpService}
+import com.socrata.http.server.{HttpRequest, HttpResponse, HttpService}
 import javax.servlet.http.HttpServletRequest
 import org.slf4j.LoggerFactory
 
-class Router(healthService: => HttpService,
+class Router(healthService: HttpService,
              imageQueryTypes : String => Boolean,
              imageQueryService: (String,
-                                 String,
                                  String,
                                  Int,
                                  Int,
@@ -19,28 +18,46 @@ class Router(healthService: => HttpService,
 
   val routes = Routes(
     Route("/health", healthService),
-    Route("/tiles/{String}/{String}/{String}/{Int}/{Int}/{{Int!imageQueryTypes}}",
+    // domain/tiles/abcd-1234/pointColumn/z/x/y.json
+    Route("/tiles/{String}/{String}/{Int}/{Int}/{{Int!imageQueryTypes}}",
           imageQueryService)
   )
 
-  def route(req: HttpServletRequest): HttpResponse =
-    routes(req.requestPath) match {
-      case Some(s) =>
-        s(req)
+  def route(req: HttpRequest): HttpResponse =
+    req.requestPath match {
+      case Some(path) =>
+        routes(path) match {
+          case Some(s) =>
+            s(req)
+          case None =>
+            NotFound ~> ContentType("application/json") ~> Content("""{"error": "not found" }""")
+        }
       case None =>
-        BadRequest ~> Content("""{"error": "bad request" }""")
+        BadRequest ~> ContentType("application/json") ~> Content("""{"error": "bad request" }""")
     }
 }
 
 object TileServer extends App {
-  val router = new Router(HealthService,
-                          ImageQueryService.types,
-                          ImageQueryService.service)
-  val handler = router.route _
+  import java.util.concurrent.Executors
+  import com.socrata.http.client.HttpClientHttpClient
+  import com.rojoma.simplearm.v2._
+  implicit def shutdownTimeout = Resource.executorShutdownNoTimeout
+  for {
+    executor <- managed(Executors.newCachedThreadPool())
+    http <- managed(new HttpClientHttpClient(executor, HttpClientHttpClient.defaultOptions.
+                                               withUserAgent("tile server")))
+  } {
+    val imageQueryService = new ImageQueryService(http)
 
-  val server = new SocrataServerJetty(
-    handler,
-    SocrataServerJetty.defaultOptions.withPort(2048))
+    val router = new Router(HealthService,
+                            imageQueryService.types,
+                            imageQueryService.service)
+    val handler = router.route _
 
-  server.run()
+    val server = new SocrataServerJetty(
+      handler,
+      SocrataServerJetty.defaultOptions.withPort(2048))
+
+    server.run()
+  }
 }

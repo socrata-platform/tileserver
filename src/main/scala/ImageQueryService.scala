@@ -1,63 +1,63 @@
-import com.socrata.http.server.implicits.httpResponseToChainedResponse
-import com.socrata.http.server.responses.{OK, InternalServerError, ContentType, Content}
+import com.rojoma.simplearm.v2.{Managed, ResourceScope}
+import com.socrata.http.client.{HttpClient, RequestBuilder, Response, BodylessHttpRequest}
+import com.socrata.http.server.{HttpRequest, HttpResponse}
+import com.socrata.http.server.implicits._
+import com.socrata.http.server.responses._
 import com.socrata.http.server.routing.{SimpleResource, TypedPathComponent}
+import scala.util.{Try, Success, Failure}
+import com.rojoma.json.v3.ast.JValue
+import org.apache.commons.io.IOUtils
 
-case class QuadTile(rawX: Int, rawY: Int, z: Int) {
-  val depth: Int = Math.pow(2, z).toInt
-  val x: Int = rawX % depth
-  val y: Int = rawY % depth
+class ImageQueryService(http: HttpClient) extends SimpleResource {
+  // TODO: Make this configurable.
+  val GeoJsonHost: String = "dataspace.demo.socrata.com"
 
-  val interval: Seq[Double] = {
-    Seq.empty
-  }
-
-  def extent(interval: Seq[Double]): Seq[(Double, Double)] = {
-    Seq((interval(0), interval(1)), (interval(2), interval(1)),
-        (interval(2), interval(3)), (interval(0), interval(3)),
-        (interval(0), interval(1)))
-  }
-
-  def sql(schemaName: String, tableName: String) {
-    val e: Seq[(Double, Double)] = extent(interval)
-    val fmtE = e.map { case (a, b) => f"$a%f $b%f" } mkString(", ")
-    val wktString = f"POLYGON (($fmtE%s))"
-
-    f"""
-     SELECT *
-       FROM $schemaName%s.$tableName%s
-      WHERE "geometry".ST_Intersects(ST_Geography('$wktString%s'));
-     """
-  }
-}
-
-object ImageQueryService extends SimpleResource {
   val types: Set[String] = Set("json")
 
-  def service(instanceName: String,
-              schemaName: String,
-              tableName: String,
+  def geoJsonQuery(rs: ResourceScope, id: String, params: Map[String, String]): (BodylessHttpRequest, Response) = {
+    val jsonReq = RequestBuilder(GeoJsonHost).
+      p("api", "id", s"$id.geojson").
+      query(params).
+      get
+
+    (jsonReq, http.execute(jsonReq, rs))
+  }
+
+  def service(identifier: String,
+              pointColumn: String,
               z: Int,
               x: Int,
               typedY: TypedPathComponent[Int]) =
     new SimpleResource {
       val TypedPathComponent(y, extension) = typedY
 
-      def handleLayer = {
+      def handleLayer(req: HttpRequest): HttpResponse = {
         val quadTile = QuadTile(x, y, z)
-        val queryString = quadTile.sql(schemaName, tableName)
+        val withinBox = quadTile.withinBox(pointColumn)
+        val reqParams = req.queryParameters.getOrElse {
+          return BadRequest // TODO: malformed query string
+        }
 
-        // val stream = scQuery(ServerName, 8080, instanceName, queryString, gjCollect)
+        val params = if (reqParams.contains("$where"))
+          reqParams + ("$where" -> { reqParams("$where") + s"and $withinBox" })
+        else
+          reqParams + ("$where" -> withinBox)
 
-        OK ~>
-          ContentType("application/json") ~>
-          Content("")
+        val (jsonReq, resp) = geoJsonQuery(req.resourceScope, identifier, params)
+        resp.resultCode match {
+          case 200 =>
+            val ct = resp.headers("content-type").headOption
+            OK ~> ct.fold(NoOp)(ContentType) ~> Stream(IOUtils.copy(resp.inputStream(), _))
+          case _ =>
+            BadRequest ~> ContentType("application/json") ~>
+              Content(s"""{"message":"request failed", "identifier":"$identifier",
+"params":"$params","request": "$jsonReq"}""")
+        }
       }
 
       override def get = extension match {
         case "json" =>
-          req => handleLayer
-        case _ =>
-          req => InternalServerError
+          req => handleLayer(req)
       }
     }
 }
