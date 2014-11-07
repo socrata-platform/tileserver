@@ -28,9 +28,13 @@ Start the server with ```sbt run```.
 
 Hit the server with:
 
-```localhost:2048/tiles/{4x4}/{zoom}/{x}/{y}.json```
+```
+localhost:2048/tiles/{4x4}/{zoom}/{x}/{y}.json
+```
 
 
 For example:
 
-```http://localhost:2048/tiles/evgh-t69e/location/14/4207/6101.json```
+```
+http://localhost:2048/tiles/evgh-t69e/location/14/4207/6101.json
+```
