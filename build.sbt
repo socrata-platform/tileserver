@@ -7,7 +7,8 @@ version := "0.0.1"
 scalaVersion := "2.10.4"
 
 resolvers ++= Seq(
-  "socrata maven" at "https://repository-socrata-oss.forge.cloudbees.com/release"
+  "socrata maven" at "https://repository-socrata-oss.forge.cloudbees.com/release",
+  "ecc" at "https://github.com/ElectronicChartCentre/ecc-mvn-repo/raw/master/releases"
 )
 
 libraryDependencies ++= Seq(
@@ -17,7 +18,8 @@ libraryDependencies ++= Seq(
   "com.socrata"             %% "socrata-http-client" % "3.0.0-SNAPSHOT",
   "com.socrata"             %% "socrata-http-jetty"  % "3.0.0-SNAPSHOT",
   "org.slf4j"                % "slf4j-simple"        % "1.7.2",
-  "org.apache.commons"       % "commons-io"          % "1.3.2"
+  "org.apache.commons"       % "commons-io"          % "1.3.2",
+  "no.ecc.vectortile"        % "java-vector-tile"    % "1.0.1"
 )
 
 // libraryDependencies ++= Seq(

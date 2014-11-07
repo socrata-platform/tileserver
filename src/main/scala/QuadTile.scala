@@ -14,7 +14,7 @@ case class QuadTile(rawX: Int, rawY: Int, zoom: Int) {
     val g = (Pi * (-2 * y + SizeZoomed)) / SizeZoomed
     val r2d = (180 / Pi)
 
-    r2d * (2 * atan(exp(g)) - 0.5 * Pi)
+    -1 * r2d * (2 * atan(exp(g)) - 0.5 * Pi)
   }
 
   val north = lat(y * Size)
@@ -23,7 +23,7 @@ case class QuadTile(rawX: Int, rawY: Int, zoom: Int) {
   val west  = lon(x * Size)
 
   def withinBox(pointColumn: String): String = {
-    s"within_box($pointColumn, $west, $north, $east, $south)"
+    s"within_box($pointColumn, $north, $west, $south, $east)"
   }
 }
 

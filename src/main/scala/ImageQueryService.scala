@@ -16,10 +16,10 @@ class ImageQueryService(http: HttpClient) extends SimpleResource {
 
   val types: Set[String] = Set("json")
 
-  def geoJsonQuery(rs: ResourceScope, id: String, params: Map[String, String]): (BodylessHttpRequest, Response) = {
+  def geoJsonQuery(rs: ResourceScope, id: String, whereParams: Map[String, String]): (BodylessHttpRequest, Response) = {
     val jsonReq = RequestBuilder(GeoJsonHost).
       p("api", "id", s"$id.geojson").
-      query(params).
+      query(whereParams).
       get
 
     (jsonReq, http.execute(jsonReq, rs))
@@ -40,12 +40,15 @@ class ImageQueryService(http: HttpClient) extends SimpleResource {
           return BadRequest // TODO: malformed query string
         }
 
-        val params = if (reqParams.contains("$where"))
+        val whereParams = if (reqParams.contains("$where"))
           reqParams + ("$where" -> { reqParams("$where") + s"and $withinBox" })
         else
           reqParams + ("$where" -> withinBox)
 
+        val params = whereParams + ("$select" -> s"$pointColumn")
+
         val (jsonReq, resp) = geoJsonQuery(req.resourceScope, identifier, params)
+
         resp.resultCode match {
           case 200 =>
             val ct = resp.headers("content-type").headOption
