@@ -8,12 +8,16 @@ compile it check out the "3.0.0" branch of socrata-http and do a
 ```sbt publishLocal```.
 
 ## Setup ##
+Clone socrata-http
+
 ```
-# Skip this if you already have socrata-http
 cd ~/Developer/Socrata
 git clone git@github.com:socrata/socrata-http.git
+```
 
-# Install socrata-http 3.0.0
+Install socrata-http 3.0.0
+
+```
 cd ~/Developer/Socrata/socrata-http
 git checkout -b 3.0.0 origin/3.0.0
 sbt publishLocal
@@ -23,7 +27,10 @@ sbt publishLocal
 Start the server with ```sbt run```.
 
 Hit the server with:
-```localhost:2048/tiles/<4x4>/<zoom>/<x>/<y>.json```
+
+```localhost:2048/tiles/{4x4}/{zoom}/{x}/{y}.json```
+
 
 For example:
+
 ```http://localhost:2048/tiles/evgh-t69e/location/14/4207/6101.json```
