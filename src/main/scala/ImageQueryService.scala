@@ -52,7 +52,11 @@ class ImageQueryService(http: HttpClient) extends SimpleResource {
         resp.resultCode match {
           case 200 =>
             val ct = resp.headers("content-type").headOption
-            OK ~> ct.fold(NoOp)(ContentType) ~> Stream(IOUtils.copy(resp.inputStream(), _))
+            val ctHeader = ct.fold(NoOp)(ContentType)
+            OK ~>
+              ctHeader ~>
+              Header("Access-Control-Allow-Origin", "*") ~>
+              Stream(IOUtils.copy(resp.inputStream(), _))
           case _ =>
             val jsonReqStr = decode(jsonReq.toString, "UTF-8")
             BadRequest ~> ContentType("application/json") ~>
