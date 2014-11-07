@@ -31,3 +31,5 @@ testOptions in Test += Tests.Argument(TestFrameworks.ScalaTest, "-oD")
 // NOTE: Having to remove -Xfatal-warnings because it chokes due to inliner issues.
 // This really bothers me.
 scalacOptions ++= Seq("-optimize", "-deprecation", "-feature", "-language:postfixOps", "-Xlint")
+
+Revolver.settings

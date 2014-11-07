@@ -1,19 +1,34 @@
-import implicits.EnrichedInt
+import implicits._
+import scala.math.{Pi, atan, exp}
 
-case class QuadTile(rawX: Int, rawY: Int, z: Int) {
-  private val MaxLen = 20037508.34 // Spherical Mercator
-  private val (xu, yu) = (MaxLen, MaxLen)
+case class QuadTile(rawX: Int, rawY: Int, zoom: Int) {
+  val Size: Int = 256
+  val SizeZoomed = Size * (2 ** zoom)
 
-  val depth: Int = 2 ** z
-  val x: Int = rawX % depth
-  val y: Int = rawY % depth
+  val x = rawX
+  val y = (2 ** zoom) - (rawY + 1)
 
-  val west = -xu * (1 - (2 ** (1 - z)) * x)
-  val north = +yu * (1 - (2 ** (1 - z)) * y)
-  val east = west + xu / (2 ** (z - 1))
-  val south = north - yu / (2 ** (z - 1))
+  def lon(x: Int) = (x - SizeZoomed / 2) / (SizeZoomed / 360.0)
+
+  def lat(y: Int) = {
+    val g = (Pi * (-2 * y + SizeZoomed)) / SizeZoomed
+    val r2d = (180 / Pi)
+
+    r2d * (2 * atan(exp(g)) - 0.5 * Pi)
+  }
+
+  val north = lat(y * Size)
+  val east  = lon(x * Size + Size)
+  val south = lat(y * Size + Size)
+  val west  = lon(x * Size)
 
   def withinBox(pointColumn: String): String = {
     s"within_box($pointColumn, $west, $north, $east, $south)"
+  }
+}
+
+private object implicits {
+  implicit class EnrichedInt(val i: Int) extends AnyVal {
+    def ** (exp: Int): Int = scala.math.pow(i, exp).toInt
   }
 }

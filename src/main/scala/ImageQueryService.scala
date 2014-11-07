@@ -1,12 +1,14 @@
+import com.rojoma.json.v3.ast.JValue
 import com.rojoma.simplearm.v2.{Managed, ResourceScope}
 import com.socrata.http.client.{HttpClient, RequestBuilder, Response, BodylessHttpRequest}
-import com.socrata.http.server.{HttpRequest, HttpResponse}
 import com.socrata.http.server.implicits._
 import com.socrata.http.server.responses._
 import com.socrata.http.server.routing.{SimpleResource, TypedPathComponent}
-import scala.util.{Try, Success, Failure}
-import com.rojoma.json.v3.ast.JValue
+import com.socrata.http.server.{HttpRequest, HttpResponse}
+import java.net.URLDecoder.decode
 import org.apache.commons.io.IOUtils
+import org.slf4j.LoggerFactory
+import scala.util.{Try, Success, Failure}
 
 class ImageQueryService(http: HttpClient) extends SimpleResource {
   // TODO: Make this configurable.
@@ -49,9 +51,10 @@ class ImageQueryService(http: HttpClient) extends SimpleResource {
             val ct = resp.headers("content-type").headOption
             OK ~> ct.fold(NoOp)(ContentType) ~> Stream(IOUtils.copy(resp.inputStream(), _))
           case _ =>
+            val jsonReqStr = decode(jsonReq.toString, "UTF-8")
             BadRequest ~> ContentType("application/json") ~>
               Content(s"""{"message":"request failed", "identifier":"$identifier",
-"params":"$params","request": "$jsonReq"}""")
+"params":"$params","request": "$jsonReqStr"}""")
         }
       }
 
