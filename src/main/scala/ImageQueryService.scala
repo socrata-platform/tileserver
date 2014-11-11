@@ -93,6 +93,7 @@ class ImageQueryService(http: HttpClient) extends SimpleResource {
               if (extension == "pbf") {
                 OK ~>
                   ContentType("application/octet-stream") ~>
+                  Header("Access-Control-Allow-Origin", "*") ~>
                   ContentBytes(bytes)
               } else {
                 import scala.collection.JavaConverters._
