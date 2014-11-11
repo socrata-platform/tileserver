@@ -28,19 +28,16 @@ case class CoordinateMapper(val zoom: Int) {
 
   /** Returns the pixel (x and y) corresponding to "lon" and "lat" */
   def px(lon: Double, lat: Double): (Int, Int) = {
-    val d2r = Pi / 180
-    val bc = SizeZoomed / 360
-    val cc = SizeZoomed / (2 * Pi)
-    val d  = SizeZoomed / 2;
+    val d2r = Pi / 180.0
+    val bc = SizeZoomed / 360.0
+    val cc = SizeZoomed / (2.0 * Pi)
+    val d  = SizeZoomed / 2.0
 
-    val f = min(max(sin(d2r * lat), -0.9999), 0.9999);
-    val x = (d + lon * bc).round.toInt;
-    val y = (d + 0.5 * log((1 + f) / (1 - f)) * (-cc)).round.toInt;
+    val f = min(max(sin(d2r * lat), -0.9999), 0.9999)
+    val x = (d + lon * bc).round.toInt
+    val y = (d + 0.5 * log((1.0 + f) / (1.0 - f)) * (-cc)).round.toInt
 
-    // (if (x <= SizeZoomed) round(x / ZoomFactor) else Size,
-    //  if (y <= SizeZoomed) round(y / ZoomFactor) else Size)
-    (if (x <= SizeZoomed) (x % Size) else Size,
-     if (y <= SizeZoomed) (y % Size) else Size)
+    (x % Size, y % Size)
   }
 }
 
