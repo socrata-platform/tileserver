@@ -11,6 +11,7 @@ import com.vividsolutions.jts.geom.{Coordinate, Geometry, GeometryFactory, Point
 import java.net.URLDecoder.decode
 import javax.activation.MimeType
 import no.ecc.vectortile.{VectorTileDecoder, VectorTileEncoder}
+import org.apache.commons.io.IOUtils
 
 class ImageQueryService(http: HttpClient) extends SimpleResource {
   private val geomFactory = new GeometryFactory
@@ -28,7 +29,7 @@ class ImageQueryService(http: HttpClient) extends SimpleResource {
   }
 
   val emptyMap = new java.util.HashMap[String, Nothing]()
-  val types: Set[String] = Set("pbf", "txt")
+  val types: Set[String] = Set("pbf", "txt", "json")
 
   def geoJsonQuery(rs: ResourceScope,
                    id: String,
@@ -89,27 +90,39 @@ class ImageQueryService(http: HttpClient) extends SimpleResource {
 
         resp.resultCode match {
           case 200 =>
-            val payload = encode(mapper, resp) map { bytes =>
-              if (extension == "pbf") {
-                OK ~>
-                  ContentType("application/octet-stream") ~>
-                  Header("Access-Control-Allow-Origin", "*") ~>
-                  ContentBytes(bytes)
-              } else {
-                import scala.collection.JavaConverters._
+            val payload =
+              extension match {
+                case "pbf" =>
+                  encode(mapper, resp) map { bytes =>
+                    OK ~>
+                      ContentType("application/octet-stream") ~>
+                      Header("Access-Control-Allow-Origin", "*") ~>
+                      ContentBytes(bytes)
+                  }
+                case "txt" =>
+                  encode(mapper, resp) map {
+                    bytes => {
+                      import scala.collection.JavaConverters._
 
-                val decoder = new VectorTileDecoder()
-                decoder.decode(bytes)
-                val features = decoder.getFeatures("main").asScala map {
-                  _.getGeometry.toString
-                }
+                      val decoder = new VectorTileDecoder()
+                      decoder.decode(bytes)
+                      val features = decoder.getFeatures("main").asScala map {
+                        _.getGeometry.toString
+                      }
 
-                OK ~>
-                  ContentType("text/plain") ~>
-                  Content(features.mkString("\n"))
+                      OK ~>
+                        ContentType("text/plain") ~>
+                        Content(features.mkString("\n"))
+                    }
+                  }
+                case "json" =>
+                  Some(OK ~>
+                         ContentType("application/json") ~>
+                         Header("Access-Control-Allow-Origin", "*") ~>
+                         Stream(IOUtils.copy(resp.inputStream(), _)))
+                case _ =>
+                  None // If properly configured, we will never get here.
               }
-            }
-
             payload match {
               case Some(response) =>
                 response
