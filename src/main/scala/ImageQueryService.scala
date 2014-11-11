@@ -47,12 +47,12 @@ class ImageQueryService(http: HttpClient) extends SimpleResource {
 
     GeoJson.codec.decode(response.jValue(JsonP).toV2) collect {
       case FeatureCollectionJson(features, _) => {
-        val coords = features groupBy { _.geometry.getCoordinate } map {
-          case (k, v) => (k, v.size)
-        }
+        val coords = features map { _.geometry.getCoordinate }
+        val pixels = coords map { mapper.px(_) }
+        val points = pixels groupBy { geomFactory.createPoint(_) }
+        val counts = points map { case (k, v) => (k, v.size) }
 
-        coords foreach { case (coord, count) =>
-          val pt = geomFactory.createPoint(mapper.px(coord))
+        counts foreach { case (pt, count) =>
           encoder.addFeature("main", emptyMap, pt)
         }
 
