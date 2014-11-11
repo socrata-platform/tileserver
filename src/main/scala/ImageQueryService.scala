@@ -1,28 +1,69 @@
-import com.rojoma.json.v3.ast.JValue
+import com.rojoma.json.v3.conversions.v2._
 import com.rojoma.simplearm.v2.{Managed, ResourceScope}
+import com.socrata.http.client.Response.ContentP
 import com.socrata.http.client.{HttpClient, RequestBuilder, Response, BodylessHttpRequest}
 import com.socrata.http.server.implicits._
 import com.socrata.http.server.responses._
 import com.socrata.http.server.routing.{SimpleResource, TypedPathComponent}
 import com.socrata.http.server.{HttpRequest, HttpResponse}
+import com.socrata.thirdparty.geojson.{GeoJson, FeatureCollectionJson, FeatureJson}
+import com.vividsolutions.jts.geom.{Coordinate, Geometry, GeometryFactory, Point}
 import java.net.URLDecoder.decode
-import org.apache.commons.io.IOUtils
-import org.slf4j.LoggerFactory
-import scala.util.{Try, Success, Failure}
+import javax.activation.MimeType
+import no.ecc.vectortile.VectorTileEncoder
 
 class ImageQueryService(http: HttpClient) extends SimpleResource {
+  private val geomFactory = new GeometryFactory
+
   // TODO: Make this configurable.
   val GeoJsonHost: String = "dataspace.demo.socrata.com"
 
-  val types: Set[String] = Set("json")
+  val JsonP: ContentP = { o =>
+    o match {
+      case Some(t) =>
+        t.getBaseType.startsWith("application/") && t.getBaseType.endsWith("json")
+      case None =>
+        false
+    }
+  }
 
-  def geoJsonQuery(rs: ResourceScope, id: String, whereParams: Map[String, String]): (BodylessHttpRequest, Response) = {
+  val emptyMap = new java.util.HashMap[String, Nothing]()
+  val contentTypes: Map[String, HttpResponse] =
+    Map("pbf" -> ContentType("application/octet-stream"),
+        "txt" -> ContentType("text/plain"))
+  val types: Set[String] = contentTypes.keySet
+
+  def geoJsonQuery(rs: ResourceScope,
+                   id: String,
+                   params: Map[String, String]): (BodylessHttpRequest, Response) = {
     val jsonReq = RequestBuilder(GeoJsonHost).
       p("api", "id", s"$id.geojson").
-      query(whereParams).
+      query(params).
       get
 
     (jsonReq, http.execute(jsonReq, rs))
+  }
+
+  def encode(mapper: CoordinateMapper, response: Response): Option[Array[Byte]] = {
+    val encoder: VectorTileEncoder = new VectorTileEncoder(4096)
+
+    val maybeCollection = GeoJson.codec.decode(response.jValue(JsonP).toV2)
+
+    maybeCollection collect {
+      case FeatureCollectionJson(features, _) =>
+        features foreach { feature =>
+          val pt = geomFactory.createPoint(mapper.px(feature.geometry.getCoordinate))
+          println(pt)
+          encoder.addFeature("main", emptyMap, pt)
+        }
+    }
+
+    maybeCollection match {
+      case Some(_) =>
+        Some(encoder.encode())
+      case None =>
+        None
+    }
   }
 
   def service(identifier: String,
@@ -32,8 +73,9 @@ class ImageQueryService(http: HttpClient) extends SimpleResource {
               typedY: TypedPathComponent[Int]) =
     new SimpleResource {
       val TypedPathComponent(y, extension) = typedY
+      val mapper = CoordinateMapper(z)
 
-      def handleLayer(req: HttpRequest): HttpResponse = {
+      def handleLayer(req: HttpRequest, extension: String): HttpResponse = {
         val quadTile = QuadTile(x, y, z)
         val withinBox = quadTile.withinBox(pointColumn)
         val reqParams = req.queryParameters.getOrElse {
@@ -51,12 +93,18 @@ class ImageQueryService(http: HttpClient) extends SimpleResource {
 
         resp.resultCode match {
           case 200 =>
-            val ct = resp.headers("content-type").headOption
-            val ctHeader = ct.fold(NoOp)(ContentType)
-            OK ~>
-              ctHeader ~>
-              Header("Access-Control-Allow-Origin", "*") ~>
-              Stream(IOUtils.copy(resp.inputStream(), _))
+            val encoded = encode(mapper, resp)
+            encoded match {
+              case Some(bytes) =>
+                OK ~>
+                  contentTypes(extension) ~>
+                  Header("Access-Control-Allow-Origin", "*") ~>
+                  ContentBytes(bytes)
+              case None =>
+                InternalServerError ~>
+                  ContentType("application/json") ~>
+                  Content("""{"message":"Invalid geo-json returned from underlying service."}""")
+            }
           case _ =>
             val jsonReqStr = decode(jsonReq.toString, "UTF-8")
             BadRequest ~> ContentType("application/json") ~>
@@ -65,9 +113,10 @@ class ImageQueryService(http: HttpClient) extends SimpleResource {
         }
       }
 
-      override def get = extension match {
-        case "json" =>
-          req => handleLayer(req)
+      override def get = if (types(extension)) {
+        req => handleLayer(req, extension)
+      } else {
+        req => BadRequest
       }
     }
 }

@@ -18,7 +18,7 @@ class Router(healthService: HttpService,
 
   val routes = Routes(
     Route("/health", healthService),
-    // domain/tiles/abcd-1234/pointColumn/z/x/y.json
+    // domain/tiles/abcd-1234/pointColumn/z/x/y.pbf
     Route("/tiles/{String}/{String}/{Int}/{Int}/{{Int!imageQueryTypes}}",
           imageQueryService)
   )
