@@ -10,7 +10,7 @@ import com.socrata.thirdparty.geojson.{GeoJson, FeatureCollectionJson, FeatureJs
 import com.vividsolutions.jts.geom.{Coordinate, Geometry, GeometryFactory, Point}
 import java.net.URLDecoder.decode
 import javax.activation.MimeType
-import no.ecc.vectortile.VectorTileEncoder
+import no.ecc.vectortile.{VectorTileDecoder, VectorTileEncoder}
 
 class ImageQueryService(http: HttpClient) extends SimpleResource {
   private val geomFactory = new GeometryFactory
@@ -28,10 +28,7 @@ class ImageQueryService(http: HttpClient) extends SimpleResource {
   }
 
   val emptyMap = new java.util.HashMap[String, Nothing]()
-  val contentTypes: Map[String, HttpResponse] =
-    Map("pbf" -> ContentType("application/octet-stream"),
-        "txt" -> ContentType("text/plain"))
-  val types: Set[String] = contentTypes.keySet
+  val types: Set[String] = Set("pbf", "txt")
 
   def geoJsonQuery(rs: ResourceScope,
                    id: String,
@@ -53,7 +50,6 @@ class ImageQueryService(http: HttpClient) extends SimpleResource {
       case FeatureCollectionJson(features, _) =>
         features foreach { feature =>
           val pt = geomFactory.createPoint(mapper.px(feature.geometry.getCoordinate))
-          println(pt)
           encoder.addFeature("main", emptyMap, pt)
         }
     }
@@ -93,13 +89,29 @@ class ImageQueryService(http: HttpClient) extends SimpleResource {
 
         resp.resultCode match {
           case 200 =>
-            val encoded = encode(mapper, resp)
-            encoded match {
-              case Some(bytes) =>
+            val payload = encode(mapper, resp) map { bytes =>
+              if (extension == "pbf") {
                 OK ~>
-                  contentTypes(extension) ~>
-                  Header("Access-Control-Allow-Origin", "*") ~>
+                  ContentType("application/octet-stream") ~>
                   ContentBytes(bytes)
+              } else {
+                import scala.collection.JavaConverters._
+
+                val decoder = new VectorTileDecoder()
+                decoder.decode(bytes)
+                val features = decoder.getFeatures("main").asScala map {
+                  _.getGeometry.toString
+                }
+
+                OK ~>
+                  ContentType("text/plain") ~>
+                  Content(features.mkString("\n"))
+              }
+            }
+
+            payload match {
+              case Some(response) =>
+                response
               case None =>
                 InternalServerError ~>
                   ContentType("application/json") ~>

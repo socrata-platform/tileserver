@@ -1,9 +1,10 @@
 import CoordinateMapper._
 import com.vividsolutions.jts.geom.Coordinate
-import scala.math.{Pi, atan, exp, log, min, max, sin}
+import scala.math.{Pi, atan, exp, log, min, max, sin, round}
 
 case class CoordinateMapper(val zoom: Int) {
   val SizeZoomed: Int = Size * (1 << zoom)
+  val ZoomFactor: Float = (1 << zoom) * 1.0f
 
   def tmsCoordinates(x: Int, y: Int): (Int, Int) = (x, (1 << zoom) - (y + 1))
 
@@ -33,13 +34,13 @@ case class CoordinateMapper(val zoom: Int) {
     val d  = SizeZoomed / 2;
 
     val f = min(max(sin(d2r * lat), -0.9999), 0.9999);
-    val x = (d + lon * bc).round;
-    val y = (d + 0.5 * log((1 + f) / (1 - f)) * (-cc)).round;
+    val x = (d + lon * bc).round.toInt;
+    val y = (d + 0.5 * log((1 + f) / (1 - f)) * (-cc)).round.toInt;
 
-    // (if (x <= SizeZoomed) x.toInt else SizeZoomed,
-    //  if (y <= SizeZoomed) y.toInt else SizeZoomed)
-
-    ((x / (1 << 14)).toInt, (y / (1 << 14)).toInt)
+    // (if (x <= SizeZoomed) round(x / ZoomFactor) else Size,
+    //  if (y <= SizeZoomed) round(y / ZoomFactor) else Size)
+    (if (x <= SizeZoomed) (x % Size) else Size,
+     if (y <= SizeZoomed) (y % Size) else Size)
   }
 }
 
