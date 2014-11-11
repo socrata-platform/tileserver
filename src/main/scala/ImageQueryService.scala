@@ -45,21 +45,30 @@ class ImageQueryService(http: HttpClient) extends SimpleResource {
   def encode(mapper: CoordinateMapper, response: Response): Option[Array[Byte]] = {
     val encoder: VectorTileEncoder = new VectorTileEncoder(4096)
 
-    val maybeCollection = GeoJson.codec.decode(response.jValue(JsonP).toV2)
+    GeoJson.codec.decode(response.jValue(JsonP).toV2) collect {
+      case FeatureCollectionJson(features, _) => {
+        val coords = features groupBy { _.geometry.getCoordinate } map {
+          case (k, v) => (k, v.size)
+        }
 
-    maybeCollection collect {
-      case FeatureCollectionJson(features, _) =>
-        features foreach { feature =>
-          val pt = geomFactory.createPoint(mapper.px(feature.geometry.getCoordinate))
+        coords foreach { case (coord, count) =>
+          val pt = geomFactory.createPoint(mapper.px(coord))
           encoder.addFeature("main", emptyMap, pt)
         }
-    }
 
-    maybeCollection match {
-      case Some(_) =>
-        Some(encoder.encode())
-      case None =>
-        None
+        encoder.encode()
+      }
+    }
+  }
+
+  def createPbf(mapper: CoordinateMapper, resp: Response): Option[HttpResponse] = {
+    encode(mapper, resp) map {
+      bytes => {
+        OK ~>
+          ContentType("application/octet-stream") ~>
+          Header("Access-Control-Allow-Origin", "*") ~>
+          ContentBytes(bytes)
+      }
     }
   }
 
@@ -93,12 +102,7 @@ class ImageQueryService(http: HttpClient) extends SimpleResource {
             val payload =
               extension match {
                 case "pbf" =>
-                  encode(mapper, resp) map { bytes =>
-                    OK ~>
-                      ContentType("application/octet-stream") ~>
-                      Header("Access-Control-Allow-Origin", "*") ~>
-                      ContentBytes(bytes)
-                  }
+                  createPbf(mapper, resp)
                 case "txt" =>
                   encode(mapper, resp) map {
                     bytes => {
