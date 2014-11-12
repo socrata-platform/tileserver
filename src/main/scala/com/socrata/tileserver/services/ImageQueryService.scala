@@ -14,9 +14,7 @@ import com.vividsolutions.jts.geom.{Coordinate, Geometry, GeometryFactory, Point
 import java.net.URLDecoder
 import javax.activation.MimeType
 import no.ecc.vectortile.{VectorTileDecoder, VectorTileEncoder}
-import org.apache.commons.io.IOUtils
-import scala.collection.JavaConverters._
-import util.{CoordinateMapper, QuadTile}
+import util.{CoordinateMapper, Extensions, QuadTile}
 
 case class ImageQueryService(http: HttpClient) extends SimpleResource {
   private val geomFactory = new GeometryFactory
@@ -29,50 +27,10 @@ case class ImageQueryService(http: HttpClient) extends SimpleResource {
 
     BadRequest ~>
       ContentType("application/json") ~>
-      Content("""{"message": "$message"$underlying}""")
+      Content(s"""{"message": "$message"$underlying}""")
   }
 
-  type Extension = (CoordinateMapper, Response) => HttpResponse
-
-  val invalidJson = InternalServerError ~>
-    ContentType("application/json") ~>
-    Content("""{"message":"Invalid geo-json returned from underlying service."}""")
-
-  val Pbf: Extension = (mapper, resp) => encode(mapper, resp) map {
-    bytes: Array[Byte] => {
-      OK ~>
-        ContentType("application/octet-stream") ~>
-        Header("Access-Control-Allow-Origin", "*") ~>
-        ContentBytes(bytes)
-    }
-  } getOrElse invalidJson
-
-  val Json: Extension = (mapper, resp) => {
-    OK ~>
-      ContentType("application/json") ~>
-      Header("Access-Control-Allow-Origin", "*") ~>
-      Stream(IOUtils.copy(resp.inputStream(), _))
-  }
-
-  val Txt: Extension = (mapper, resp) => encode(mapper, resp) map {
-    bytes: Array[Byte] => {
-      val decoder = new VectorTileDecoder()
-      decoder.decode(bytes)
-
-      val features = decoder.getFeatures("main").asScala map { f =>
-        s"geometry: ${f.getGeometry.toString}  \tattributes: ${f.getAttributes}"
-      }
-
-      OK ~>
-        ContentType("text/plain") ~>
-        Content(features.mkString("\n"))
-    }
-  } getOrElse invalidJson
-
-  val extensions: Map[String, Extension] = Map("pbf" -> Pbf,
-                                               "txt" -> Txt,
-                                               "json" -> Json)
-  val types: Set[String] = extensions.keySet
+  val types: Set[String] = Extensions.keySet
 
   def geoJsonQuery(rs: ResourceScope,
                    id: String,
@@ -85,29 +43,30 @@ case class ImageQueryService(http: HttpClient) extends SimpleResource {
     (URLDecoder.decode(jsonReq.toString, "UTF-8"), http.execute(jsonReq, rs))
   }
 
-  def encode(mapper: CoordinateMapper, response: Response): Option[Array[Byte]] = {
-    val encoder: VectorTileEncoder = new VectorTileEncoder(4096)
-    val jsonp: ContentP = _ map { t =>
+  def encoder(mapper: CoordinateMapper): Response => Option[Array[Byte]] =
+    response => {
+      val encoder: VectorTileEncoder = new VectorTileEncoder(4096)
+      val jsonp: ContentP = _ map { t =>
         t.getBaseType.startsWith("application/") && t.getBaseType.endsWith("json")
-    } getOrElse false
+      } getOrElse false
 
-    GeoJson.codec.decode(response.jValue(jsonp).toV2) collect {
-      case FeatureCollectionJson(features, _) => {
-        val coords = features map { _.geometry.getCoordinate }
-        val pixels = coords map { mapper.px(_) }
-        val points = pixels groupBy { geomFactory.createPoint(_) }
-        val counts = points map { case (k, v) => (k, v.size) }
+      GeoJson.codec.decode(response.jValue(jsonp).toV2) collect {
+        case FeatureCollectionJson(features, _) => {
+          val coords = features map { _.geometry.getCoordinate }
+          val pixels = coords map { mapper.px(_) }
+          val points = pixels groupBy { geomFactory.createPoint(_) }
+          val counts = points map { case (k, v) => (k, v.size) }
 
-        counts foreach { case (pt, count) =>
-          val attrs = new java.util.HashMap[String, java.lang.Integer]()
-          attrs.put("count", count)
-          encoder.addFeature("main", attrs, pt)
+          counts foreach { case (pt, count) =>
+            val attrs = new java.util.HashMap[String, java.lang.Integer]()
+            attrs.put("count", count)
+            encoder.addFeature("main", attrs, pt)
+          }
+
+          encoder.encode()
         }
-
-        encoder.encode()
       }
     }
-  }
 
   def addToParams(params: Map[String, String],
                   where: String,
@@ -136,7 +95,7 @@ case class ImageQueryService(http: HttpClient) extends SimpleResource {
           val (jsonReq, resp) = geoJsonQuery(req.resourceScope, identifier, params)
 
           resp.resultCode match {
-            case 200 => extensions(ext)(mapper, resp)
+            case 200 => Extensions(ext)(encoder(mapper), resp)
             case _ => failure("underlying request failed", jsonReq)
           }
         } getOrElse failure("malformed query string")
