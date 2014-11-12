@@ -12,6 +12,7 @@ import java.net.URLDecoder.decode
 import javax.activation.MimeType
 import no.ecc.vectortile.{VectorTileDecoder, VectorTileEncoder}
 import org.apache.commons.io.IOUtils
+import scala.collection.JavaConverters._
 
 class ImageQueryService(http: HttpClient) extends SimpleResource {
   private val geomFactory = new GeometryFactory
@@ -28,8 +29,65 @@ class ImageQueryService(http: HttpClient) extends SimpleResource {
     }
   }
 
-  val emptyMap = new java.util.HashMap[String, Nothing]()
-  val types: Set[String] = Set("pbf", "txt", "json")
+  sealed trait Extension {
+    def formatResponse(mapper: CoordinateMapper, resp: Response): HttpResponse
+  }
+
+  object Extension {
+    def apply(extension: String) = extensions.apply(extension)
+  }
+
+  val invalidJson = InternalServerError ~>
+    ContentType("application/json") ~>
+    Content("""{"message":"Invalid geo-json returned from underlying service."}""")
+
+  case class Pbf() extends Extension {
+    def formatResponse(mapper: CoordinateMapper,
+                       resp: Response): HttpResponse = {
+      (encode(mapper, resp) map {
+         bytes: Array[Byte] => {
+           OK ~>
+             ContentType("application/octet-stream") ~>
+             Header("Access-Control-Allow-Origin", "*") ~>
+             ContentBytes(bytes)
+         }
+       }).getOrElse(invalidJson)
+    }
+  }
+
+  case class Txt() extends Extension {
+    def formatResponse(mapper: CoordinateMapper,
+                       resp: Response): HttpResponse = {
+      (encode(mapper, resp) map {
+         bytes: Array[Byte] => {
+           val decoder = new VectorTileDecoder()
+           decoder.decode(bytes)
+           val features = decoder.getFeatures("main").asScala map {
+             _.getGeometry.toString
+           }
+
+           OK ~>
+             ContentType("text/plain") ~>
+             Content(features.mkString("\n"))
+         }
+       }).getOrElse(invalidJson)
+    }
+  }
+
+  case class Json() extends Extension {
+    def formatResponse(mapper: CoordinateMapper,
+                       resp: Response): HttpResponse = {
+      OK ~>
+        ContentType("application/json") ~>
+        Header("Access-Control-Allow-Origin", "*") ~>
+        Stream(IOUtils.copy(resp.inputStream(), _))
+    }
+  }
+
+  val extensions: Map[String, Extension] = Map("pbf" -> Pbf(),
+                                               "txt" -> Txt(),
+                                               "json" -> Json())
+  val types: Set[String] = extensions.keySet
 
   def geoJsonQuery(rs: ResourceScope,
                    id: String,
@@ -43,6 +101,7 @@ class ImageQueryService(http: HttpClient) extends SimpleResource {
   }
 
   def encode(mapper: CoordinateMapper, response: Response): Option[Array[Byte]] = {
+    val emptyMap = new java.util.HashMap[String, Nothing]()
     val encoder: VectorTileEncoder = new VectorTileEncoder(4096)
 
     GeoJson.codec.decode(response.jValue(JsonP).toV2) collect {
@@ -61,15 +120,13 @@ class ImageQueryService(http: HttpClient) extends SimpleResource {
     }
   }
 
-  def createPbf(mapper: CoordinateMapper, resp: Response): Option[HttpResponse] = {
-    encode(mapper, resp) map {
-      bytes => {
-        OK ~>
-          ContentType("application/octet-stream") ~>
-          Header("Access-Control-Allow-Origin", "*") ~>
-          ContentBytes(bytes)
-      }
-    }
+  def addToParams(params: Map[String, String],
+                  where: String,
+                  select: String): Map[String, String] = {
+    val whereParam = if (params.contains("$where"))
+      params("$where") + s"and $where" else where
+
+    params + ("$where" -> whereParam) + ("$select" -> select)
   }
 
   def service(identifier: String,
@@ -85,61 +142,21 @@ class ImageQueryService(http: HttpClient) extends SimpleResource {
         val quadTile = QuadTile(x, y, z)
         val withinBox = quadTile.withinBox(pointColumn)
         val reqParams = req.queryParameters.getOrElse {
-          return BadRequest // TODO: malformed query string
+          return BadRequest ~>
+            ContentType("application/json") ~>
+            Content("""{"message": "malformed query string"}""")
         }
 
-        val whereParams = if (reqParams.contains("$where"))
-          reqParams + ("$where" -> { reqParams("$where") + s"and $withinBox" })
-        else
-          reqParams + ("$where" -> withinBox)
-
-        val params = whereParams + ("$select" -> s"$pointColumn")
-
+        val params = addToParams(reqParams, withinBox, pointColumn)
         val (jsonReq, resp) = geoJsonQuery(req.resourceScope, identifier, params)
 
         resp.resultCode match {
           case 200 =>
-            val payload =
-              extension match {
-                case "pbf" =>
-                  createPbf(mapper, resp)
-                case "txt" =>
-                  encode(mapper, resp) map {
-                    bytes => {
-                      import scala.collection.JavaConverters._
-
-                      val decoder = new VectorTileDecoder()
-                      decoder.decode(bytes)
-                      val features = decoder.getFeatures("main").asScala map {
-                        _.getGeometry.toString
-                      }
-
-                      OK ~>
-                        ContentType("text/plain") ~>
-                        Content(features.mkString("\n"))
-                    }
-                  }
-                case "json" =>
-                  Some(OK ~>
-                         ContentType("application/json") ~>
-                         Header("Access-Control-Allow-Origin", "*") ~>
-                         Stream(IOUtils.copy(resp.inputStream(), _)))
-                case _ =>
-                  None // If properly configured, we will never get here.
-              }
-            payload match {
-              case Some(response) =>
-                response
-              case None =>
-                InternalServerError ~>
-                  ContentType("application/json") ~>
-                  Content("""{"message":"Invalid geo-json returned from underlying service."}""")
-            }
+            Extension(extension).formatResponse(mapper, resp)
           case _ =>
             val jsonReqStr = decode(jsonReq.toString, "UTF-8")
             BadRequest ~> ContentType("application/json") ~>
-              Content(s"""{"message":"request failed", "identifier":"$identifier",
-"params":"$params","request": "$jsonReqStr"}""")
+              Content(s"""{"message":"request failed", "request": "$jsonReqStr"}""")
         }
       }
 
