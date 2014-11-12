@@ -1,3 +1,5 @@
+package com.socrata.tileserver.util
+
 import CoordinateMapper.Size
 import scala.math.{Pi, atan, exp}
 

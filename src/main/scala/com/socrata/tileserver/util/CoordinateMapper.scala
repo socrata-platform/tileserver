@@ -1,3 +1,5 @@
+package com.socrata.tileserver.util
+
 import CoordinateMapper._
 import com.vividsolutions.jts.geom.Coordinate
 import scala.math.{Pi, atan, exp, log, min, max, sin, round}

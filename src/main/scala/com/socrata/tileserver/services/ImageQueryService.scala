@@ -1,3 +1,6 @@
+package com.socrata.tileserver
+package services
+
 import com.rojoma.json.v3.conversions.v2._
 import com.rojoma.simplearm.v2.{Managed, ResourceScope}
 import com.socrata.http.client.Response.ContentP
@@ -13,6 +16,7 @@ import javax.activation.MimeType
 import no.ecc.vectortile.{VectorTileDecoder, VectorTileEncoder}
 import org.apache.commons.io.IOUtils
 import scala.collection.JavaConverters._
+import util.{CoordinateMapper, QuadTile}
 
 case class ImageQueryService(http: HttpClient) extends SimpleResource {
   private val geomFactory = new GeometryFactory
@@ -28,13 +32,11 @@ case class ImageQueryService(http: HttpClient) extends SimpleResource {
       Content("""{"message": "$message"$underlying}""")
   }
 
-
+  type Extension = (CoordinateMapper, Response) => HttpResponse
 
   val invalidJson = InternalServerError ~>
     ContentType("application/json") ~>
     Content("""{"message":"Invalid geo-json returned from underlying service."}""")
-
-  type Extension = (CoordinateMapper, Response) => HttpResponse
 
   val Pbf: Extension = (mapper, resp) => encode(mapper, resp) map {
     bytes: Array[Byte] => {

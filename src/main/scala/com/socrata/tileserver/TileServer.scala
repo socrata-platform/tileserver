@@ -1,11 +1,14 @@
+package com.socrata.tileserver
+
 import com.socrata.http.server.SocrataServerJetty
 import com.socrata.http.server.implicits._
 import com.socrata.http.server.responses._
-import com.socrata.http.server.routing.TypedPathComponent
 import com.socrata.http.server.routing.SimpleRouteContext.{Route, Routes}
+import com.socrata.http.server.routing.TypedPathComponent
 import com.socrata.http.server.{HttpRequest, HttpResponse, HttpService}
 import javax.servlet.http.HttpServletRequest
 import org.slf4j.LoggerFactory
+import services.{HealthService, ImageQueryService}
 
 class Router(healthService: HttpService,
              imageQueryTypes : String => Boolean,
