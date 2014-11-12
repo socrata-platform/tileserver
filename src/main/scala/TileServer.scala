@@ -47,8 +47,7 @@ object TileServer extends App {
     http <- managed(new HttpClientHttpClient(executor, HttpClientHttpClient.defaultOptions.
                                                withUserAgent("tile server")))
   } {
-    val imageQueryService = new ImageQueryService(http)
-
+    val imageQueryService = ImageQueryService(http)
     val router = new Router(HealthService,
                             imageQueryService.types,
                             imageQueryService.service)

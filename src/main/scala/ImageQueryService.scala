@@ -8,103 +8,88 @@ import com.socrata.http.server.routing.{SimpleResource, TypedPathComponent}
 import com.socrata.http.server.{HttpRequest, HttpResponse}
 import com.socrata.thirdparty.geojson.{GeoJson, FeatureCollectionJson, FeatureJson}
 import com.vividsolutions.jts.geom.{Coordinate, Geometry, GeometryFactory, Point}
-import java.net.URLDecoder.decode
+import java.net.URLDecoder
 import javax.activation.MimeType
 import no.ecc.vectortile.{VectorTileDecoder, VectorTileEncoder}
 import org.apache.commons.io.IOUtils
 import scala.collection.JavaConverters._
 
-class ImageQueryService(http: HttpClient) extends SimpleResource {
+case class ImageQueryService(http: HttpClient) extends SimpleResource {
   private val geomFactory = new GeometryFactory
 
   // TODO: Make this configurable.
   val GeoJsonHost: String = "dataspace.demo.socrata.com"
 
-  val JsonP: ContentP = { o =>
-    o match {
-      case Some(t) =>
-        t.getBaseType.startsWith("application/") && t.getBaseType.endsWith("json")
-      case None =>
-        false
-    }
+  def failure(message: String, request: String = ""): HttpResponse = {
+    val underlying = if (request.isEmpty) "" else s""", "request": "$request""""
+
+    BadRequest ~>
+      ContentType("application/json") ~>
+      Content("""{"message": "$message"$underlying}""")
   }
 
-  sealed trait Extension {
-    def formatResponse(mapper: CoordinateMapper, resp: Response): HttpResponse
-  }
 
-  object Extension {
-    def apply(extension: String) = extensions.apply(extension)
-  }
 
   val invalidJson = InternalServerError ~>
     ContentType("application/json") ~>
     Content("""{"message":"Invalid geo-json returned from underlying service."}""")
 
-  case class Pbf() extends Extension {
-    def formatResponse(mapper: CoordinateMapper,
-                       resp: Response): HttpResponse = {
-      (encode(mapper, resp) map {
-         bytes: Array[Byte] => {
-           OK ~>
-             ContentType("application/octet-stream") ~>
-             Header("Access-Control-Allow-Origin", "*") ~>
-             ContentBytes(bytes)
-         }
-       }).getOrElse(invalidJson)
-    }
-  }
+  type Extension = (CoordinateMapper, Response) => HttpResponse
 
-  case class Txt() extends Extension {
-    def formatResponse(mapper: CoordinateMapper,
-                       resp: Response): HttpResponse = {
-      (encode(mapper, resp) map {
-         bytes: Array[Byte] => {
-           val decoder = new VectorTileDecoder()
-           decoder.decode(bytes)
-           val features = decoder.getFeatures("main").asScala map {
-             _.getGeometry.toString
-           }
-
-           OK ~>
-             ContentType("text/plain") ~>
-             Content(features.mkString("\n"))
-         }
-       }).getOrElse(invalidJson)
-    }
-  }
-
-  case class Json() extends Extension {
-    def formatResponse(mapper: CoordinateMapper,
-                       resp: Response): HttpResponse = {
+  val Pbf: Extension = (mapper, resp) => encode(mapper, resp) map {
+    bytes: Array[Byte] => {
       OK ~>
-        ContentType("application/json") ~>
+        ContentType("application/octet-stream") ~>
         Header("Access-Control-Allow-Origin", "*") ~>
-        Stream(IOUtils.copy(resp.inputStream(), _))
+        ContentBytes(bytes)
     }
+  } getOrElse invalidJson
+
+  val Json: Extension = (mapper, resp) => {
+    OK ~>
+      ContentType("application/json") ~>
+      Header("Access-Control-Allow-Origin", "*") ~>
+      Stream(IOUtils.copy(resp.inputStream(), _))
   }
 
-  val extensions: Map[String, Extension] = Map("pbf" -> Pbf(),
-                                               "txt" -> Txt(),
-                                               "json" -> Json())
+  val Txt: Extension = (mapper, resp) => encode(mapper, resp) map {
+    bytes: Array[Byte] => {
+      val decoder = new VectorTileDecoder()
+      decoder.decode(bytes)
+
+      val features = decoder.getFeatures("main").asScala map { f =>
+        s"geometry: ${f.getGeometry.toString}  \tattributes: ${f.getAttributes}"
+      }
+
+      OK ~>
+        ContentType("text/plain") ~>
+        Content(features.mkString("\n"))
+    }
+  } getOrElse invalidJson
+
+  val extensions: Map[String, Extension] = Map("pbf" -> Pbf,
+                                               "txt" -> Txt,
+                                               "json" -> Json)
   val types: Set[String] = extensions.keySet
 
   def geoJsonQuery(rs: ResourceScope,
                    id: String,
-                   params: Map[String, String]): (BodylessHttpRequest, Response) = {
+                   params: Map[String, String]): (String, Response) = {
     val jsonReq = RequestBuilder(GeoJsonHost).
       p("api", "id", s"$id.geojson").
       query(params).
       get
 
-    (jsonReq, http.execute(jsonReq, rs))
+    (URLDecoder.decode(jsonReq.toString, "UTF-8"), http.execute(jsonReq, rs))
   }
 
   def encode(mapper: CoordinateMapper, response: Response): Option[Array[Byte]] = {
-    val emptyMap = new java.util.HashMap[String, Nothing]()
     val encoder: VectorTileEncoder = new VectorTileEncoder(4096)
+    val jsonp: ContentP = _ map { t =>
+        t.getBaseType.startsWith("application/") && t.getBaseType.endsWith("json")
+    } getOrElse false
 
-    GeoJson.codec.decode(response.jValue(JsonP).toV2) collect {
+    GeoJson.codec.decode(response.jValue(jsonp).toV2) collect {
       case FeatureCollectionJson(features, _) => {
         val coords = features map { _.geometry.getCoordinate }
         val pixels = coords map { mapper.px(_) }
@@ -112,7 +97,9 @@ class ImageQueryService(http: HttpClient) extends SimpleResource {
         val counts = points map { case (k, v) => (k, v.size) }
 
         counts foreach { case (pt, count) =>
-          encoder.addFeature("main", emptyMap, pt)
+          val attrs = new java.util.HashMap[String, java.lang.Integer]()
+          attrs.put("count", count)
+          encoder.addFeature("main", attrs, pt)
         }
 
         encoder.encode()
@@ -135,35 +122,28 @@ class ImageQueryService(http: HttpClient) extends SimpleResource {
               x: Int,
               typedY: TypedPathComponent[Int]) =
     new SimpleResource {
-      val TypedPathComponent(y, extension) = typedY
+      val TypedPathComponent(y, ext) = typedY
       val mapper = CoordinateMapper(z)
 
-      def handleLayer(req: HttpRequest, extension: String): HttpResponse = {
+      def handleLayer(req: HttpRequest, ext: String): HttpResponse = {
         val quadTile = QuadTile(x, y, z)
         val withinBox = quadTile.withinBox(pointColumn)
-        val reqParams = req.queryParameters.getOrElse {
-          return BadRequest ~>
-            ContentType("application/json") ~>
-            Content("""{"message": "malformed query string"}""")
-        }
 
-        val params = addToParams(reqParams, withinBox, pointColumn)
-        val (jsonReq, resp) = geoJsonQuery(req.resourceScope, identifier, params)
+        req.queryParameters map { reqParams: Map[String, String] =>
+          val params = addToParams(reqParams, withinBox, pointColumn)
+          val (jsonReq, resp) = geoJsonQuery(req.resourceScope, identifier, params)
 
-        resp.resultCode match {
-          case 200 =>
-            Extension(extension).formatResponse(mapper, resp)
-          case _ =>
-            val jsonReqStr = decode(jsonReq.toString, "UTF-8")
-            BadRequest ~> ContentType("application/json") ~>
-              Content(s"""{"message":"request failed", "request": "$jsonReqStr"}""")
-        }
+          resp.resultCode match {
+            case 200 => extensions(ext)(mapper, resp)
+            case _ => failure("underlying request failed", jsonReq)
+          }
+        } getOrElse failure("malformed query string")
       }
 
-      override def get = if (types(extension)) {
-        req => handleLayer(req, extension)
+      override def get = if (types(ext)) {
+        req => handleLayer(req, ext)
       } else {
-        req => BadRequest
+        req => failure("invalid file type")
       }
     }
 }
