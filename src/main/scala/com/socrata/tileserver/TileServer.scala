@@ -1,11 +1,13 @@
 package com.socrata.tileserver
 
-import com.socrata.http.server.SocrataServerJetty
+import com.rojoma.simplearm.v2.{Resource, managed}
+import com.socrata.http.client.HttpClientHttpClient
 import com.socrata.http.server.implicits._
 import com.socrata.http.server.responses._
 import com.socrata.http.server.routing.SimpleRouteContext.{Route, Routes}
 import com.socrata.http.server.routing.TypedPathComponent
-import com.socrata.http.server.{HttpRequest, HttpResponse, HttpService}
+import com.socrata.http.server.{HttpRequest, HttpResponse, HttpService, SocrataServerJetty}
+import java.util.concurrent.Executors
 import javax.servlet.http.HttpServletRequest
 import org.slf4j.LoggerFactory
 import services.{HealthService, ImageQueryService}
@@ -26,29 +28,35 @@ class Router(healthService: HttpService,
           imageQueryService)
   )
 
-  def route(req: HttpRequest): HttpResponse =
-    req.requestPath match {
-      case Some(path) =>
-        routes(path) match {
-          case Some(s) =>
-            s(req)
-          case None =>
-            NotFound ~> ContentType("application/json") ~> Content("""{"error": "not found" }""")
-        }
-      case None =>
-        BadRequest ~> ContentType("application/json") ~> Content("""{"error": "bad request" }""")
-    }
+  val notFound: HttpService = req => {
+    logger.warn(s"path not found: ${req.requestPathStr}")
+    NotFound ~>
+      ContentType("application/json") ~>
+      Content("""{"error": "not found" }""")
+  }
+
+  val badRequest: HttpService = req => {
+    logger.warn(s"bad request")
+    BadRequest ~>
+      ContentType("application/json") ~>
+      Content("""{"error": "bad request" }""")
+  }
+
+  def route(req: HttpRequest): HttpResponse = req.requestPath match {
+    case Some(path) => routes(path).getOrElse(notFound)(req)
+    case None => badRequest(req)
+  }
 }
 
 object TileServer extends App {
-  import java.util.concurrent.Executors
-  import com.socrata.http.client.HttpClientHttpClient
-  import com.rojoma.simplearm.v2._
-  implicit def shutdownTimeout = Resource.executorShutdownNoTimeout
+  implicit val shutdownTimeout = Resource.executorShutdownNoTimeout
+
   for {
     executor <- managed(Executors.newCachedThreadPool())
-    http <- managed(new HttpClientHttpClient(executor, HttpClientHttpClient.defaultOptions.
-                                               withUserAgent("tile server")))
+    http <- managed(new HttpClientHttpClient(executor,
+                                             HttpClientHttpClient.
+                                               defaultOptions.
+                                               withUserAgent("tileserver")))
   } {
     val imageQueryService = ImageQueryService(http)
     val router = new Router(HealthService,
