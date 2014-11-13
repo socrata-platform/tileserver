@@ -14,7 +14,7 @@ import com.vividsolutions.jts.geom.{Coordinate, Geometry, GeometryFactory, Point
 import java.net.URLDecoder
 import javax.activation.MimeType
 import no.ecc.vectortile.{VectorTileDecoder, VectorTileEncoder}
-import util.{CoordinateMapper, Extensions, QuadTile}
+import util.{CoordinateMapper, ExcludedHeaders, Extensions, QuadTile}
 
 case class ImageQueryService(http: HttpClient) extends SimpleResource {
   private val geomFactory = new GeometryFactory
@@ -32,11 +32,21 @@ case class ImageQueryService(http: HttpClient) extends SimpleResource {
 
   val types: Set[String] = Extensions.keySet
 
-  def geoJsonQuery(rs: ResourceScope,
+  def geoJsonQuery(req: HttpRequest,
                    id: String,
                    params: Map[String, String]): (String, Response) = {
+    val rs = req.resourceScope
+    val headerNames = req.headerNames filterNot { s: String =>
+      ExcludedHeaders(s.toLowerCase)
+    }
+
+    val headers = headerNames flatMap { name: String =>
+      req.headers(name) map { (name, _) }
+    } toIterable
+
     val jsonReq = RequestBuilder(GeoJsonHost).
-      p("api", "id", s"$id.geojson").
+      path(Seq("api", "id", s"$id.geojson")).
+      addHeaders(headers).
       query(params).
       get
 
@@ -92,7 +102,7 @@ case class ImageQueryService(http: HttpClient) extends SimpleResource {
 
         req.queryParameters map { reqParams: Map[String, String] =>
           val params = addToParams(reqParams, withinBox, pointColumn)
-          val (jsonReq, resp) = geoJsonQuery(req.resourceScope, identifier, params)
+          val (jsonReq, resp) = geoJsonQuery(req, identifier, params)
 
           resp.resultCode match {
             case 200 => Extensions(ext)(encoder(mapper), resp)

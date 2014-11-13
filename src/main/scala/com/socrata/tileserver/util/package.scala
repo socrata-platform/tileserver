@@ -12,7 +12,15 @@ package object util {
   type Encoder = Response => Option[Array[Byte]]
   type Extension = (Encoder, Response) => HttpResponse
 
-  val invalidJson = InternalServerError ~>
+  val ExcludedHeaders = Set("Accept",
+                            "Accept-Language",
+                            "Cache-Control",
+                            "Connection",
+                            "Host",
+                            "User-Agent",
+                            "Accept-Encoding") map (_.toLowerCase)
+
+  val InvalidJson = InternalServerError ~>
     ContentType("application/json") ~>
     Content("""{"message":"Invalid geo-json returned from underlying service."}""")
 
@@ -23,7 +31,7 @@ package object util {
         Header("Access-Control-Allow-Origin", "*") ~>
         ContentBytes(bytes)
     }
-  } getOrElse invalidJson
+  } getOrElse InvalidJson
 
   val Txt: Extension = (encoder, resp) => encoder(resp) map {
     bytes: Array[Byte] => {
@@ -38,7 +46,7 @@ package object util {
         ContentType("text/plain") ~>
         Content(features.mkString("\n"))
     }
-  } getOrElse invalidJson
+  } getOrElse InvalidJson
 
   val Json: Extension = (unused, resp) => {
     OK ~>
