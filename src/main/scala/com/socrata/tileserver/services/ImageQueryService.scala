@@ -14,13 +14,13 @@ import com.vividsolutions.jts.geom.{Coordinate, Geometry, GeometryFactory, Point
 import java.net.URLDecoder
 import javax.activation.MimeType
 import no.ecc.vectortile.{VectorTileDecoder, VectorTileEncoder}
-import util.{CoordinateMapper, ExcludedHeaders, Extensions, QuadTile}
+import org.slf4j.LoggerFactory
+import scala.util.{Try, Success, Failure}
+import util.{CoordinateMapper, ExcludedHeaders, Extensions, InvalidRequest, QuadTile}
 
 case class ImageQueryService(http: HttpClient) extends SimpleResource {
   private val geomFactory = new GeometryFactory
-
-  // TODO: Make this configurable.
-  val GeoJsonHost: String = "dataspace.demo.socrata.com"
+  private val logger = LoggerFactory.getLogger(getClass)
 
   def failure(message: String, request: String = ""): HttpResponse = {
     val underlying = if (request.isEmpty) "" else s""", "request": "$request""""
@@ -32,7 +32,23 @@ case class ImageQueryService(http: HttpClient) extends SimpleResource {
 
   val types: Set[String] = Extensions.keySet
 
-  def geoJsonQuery(req: HttpRequest,
+  def extractHost(req: HttpRequest): Try[(String, Option[Int])] = {
+    req.header("X-Socrata-Host") match {
+      case Some(h) =>
+        h.split(':') match {
+          case Array(host, port) => Try { (host, Some(port.toInt)) }
+          case Array(host) => Success ( (host, None) )
+          case _ => Failure(InvalidRequest("Invalid X-Socrata-Host header"))
+        }
+      case None => {
+        // TODO: Log.
+        Failure(InvalidRequest("Invalid X-Socrata-Host header"))
+      }
+    }
+  }
+
+  def geoJsonQuery(hostDef: (String, Option[Int]),
+                   req: HttpRequest,
                    id: String,
                    params: Map[String, String]): (String, Response) = {
     val rs = req.resourceScope
@@ -44,13 +60,19 @@ case class ImageQueryService(http: HttpClient) extends SimpleResource {
       req.headers(name) map { (name, _) }
     } toIterable
 
-    val jsonReq = RequestBuilder(GeoJsonHost).
+    val (host, maybePort) = hostDef
+
+    val builder = RequestBuilder(host).
       path(Seq("api", "id", s"$id.geojson")).
       addHeaders(headers).
-      query(params).
-      get
+      query(params)
 
-    (URLDecoder.decode(jsonReq.toString, "UTF-8"), http.execute(jsonReq, rs))
+    val jsonReq = maybePort match {
+      case Some(port) => builder.port(port)
+      case None => builder
+    }
+
+    (URLDecoder.decode(jsonReq.toString, "UTF-8"), http.execute(jsonReq.get, rs))
   }
 
   def encoder(mapper: CoordinateMapper): Response => Option[Array[Byte]] =
@@ -78,13 +100,19 @@ case class ImageQueryService(http: HttpClient) extends SimpleResource {
       }
     }
 
-  def addToParams(params: Map[String, String],
+  def addToParams(maybeParams: Option[Map[String, String]],
                   where: String,
-                  select: String): Map[String, String] = {
-    val whereParam = if (params.contains("$where"))
-      params("$where") + s"and $where" else where
+                  select: String): Try[Map[String, String]] = {
+    maybeParams match {
+      case Some(params) => {
+        val whereParam = if (params.contains("$where"))
+          params("$where") + s"and $where" else where
 
-    params + ("$where" -> whereParam) + ("$select" -> select)
+        Success(params + ("$where" -> whereParam) + ("$select" -> select))
+      }
+      case None =>
+        Failure(InvalidRequest("Malformed query string"))
+    }
   }
 
   def service(identifier: String,
@@ -100,15 +128,27 @@ case class ImageQueryService(http: HttpClient) extends SimpleResource {
         val quadTile = QuadTile(x, y, z)
         val withinBox = quadTile.withinBox(pointColumn)
 
-        req.queryParameters map { reqParams: Map[String, String] =>
-          val params = addToParams(reqParams, withinBox, pointColumn)
-          val (jsonReq, resp) = geoJsonQuery(req, identifier, params)
+        val resp: Try[HttpResponse] = for {
+          hostDef <- extractHost(req)
+          params <- addToParams(req.queryParameters, withinBox, pointColumn)
+        } yield {
+          val (jsonReq, resp) = geoJsonQuery(hostDef, req, identifier, params)
 
           resp.resultCode match {
             case 200 => Extensions(ext)(encoder(mapper), resp)
             case _ => failure("underlying request failed", jsonReq)
           }
-        } getOrElse failure("malformed query string")
+        }
+
+        resp match {
+          case Success(s) => s
+          case Failure(InvalidRequest(message)) =>
+            failure(message)
+          case Failure(e) => {
+            logger.error("Request failed for unknown reason", e)
+            failure(s"Unknown error: ${e.getMessage}")
+          }
+        }
       }
 
       override def get = if (types(ext)) {

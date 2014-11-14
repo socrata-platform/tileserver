@@ -19,7 +19,7 @@ class Router(healthService: HttpService,
                                  Int,
                                  Int,
                                  TypedPathComponent[Int]) => HttpService) {
-  val logger = LoggerFactory.getLogger(getClass)
+  private val logger = LoggerFactory.getLogger(getClass)
 
   val routes = Routes(
     Route("/health", healthService),
