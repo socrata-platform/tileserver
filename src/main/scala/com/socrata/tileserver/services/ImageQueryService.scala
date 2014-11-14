@@ -8,6 +8,7 @@ import com.socrata.http.client.{HttpClient, RequestBuilder, Response, BodylessHt
 import com.socrata.http.server.implicits._
 import com.socrata.http.server.responses._
 import com.socrata.http.server.routing.{SimpleResource, TypedPathComponent}
+import com.socrata.http.server.util.RequestId // TODO: Log/generate request ids.
 import com.socrata.http.server.{HttpRequest, HttpResponse}
 import com.socrata.thirdparty.geojson.{GeoJson, FeatureCollectionJson, FeatureJson}
 import com.vividsolutions.jts.geom.{Coordinate, Geometry, GeometryFactory, Point}
@@ -22,12 +23,20 @@ case class ImageQueryService(http: HttpClient) extends SimpleResource {
   private val geomFactory = new GeometryFactory
   private val logger = LoggerFactory.getLogger(getClass)
 
-  def failure(message: String, request: String = ""): HttpResponse = {
-    val underlying = if (request.isEmpty) "" else s""", "request": "$request""""
+  def badRequest(message: String, cause: Throwable): HttpResponse = {
+    logger.warn(message, cause)
 
     BadRequest ~>
-      ContentType("application/json") ~>
-      Content(s"""{"message": "$message"$underlying}""")
+        ContentType("application/json") ~>
+        Content(s"""{"message": "$message", "cause": "${cause.getMessage}"}""")
+  }
+
+  def badRequest(message: String, info: String): HttpResponse = {
+    logger.warn(s"$message: $info")
+
+    BadRequest ~>
+        ContentType("application/json") ~>
+        Content(s"""{"message": "$message", "info": "$info"}""")
   }
 
   val types: Set[String] = Extensions.keySet
@@ -38,12 +47,10 @@ case class ImageQueryService(http: HttpClient) extends SimpleResource {
         h.split(':') match {
           case Array(host, port) => Try { (host, Some(port.toInt)) }
           case Array(host) => Success ( (host, None) )
-          case _ => Failure(InvalidRequest("Invalid X-Socrata-Host header"))
+          case _ => Failure(InvalidRequest("Invalid X-Socrata-Host header", h))
         }
-      case None => {
-        // TODO: Log.
-        Failure(InvalidRequest("Invalid X-Socrata-Host header"))
-      }
+      case None => Failure(InvalidRequest("Invalid X-Socrata-Host header",
+                                          "Missing header"))
     }
   }
 
@@ -68,11 +75,11 @@ case class ImageQueryService(http: HttpClient) extends SimpleResource {
       query(params)
 
     val jsonReq = maybePort match {
-      case Some(port) => builder.port(port)
-      case None => builder
+      case Some(port) => builder.port(port).get
+      case None => builder.get
     }
 
-    (URLDecoder.decode(jsonReq.toString, "UTF-8"), http.execute(jsonReq.get, rs))
+    (URLDecoder.decode(jsonReq.toString, "UTF-8"), http.execute(jsonReq, rs))
   }
 
   def encoder(mapper: CoordinateMapper): Response => Option[Array[Byte]] =
@@ -100,9 +107,10 @@ case class ImageQueryService(http: HttpClient) extends SimpleResource {
       }
     }
 
-  def addToParams(maybeParams: Option[Map[String, String]],
+  def addToParams(req: HttpRequest,
                   where: String,
                   select: String): Try[Map[String, String]] = {
+    val maybeParams = req.queryParameters
     maybeParams match {
       case Some(params) => {
         val whereParam = if (params.contains("$where"))
@@ -111,7 +119,8 @@ case class ImageQueryService(http: HttpClient) extends SimpleResource {
         Success(params + ("$where" -> whereParam) + ("$select" -> select))
       }
       case None =>
-        Failure(InvalidRequest("Malformed query string"))
+          Failure(InvalidRequest("Malformed query string",
+                                 req.queryStr.getOrElse("No query string")))
     }
   }
 
@@ -130,23 +139,25 @@ case class ImageQueryService(http: HttpClient) extends SimpleResource {
 
         val resp: Try[HttpResponse] = for {
           hostDef <- extractHost(req)
-          params <- addToParams(req.queryParameters, withinBox, pointColumn)
+          params <- addToParams(req, withinBox, pointColumn)
         } yield {
           val (jsonReq, resp) = geoJsonQuery(hostDef, req, identifier, params)
 
           resp.resultCode match {
-            case 200 => Extensions(ext)(encoder(mapper), resp)
-            case _ => failure("underlying request failed", jsonReq)
+            case 200 => {
+              logger.info(s"Success! ${jsonReq}")
+              Extensions(ext)(encoder(mapper), resp)
+            }
+            case _ => badRequest("Underlying request failed", jsonReq)
           }
         }
 
         resp match {
           case Success(s) => s
-          case Failure(InvalidRequest(message)) =>
-            failure(message)
+          case Failure(InvalidRequest(message, info)) =>
+            badRequest(message, info)
           case Failure(e) => {
-            logger.error("Request failed for unknown reason", e)
-            failure(s"Unknown error: ${e.getMessage}")
+            badRequest("Unknown error", e)
           }
         }
       }
@@ -154,7 +165,7 @@ case class ImageQueryService(http: HttpClient) extends SimpleResource {
       override def get = if (types(ext)) {
         req => handleLayer(req, ext)
       } else {
-        req => failure("invalid file type")
+        req => badRequest("Invalid file type", ext)
       }
     }
 }

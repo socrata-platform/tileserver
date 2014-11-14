@@ -2,4 +2,5 @@ package com.socrata.tileserver.util
 
 import scala.util.control.NoStackTrace
 
-case class InvalidRequest(message: String) extends NoStackTrace
+// For use with Try
+case class InvalidRequest(message: String, info: String) extends NoStackTrace
