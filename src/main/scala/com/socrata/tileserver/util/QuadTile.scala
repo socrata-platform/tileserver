@@ -4,8 +4,7 @@ import CoordinateMapper.Size
 import scala.math.{Pi, atan, exp}
 
 case class QuadTile(rawX: Int, rawY: Int, zoom: Int) {
-  private val mapper = CoordinateMapper(zoom)
-
+  val mapper = CoordinateMapper(zoom)
   val (x: Int, y: Int) = mapper.tmsCoordinates(rawX, rawY)
 
   val north: Double = mapper.lat(y * Size)

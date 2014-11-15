@@ -4,16 +4,15 @@ package services
 import com.rojoma.json.v3.conversions.v2._
 import com.rojoma.simplearm.v2.{Managed, ResourceScope}
 import com.socrata.http.client.Response.ContentP
-import com.socrata.http.client.{HttpClient, RequestBuilder, Response, BodylessHttpRequest}
+import com.socrata.http.client.{HttpClient, RequestBuilder, Response}
 import com.socrata.http.server.implicits._
 import com.socrata.http.server.responses._
 import com.socrata.http.server.routing.{SimpleResource, TypedPathComponent}
 import com.socrata.http.server.util.RequestId // TODO: Log/generate request ids.
 import com.socrata.http.server.{HttpRequest, HttpResponse}
-import com.socrata.thirdparty.geojson.{GeoJson, FeatureCollectionJson, FeatureJson}
-import com.vividsolutions.jts.geom.{Coordinate, Geometry, GeometryFactory, Point}
+import com.socrata.thirdparty.geojson.{GeoJson, FeatureCollectionJson}
+import com.vividsolutions.jts.geom.GeometryFactory
 import java.net.URLDecoder
-import javax.activation.MimeType
 import no.ecc.vectortile.{VectorTileDecoder, VectorTileEncoder}
 import org.slf4j.LoggerFactory
 import scala.util.{Try, Success, Failure}
@@ -27,16 +26,16 @@ case class ImageQueryService(http: HttpClient) extends SimpleResource {
     logger.warn(message, cause)
 
     BadRequest ~>
-        ContentType("application/json") ~>
-        Content(s"""{"message": "$message", "cause": "${cause.getMessage}"}""")
+      ContentType("application/json") ~>
+      Content(s"""{"message": "$message", "cause": "${cause.getMessage}"}""")
   }
 
   def badRequest(message: String, info: String): HttpResponse = {
     logger.warn(s"$message: $info")
 
     BadRequest ~>
-        ContentType("application/json") ~>
-        Content(s"""{"message": "$message", "info": "$info"}""")
+      ContentType("application/json") ~>
+      Content(s"""{"message": "$message", "info": "$info"}""")
   }
 
   val types: Set[String] = Extensions.keySet
@@ -59,6 +58,8 @@ case class ImageQueryService(http: HttpClient) extends SimpleResource {
                    id: String,
                    params: Map[String, String]): (String, Response) = {
     val rs = req.resourceScope
+    val (host, maybePort) = hostDef
+
     val headerNames = req.headerNames filterNot { s: String =>
       ExcludedHeaders(s.toLowerCase)
     }
@@ -66,8 +67,6 @@ case class ImageQueryService(http: HttpClient) extends SimpleResource {
     val headers = headerNames flatMap { name: String =>
       req.headers(name) map { (name, _) }
     } toIterable
-
-    val (host, maybePort) = hostDef
 
     val builder = RequestBuilder(host).
       path(Seq("api", "id", s"$id.geojson")).
@@ -82,30 +81,29 @@ case class ImageQueryService(http: HttpClient) extends SimpleResource {
     (URLDecoder.decode(jsonReq.toString, "UTF-8"), http.execute(jsonReq, rs))
   }
 
-  def encoder(mapper: CoordinateMapper): Response => Option[Array[Byte]] =
-    response => {
-      val encoder: VectorTileEncoder = new VectorTileEncoder(4096)
-      val jsonp: ContentP = _ map { t =>
-        t.getBaseType.startsWith("application/") && t.getBaseType.endsWith("json")
-      } getOrElse false
+  def encoder(mapper: CoordinateMapper): Response => Option[Array[Byte]] = resp => {
+    val encoder: VectorTileEncoder = new VectorTileEncoder(4096)
+    val jsonp: ContentP = _ map { t =>
+      t.getBaseType.startsWith("application/") && t.getBaseType.endsWith("json")
+    } getOrElse false
 
-      GeoJson.codec.decode(response.jValue(jsonp).toV2) collect {
-        case FeatureCollectionJson(features, _) => {
-          val coords = features map { _.geometry.getCoordinate }
-          val pixels = coords map { mapper.px(_) }
-          val points = pixels groupBy { geomFactory.createPoint(_) }
-          val counts = points map { case (k, v) => (k, v.size) }
+    GeoJson.codec.decode(resp.jValue(jsonp).toV2) collect {
+      case FeatureCollectionJson(features, _) => {
+        val coords = features map { _.geometry.getCoordinate }
+        val pixels = coords map { mapper.px(_) }
+        val points = pixels groupBy { geomFactory.createPoint(_) }
+        val counts = points map { case (k, v) => (k, v.size) }
 
-          counts foreach { case (pt, count) =>
-            val attrs = new java.util.HashMap[String, java.lang.Integer]()
-            attrs.put("count", count)
-            encoder.addFeature("main", attrs, pt)
-          }
-
-          encoder.encode()
+        counts foreach { case (pt, count) =>
+          val attrs = new java.util.HashMap[String, java.lang.Integer]()
+          attrs.put("count", count)
+          encoder.addFeature("main", attrs, pt)
         }
+
+        encoder.encode()
       }
     }
+  }
 
   def addToParams(req: HttpRequest,
                   where: String,
@@ -119,8 +117,41 @@ case class ImageQueryService(http: HttpClient) extends SimpleResource {
         Success(params + ("$where" -> whereParam) + ("$select" -> select))
       }
       case None =>
-          Failure(InvalidRequest("Malformed query string",
-                                 req.queryStr.getOrElse("No query string")))
+        Failure(InvalidRequest("Malformed query string",
+                               req.queryStr.getOrElse("No query string")))
+    }
+  }
+
+  def handleLayer(req: HttpRequest,
+                  identifier: String,
+                  pointColumn: String,
+                  tile: QuadTile,
+                  ext: String): HttpResponse = {
+    val mapper = tile.mapper
+    val withinBox = tile.withinBox(pointColumn)
+
+    val resp: Try[HttpResponse] = for {
+      hostDef <- extractHost(req)
+      params <- addToParams(req, withinBox, pointColumn)
+    } yield {
+      val (jsonReq, resp) = geoJsonQuery(hostDef, req, identifier, params)
+
+      resp.resultCode match {
+        case 200 => {
+          logger.info(s"Success! ${jsonReq}")
+          Extensions(ext)(encoder(mapper), resp)
+        }
+        case _ => badRequest("Underlying request failed", jsonReq)
+      }
+    }
+
+    resp match {
+      case Success(s) => s
+      case Failure(InvalidRequest(message, info)) =>
+        badRequest(message, info)
+      case Failure(e) => {
+        badRequest("Unknown error", e)
+      }
     }
   }
 
@@ -131,41 +162,10 @@ case class ImageQueryService(http: HttpClient) extends SimpleResource {
               typedY: TypedPathComponent[Int]) =
     new SimpleResource {
       val TypedPathComponent(y, ext) = typedY
-      val mapper = CoordinateMapper(z)
 
-      def handleLayer(req: HttpRequest, ext: String): HttpResponse = {
-        val quadTile = QuadTile(x, y, z)
-        val withinBox = quadTile.withinBox(pointColumn)
-
-        val resp: Try[HttpResponse] = for {
-          hostDef <- extractHost(req)
-          params <- addToParams(req, withinBox, pointColumn)
-        } yield {
-          val (jsonReq, resp) = geoJsonQuery(hostDef, req, identifier, params)
-
-          resp.resultCode match {
-            case 200 => {
-              logger.info(s"Success! ${jsonReq}")
-              Extensions(ext)(encoder(mapper), resp)
-            }
-            case _ => badRequest("Underlying request failed", jsonReq)
-          }
-        }
-
-        resp match {
-          case Success(s) => s
-          case Failure(InvalidRequest(message, info)) =>
-            badRequest(message, info)
-          case Failure(e) => {
-            badRequest("Unknown error", e)
-          }
-        }
-      }
-
-      override def get = if (types(ext)) {
-        req => handleLayer(req, ext)
-      } else {
+      override def get = if (types(ext))
+        req => handleLayer(req, identifier, pointColumn, QuadTile(x, y, z), ext)
+      else
         req => badRequest("Invalid file type", ext)
-      }
     }
 }
