@@ -3,16 +3,8 @@
 DEV_ROOT="$HOME/Developer/Socrata/"
 ENVFILE="/tmp/tileserver-env"     # This is the boot2docker vm path.
 
-if ! [ "$(nc -z -G 1 localhost 2181)" ]; then
-    echo "Starting ZooKeeper (using sudo)..."
-    echo
-    sudo zkServer start
-    sleep 0.1
-    echo
-fi
-
-ping -c 2 jenkins.sea1.socrata.com >/dev/null 2>/dev/null \
-    || { echo "VPN connection required to download artifact(s)." ; exit ; }
+# ping -c 2 jenkins.sea1.socrata.com >/dev/null 2>/dev/null \
+#     || { echo "VPN connection required to download artifact(s)." ; exit ; }
 
 boot2docker init
 
