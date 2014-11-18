@@ -107,7 +107,7 @@ case class ImageQueryService(http: HttpClient) extends SimpleResource {
 
   def addToParams(req: HttpRequest,
                   where: String,
-                  select: String): Try[Map[String, String]] = {
+                  select: String): Map[String, String] = {
     val params = req.queryParameters
     val whereParam = if (params.contains("$where"))
       params("$where") + s"and $where" else where
@@ -115,7 +115,7 @@ case class ImageQueryService(http: HttpClient) extends SimpleResource {
     val selectParam = if (params.contains("$select"))
       params("$select") + s", $select" else select
 
-    Success(params + ("$where" -> whereParam) + ("$select" -> selectParam))
+    params + ("$where" -> whereParam) + ("$select" -> selectParam)
   }
 
   def handleLayer(req: HttpRequest,
@@ -126,10 +126,8 @@ case class ImageQueryService(http: HttpClient) extends SimpleResource {
     val mapper = tile.mapper
     val withinBox = tile.withinBox(pointColumn)
 
-    val resp: Try[HttpResponse] = for {
-      hostDef <- extractHost(req)
-      params <- addToParams(req, withinBox, pointColumn)
-    } yield {
+    val resp = extractHost(req) map { hostDef =>
+      val params = addToParams(req, withinBox, pointColumn)
       val (jsonReq, resp) = geoJsonQuery(hostDef, req, identifier, params)
 
       resp.resultCode match {
