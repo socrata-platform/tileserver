@@ -19,23 +19,23 @@ import scala.util.{Try, Success, Failure}
 import util.{CoordinateMapper, ExcludedHeaders, Extensions, InvalidRequest, QuadTile}
 
 case class ImageQueryService(http: HttpClient) extends SimpleResource {
-  private val geomFactory = new GeometryFactory
+  private val geomFactory = new GeometryFactory()
   private val logger = LoggerFactory.getLogger(getClass)
 
   def badRequest(message: String, cause: Throwable): HttpResponse = {
     logger.warn(message, cause)
 
     BadRequest ~>
-      ContentType("application/json") ~>
-      Content(s"""{"message": "$message", "cause": "${cause.getMessage}"}""")
+      Content("application/json",
+              s"""{"message": "$message", "cause": "${cause.getMessage}"}""")
   }
 
   def badRequest(message: String, info: String): HttpResponse = {
     logger.warn(s"$message: $info")
 
     BadRequest ~>
-      ContentType("application/json") ~>
-      Content(s"""{"message": "$message", "info": "$info"}""")
+      Content("application/json",
+              s"""{"message": "$message", "info": "$info"}""")
   }
 
   val types: Set[String] = Extensions.keySet
@@ -108,18 +108,14 @@ case class ImageQueryService(http: HttpClient) extends SimpleResource {
   def addToParams(req: HttpRequest,
                   where: String,
                   select: String): Try[Map[String, String]] = {
-    val maybeParams = req.queryParameters
-    maybeParams match {
-      case Some(params) => {
-        val whereParam = if (params.contains("$where"))
-          params("$where") + s"and $where" else where
+    val params = req.queryParameters
+    val whereParam = if (params.contains("$where"))
+      params("$where") + s"and $where" else where
 
-        Success(params + ("$where" -> whereParam) + ("$select" -> select))
-      }
-      case None =>
-        Failure(InvalidRequest("Malformed query string",
-                               req.queryStr.getOrElse("No query string")))
-    }
+    val selectParam = if (params.contains("$select"))
+      params("$select") + s", $select" else select
+
+    Success(params + ("$where" -> whereParam) + ("$select" -> selectParam))
   }
 
   def handleLayer(req: HttpRequest,

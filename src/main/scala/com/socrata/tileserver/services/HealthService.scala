@@ -11,8 +11,6 @@ object HealthService extends SimpleResource {
   override def get = { req =>
     logger.info("Alive!")
 
-    OK ~>
-      ContentType("application/json") ~>
-      Content("""{"health":"alive"}""")
+    OK ~> Content("application/json", """{"health":"alive"}""")
   }
 }

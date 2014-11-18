@@ -21,8 +21,7 @@ package object util {
                             "Accept-Encoding") map (_.toLowerCase)
 
   val InvalidJson = InternalServerError ~>
-    ContentType("application/json") ~>
-    Content("""{"message":"Invalid geo-json returned from underlying service."}""")
+    Content("application/json", """{"message":"Invalid geo-json returned from underlying service."}""")
 
   val Pbf: Extension = (encoder, resp) => encoder(resp) map {
     bytes: Array[Byte] => {
@@ -42,9 +41,7 @@ package object util {
         s"geometry: ${f.getGeometry.toString}  \tattributes: ${f.getAttributes}"
       }
 
-      OK ~>
-        ContentType("text/plain") ~>
-        Content(features.mkString("\n"))
+      OK ~> Content("text/plain", features.mkString("\n"))
     }
   } getOrElse InvalidJson
 

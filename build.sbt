@@ -13,8 +13,8 @@ resolvers ++= Seq(
 
 libraryDependencies ++= Seq(
   "com.rojoma"              %% "rojoma-json-v3"           % "3.2.0",
-  "com.socrata"             %% "socrata-http-client"      % "3.0.0-SNAPSHOT",
-  "com.socrata"             %% "socrata-http-jetty"       % "3.0.0-SNAPSHOT",
+  "com.socrata"             %% "socrata-http-client"      % "3.0.0",
+  "com.socrata"             %% "socrata-http-jetty"       % "3.0.0",
   "com.socrata"             %% "socrata-thirdparty-utils" % "2.5.6",
   "net.databinder.dispatch" %% "dispatch-core"            % "0.11.2",
   "no.ecc.vectortile"        % "java-vector-tile"         % "1.0.1",

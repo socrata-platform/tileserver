@@ -31,21 +31,17 @@ class Router(healthService: HttpService,
   val notFound: HttpService = req => {
     logger.warn(s"path not found: ${req.requestPathStr}")
     NotFound ~>
-      ContentType("application/json") ~>
-      Content("""{"error": "not found" }""")
+      Content("application/json", """{"error": "not found" }""")
   }
 
   val badRequest: HttpService = req => {
     logger.warn(s"bad request")
     BadRequest ~>
-      ContentType("application/json") ~>
-      Content("""{"error": "bad request" }""")
+      Content("application/json", """{"error": "bad request" }""")
   }
 
-  def route(req: HttpRequest): HttpResponse = req.requestPath match {
-    case Some(path) => routes(path).getOrElse(notFound)(req)
-    case None => badRequest(req)
-  }
+  def route(req: HttpRequest): HttpResponse =
+    routes(req.requestPath).getOrElse(notFound)(req)
 }
 
 object TileServer extends App {
