@@ -3,8 +3,8 @@
 DEV_ROOT="$HOME/Developer/Socrata/"
 ENVFILE="/tmp/tileserver-env"     # This is the boot2docker vm path.
 
-# ping -c 2 jenkins.sea1.socrata.com >/dev/null 2>/dev/null \
-#     || { echo "VPN connection required to download artifact(s)." ; exit ; }
+ping -c 2 jenkins.sea1.socrata.com >/dev/null 2>/dev/null \
+    || { echo "VPN connection required to download artifact(s)." ; exit ; }
 
 boot2docker init
 
@@ -24,9 +24,10 @@ $(boot2docker up 2>&1 | tail -n 4)
 ADDRS=$(ifconfig | grep 'inet ' | awk '{print $2}' | grep -v 127.0.0.1)
 
 ENSEMBLE=$(
-echo "$ADDRS" | while read addr; do
-    echo "$addr:2181"
-done)
+    echo "$ADDRS" | while read addr; do
+        echo "$addr:2181"
+    done
+)
 
 ENSEMBLE=$(echo $ENSEMBLE | sed 's/ /, /g')
 
