@@ -23,10 +23,10 @@ libraryDependencies ++= Seq(
   "com.rojoma"              %% "simple-arm-v2"            % "2.0.0"
 )
 
-// libraryDependencies ++= Seq(
-//   "org.scalacheck"          %% "scalacheck"         % "1.10.0" % "test",
-//   "org.scalatest"           %% "scalatest"          % "2.2.0"  % "test"
-// )
+libraryDependencies ++= Seq(
+  "org.scalacheck"          %% "scalacheck"         % "1.11.6" % "test",
+  "org.scalatest"           %% "scalatest"          % "2.2.1"  % "test"
+)
 
 testOptions in Test += Tests.Argument(TestFrameworks.ScalaTest, "-oD")
 
