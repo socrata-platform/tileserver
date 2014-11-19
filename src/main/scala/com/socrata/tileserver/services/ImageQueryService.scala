@@ -91,14 +91,23 @@ case class ImageQueryService(http: HttpClient) extends SimpleResource {
 
     GeoJson.codec.decode(resp.jValue(jsonp).toV2) collect {
       case FeatureCollectionJson(features, _) => {
-        val coords = features map { _.geometry.getCoordinate }
-        val pixels = coords map { mapper.px(_) }
-        val points = pixels groupBy { geomFactory.createPoint(_) }
-        val counts = points map { case (k, v) => (k, v.size) }
+        val coords = features map { f =>
+          (f.geometry.getCoordinate, f.properties)
+        }
 
-        counts foreach { case (pt, count) =>
+        val pixels = coords map { case (coord, props) =>
+          (mapper.px(coord), props)
+        }
+
+        val points = pixels groupBy { case (px, props) =>
+          geomFactory.createPoint(px)
+        }
+
+        val rollups = points map { case (k, v) => (k, v.size) }
+
+        rollups foreach { case (pt, props) =>
           val attrs = new java.util.HashMap[String, java.lang.Integer]()
-          attrs.put("count", count)
+          attrs.put("count", props)
           encoder.addFeature("main", attrs, pt)
         }
 
