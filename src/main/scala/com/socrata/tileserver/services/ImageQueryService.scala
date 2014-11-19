@@ -26,6 +26,7 @@ case class ImageQueryService(http: HttpClient) extends SimpleResource {
     logger.warn(message, cause)
 
     BadRequest ~>
+      Header("Access-Control-Allow-Origin", "*") ~>
       Content("application/json",
               s"""{"message": "$message", "cause": "${cause.getMessage}"}""")
   }
@@ -34,6 +35,7 @@ case class ImageQueryService(http: HttpClient) extends SimpleResource {
     logger.warn(s"$message: $info")
 
     BadRequest ~>
+      Header("Access-Control-Allow-Origin", "*") ~>
       Content("application/json",
               s"""{"message": "$message", "info": "$info"}""")
   }

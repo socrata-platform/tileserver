@@ -41,7 +41,9 @@ package object util {
         s"geometry: ${f.getGeometry.toString}  \tattributes: ${f.getAttributes}"
       }
 
-      OK ~> Content("text/plain", features.mkString("\n"))
+      OK ~>
+        Header("Access-Control-Allow-Origin", "*") ~>
+        Content("text/plain", features.mkString("\n"))
     }
   } getOrElse InvalidJson
 
