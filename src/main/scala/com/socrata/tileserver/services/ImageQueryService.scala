@@ -1,7 +1,10 @@
 package com.socrata.tileserver
 package services
 
-import com.rojoma.json.v3.conversions.v2._
+import com.rojoma.json.v3.ast.JValue
+import com.rojoma.json.v3.codec.JsonDecode.fromJValue
+import com.rojoma.json.v3.codec.JsonEncode.toJValue
+import com.rojoma.json.v3.conversions._
 import com.rojoma.simplearm.v2.{Managed, ResourceScope}
 import com.socrata.http.client.Response.ContentP
 import com.socrata.http.client.{HttpClient, RequestBuilder, Response}
@@ -100,14 +103,21 @@ case class ImageQueryService(http: HttpClient) extends SimpleResource {
         }
 
         val points = pixels groupBy { case (px, props) =>
-          geomFactory.createPoint(px)
+          (geomFactory.createPoint(px), props)
         }
 
-        val rollups = points map { case (k, v) => (k, v.size) }
+        val rollups = points map {
+          case (k, v) => (k, v.size)
+        }
 
-        rollups foreach { case (pt, props) =>
-          val attrs = new java.util.HashMap[String, java.lang.Integer]()
-          attrs.put("count", props)
+        rollups foreach { case ((pt, jprops), count) =>
+          val props = jprops map { case (k, v) =>
+            (k, fromJValue[String](v.toV3))
+          }
+
+          val attrs = new java.util.HashMap[String, JValue]
+          attrs.put("count", toJValue(count))
+          attrs.put("properties", toJValue(props))
           encoder.addFeature("main", attrs, pt)
         }
 
