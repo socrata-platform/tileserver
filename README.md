@@ -1,25 +1,18 @@
 # TileServer #
-This service talks to SODA Fountain and tilees the geojson it returns.
+This service talks to SODA Fountain and tiles the geojson it returns.
 
 Right now it only does coordinate translation and bounding box.
 
-This depends on socrata-http v3.0.0 which hasn't been released yet, to
-compile it check out the "3.0.0" branch of socrata-http and do a
-```sbt publishLocal```.
+This depends on socrata-http v3.0.0 which is now released., to
+compile it check out the master branch of socrata-http and do a sbt publish local.
 
 ## Setup ##
-Clone socrata-http
+Clone and install socrata-http
 
 ```
 cd ~/Developer/Socrata
 git clone git@github.com:socrata/socrata-http.git
-```
-
-Install socrata-http 3.0.0
-
-```
-cd ~/Developer/Socrata/socrata-http
-git checkout -b 3.0.0 origin/3.0.0
+cd socrata-http
 sbt publishLocal
 ```
 
