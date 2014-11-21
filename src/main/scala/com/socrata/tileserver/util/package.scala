@@ -34,7 +34,7 @@ package object util {
 
   val B64Pbf: Extension = (encoder, resp) => encoder(resp) map { bytes: Array[Byte] =>
     DefaultResponse ~>
-      Content("text/plain", Base64.encodeBase64URLSafeString(bytes))
+      Content("text/plain", Base64.encodeBase64String(bytes))
   } getOrElse InvalidJson
 
   val Txt: Extension = (encoder, resp) => encoder(resp) map {
