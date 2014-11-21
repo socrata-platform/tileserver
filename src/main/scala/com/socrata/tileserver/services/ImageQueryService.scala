@@ -11,7 +11,7 @@ import com.socrata.http.client.{HttpClient, RequestBuilder, Response}
 import com.socrata.http.server.implicits._
 import com.socrata.http.server.responses._
 import com.socrata.http.server.routing.{SimpleResource, TypedPathComponent}
-import com.socrata.http.server.util.RequestId // TODO: Log/generate request ids.
+import com.socrata.http.server.util.RequestId.{RequestId, ReqIdHeader, getFromRequest}
 import com.socrata.http.server.{HttpRequest, HttpResponse}
 import com.socrata.thirdparty.geojson.{GeoJson, FeatureCollectionJson}
 import com.vividsolutions.jts.geom.GeometryFactory
@@ -45,6 +45,9 @@ case class ImageQueryService(http: HttpClient) extends SimpleResource {
 
   val types: Set[String] = Extensions.keySet
 
+  def extractRequestId(req: HttpRequest): RequestId =
+    getFromRequest(req.servletRequest)
+
   def extractHost(req: HttpRequest): Try[(String, Option[Int])] = {
     req.header("X-Socrata-Host") match {
       case Some(h) =>
@@ -59,6 +62,7 @@ case class ImageQueryService(http: HttpClient) extends SimpleResource {
   }
 
   def geoJsonQuery(hostDef: (String, Option[Int]),
+                   requestId: RequestId,
                    req: HttpRequest,
                    id: String,
                    params: Map[String, String]): (String, Response) = {
@@ -69,13 +73,15 @@ case class ImageQueryService(http: HttpClient) extends SimpleResource {
       ExcludedHeaders(s.toLowerCase)
     }
 
-    val headers = headerNames flatMap { name: String =>
-      req.headers(name) map { (name, _) }
-    } toIterable
+    val headers =
+      headerNames flatMap { name: String =>
+        req.headers(name) map { (name, _) }
+      } toIterable
 
     val builder = RequestBuilder(host).
       path(Seq("api", "id", s"$id.geojson")).
       addHeaders(headers).
+      addHeader(ReqIdHeader -> requestId).
       query(params)
 
     val jsonReq = maybePort match {
@@ -126,9 +132,9 @@ case class ImageQueryService(http: HttpClient) extends SimpleResource {
     }
   }
 
-  def addToParams(req: HttpRequest,
-                  where: String,
-                  select: String): Map[String, String] = {
+  def augmentParams(req: HttpRequest,
+                    where: String,
+                    select: String): Map[String, String] = {
     val params = req.queryParameters
     val whereParam = if (params.contains("$where"))
       params("$where") + s"and $where" else where
@@ -148,9 +154,15 @@ case class ImageQueryService(http: HttpClient) extends SimpleResource {
     val withinBox = tile.withinBox(pointColumn)
 
     val resp = extractHost(req) map { hostDef =>
-      val params = addToParams(req, withinBox, pointColumn)
-      val (jsonReq, resp) = geoJsonQuery(hostDef, req, identifier, params)
+      val params = augmentParams(req, withinBox, pointColumn)
+      val requestId = extractRequestId(req)
+      logger.info(s"$ReqIdHeader: $requestId")
 
+      val (jsonReq, resp) = geoJsonQuery(hostDef,
+                                         requestId,
+                                         req,
+                                         identifier,
+                                         params)
       resp.resultCode match {
         case 200 => {
           logger.info(s"Success! ${jsonReq}")
