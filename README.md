@@ -17,8 +17,9 @@ For example:
 http://localhost:2048/tiles/evgh-t69e/location/14/4207/6101.json
 ```
 
-The following extensions are supports:
-.pbf:  proto-buffer / binary vector tile.
-.bpbf: base 64 encoded proto-buffer.
-.txt:  text representation of the proto-buffer.
-.json: the raw json returned from soda-fountain.
+The following extensions are supported:
+
+* .pbf:  proto-buffer / binary vector tile.
+* .bpbf: base 64 encoded proto-buffer.
+* .txt:  text representation of the proto-buffer.
+* .json: the raw json returned from soda-fountain.
