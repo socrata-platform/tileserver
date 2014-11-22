@@ -45,6 +45,7 @@ class Router(healthService: HttpService,
 }
 
 object TileServer extends App {
+  private val ListenPort: Int = 2048
   implicit val shutdownTimeout = Resource.executorShutdownNoTimeout
 
   for {
@@ -62,7 +63,7 @@ object TileServer extends App {
 
     val server = new SocrataServerJetty(
       handler,
-      SocrataServerJetty.defaultOptions.withPort(2048))
+      SocrataServerJetty.defaultOptions.withPort(ListenPort))
 
     server.run()
   }

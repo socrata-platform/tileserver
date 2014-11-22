@@ -12,7 +12,7 @@ import com.socrata.http.server.implicits._
 import com.socrata.http.server.responses._
 import com.socrata.http.server.routing.{SimpleResource, TypedPathComponent}
 import com.socrata.http.server.util.RequestId.{RequestId, ReqIdHeader, getFromRequest}
-import com.socrata.http.server.{HttpRequest, HttpResponse}
+import com.socrata.http.server.{HttpRequest, HttpResponse, HttpService}
 import com.socrata.thirdparty.geojson.{GeoJson, FeatureCollectionJson}
 import com.vividsolutions.jts.geom.GeometryFactory
 import java.net.URLDecoder
@@ -93,7 +93,7 @@ case class ImageQueryService(http: HttpClient) extends SimpleResource {
   }
 
   def encoder(mapper: CoordinateMapper): Response => Option[Array[Byte]] = resp => {
-    val encoder: VectorTileEncoder = new VectorTileEncoder(4096)
+    val encoder: VectorTileEncoder = new VectorTileEncoder(ImageQueryService.TileExtent)
     val jsonp: ContentP = _ map { t =>
       t.getBaseType.startsWith("application/") && t.getBaseType.endsWith("json")
     } getOrElse false
@@ -136,11 +136,10 @@ case class ImageQueryService(http: HttpClient) extends SimpleResource {
                     where: String,
                     select: String): Map[String, String] = {
     val params = req.queryParameters
-    val whereParam = if (params.contains("$where"))
-      params("$where") + s"and $where" else where
-
-    val selectParam = if (params.contains("$select"))
-      params("$select") + s", $select" else select
+    val whereParam =
+      if (params.contains("$where")) params("$where") + s"and $where" else where
+    val selectParam =
+      if (params.contains("$select")) params("$select") + s", $select" else select
 
     params + ("$where" -> whereParam) + ("$select" -> selectParam)
   }
@@ -164,7 +163,7 @@ case class ImageQueryService(http: HttpClient) extends SimpleResource {
                                          identifier,
                                          params)
       resp.resultCode match {
-        case 200 => {
+        case ImageQueryService.HttpSuccess => {
           logger.info(s"Success! ${jsonReq}")
           Extensions(ext)(encoder(mapper), resp)
         }
@@ -186,13 +185,19 @@ case class ImageQueryService(http: HttpClient) extends SimpleResource {
               pointColumn: String,
               z: Int,
               x: Int,
-              typedY: TypedPathComponent[Int]) =
+              typedY: TypedPathComponent[Int]): SimpleResource =
     new SimpleResource {
       val TypedPathComponent(y, ext) = typedY
 
-      override def get = if (types(ext))
+      override def get: HttpService = if (types(ext)) {
         req => handleLayer(req, identifier, pointColumn, QuadTile(x, y, z), ext)
-      else
+      } else {
         req => badRequest("Invalid file type", ext)
+      }
     }
+}
+
+object ImageQueryService {
+  private val TileExtent: Int = 4096
+  private val HttpSuccess: Int = 200
 }
