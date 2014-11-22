@@ -1,27 +1,6 @@
 # TileServer #
-This service talks to SODA Fountain and tilees the geojson it returns.
-
-Right now it only does coordinate translation and bounding box.
-
-This depends on socrata-http v3.0.0 which hasn't been released yet, to
-compile it check out the "3.0.0" branch of socrata-http and do a
-```sbt publishLocal```.
-
-## Setup ##
-Clone socrata-http
-
-```
-cd ~/Developer/Socrata
-git clone git@github.com:socrata/socrata-http.git
-```
-
-Install socrata-http 3.0.0
-
-```
-cd ~/Developer/Socrata/socrata-http
-git checkout -b 3.0.0 origin/3.0.0
-sbt publishLocal
-```
+This service talks to SODA Fountain and converts the geojson it
+returns to vector tiles.
 
 ## Usage ##
 Start the server with ```sbt run```.
@@ -29,12 +8,18 @@ Start the server with ```sbt run```.
 Hit the server with:
 
 ```
-localhost:2048/tiles/{4x4}/{zoom}/{x}/{y}.json
+localhost:2048/tiles/{4x4}/{zoom}/{x}/{y}.{extension}
 ```
-
 
 For example:
 
 ```
 http://localhost:2048/tiles/evgh-t69e/location/14/4207/6101.json
 ```
+
+The following extensions are supported:
+
+* .pbf:  proto-buffer / binary vector tile.
+* .bpbf: base 64 encoded proto-buffer.
+* .txt:  text representation of the proto-buffer.
+* .json: the raw json returned from soda-fountain.
