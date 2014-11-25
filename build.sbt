@@ -32,6 +32,8 @@ libraryDependencies ++= Seq(
 
 testOptions in Test += Tests.Argument(TestFrameworks.ScalaTest, "-oD")
 
+com.socrata.cloudbeessbt.SocrataCloudbeesSbt.socrataSettings(assembly = true)
+
 // WARNING: -optimize is not recommended with akka, should that come up.
 // NOTE: Having to remove -Xfatal-warnings because it chokes due to inliner issues.
 // This really bothers me.
