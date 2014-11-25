@@ -53,10 +53,11 @@ package object util {
     }
   } getOrElse InvalidJson
 
-  val Json: Extension = (unused, resp) =>
-  DefaultResponse ~>
-    ContentType("application/json") ~>
-    Stream(IOUtils.copy(resp.inputStream(), _))
+  val Json: Extension = (unused, resp) => {
+    DefaultResponse ~>
+      ContentType("application/json") ~>
+      Stream(IOUtils.copy(resp.inputStream(), _))
+  }
 
   val Extensions: Map[String, Extension] = Map("pbf" -> Pbf,
                                                "bpbf" -> B64Pbf,

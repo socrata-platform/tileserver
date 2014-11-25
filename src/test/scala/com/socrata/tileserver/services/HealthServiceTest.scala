@@ -1,9 +1,6 @@
 package com.socrata.tileserver
 package services
 
-import javax.servlet.ServletOutputStream
-import javax.servlet.http.HttpServletResponse
-
 import org.mockito.Mockito.{verify, when}
 import org.scalatest.mock.MockitoSugar
 import org.scalatest.{FunSuite, MustMatchers}
@@ -16,16 +13,15 @@ class HealthServiceTest
     with MockitoSugar {
   test("Endpoint must return health = alive") {
     val req = mock[HttpRequest]
-    val resp = mock[HttpServletResponse]
     val outputStream = new util.ByteArrayServletOutputStream
-    when(resp.getOutputStream()).thenReturn(outputStream)
+    val resp = outputStream.responseFor
 
     HealthService.get(req)(resp)
 
     verify(resp).setStatus(200)
     verify(resp).setContentType("application/json")
-    verify(resp).getOutputStream()
 
-    outputStream.getString must equal ("""{"health":"alive"}""")
+    outputStream.getLowStr must include ("health")
+    outputStream.getLowStr must include ("alive")
   }
 }

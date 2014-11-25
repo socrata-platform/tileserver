@@ -11,7 +11,7 @@ import com.rojoma.json.v3.conversions._
 import com.rojoma.simplearm.v2.{Managed, ResourceScope}
 import com.vividsolutions.jts.geom.GeometryFactory
 import no.ecc.vectortile.{VectorTileDecoder, VectorTileEncoder}
-import org.slf4j.LoggerFactory
+import org.slf4j.{Logger, LoggerFactory}
 
 import com.socrata.http.client.Response.ContentP
 import com.socrata.http.client.{HttpClient, RequestBuilder, Response}
@@ -22,47 +22,11 @@ import com.socrata.http.server.util.RequestId.{RequestId, ReqIdHeader, getFromRe
 import com.socrata.http.server.{HttpRequest, HttpResponse, HttpService}
 import com.socrata.thirdparty.geojson.{GeoJson, FeatureCollectionJson}
 
+import ImageQueryService._
 import util.{CoordinateMapper, ExcludedHeaders, Extensions, InvalidRequest, QuadTile}
 
-case class ImageQueryService(http: HttpClient) extends SimpleResource {
-  private val geomFactory = new GeometryFactory()
-  private val logger = LoggerFactory.getLogger(getClass)
-
-  def badRequest(message: String, cause: Throwable): HttpResponse = {
-    logger.warn(message, cause)
-
-    BadRequest ~>
-      Header("Access-Control-Allow-Origin", "*") ~>
-      Content("application/json",
-              s"""{"message": "$message", "cause": "${cause.getMessage}"}""")
-  }
-
-  def badRequest(message: String, info: String): HttpResponse = {
-    logger.warn(s"$message: $info")
-
-    BadRequest ~>
-      Header("Access-Control-Allow-Origin", "*") ~>
-      Content("application/json",
-              s"""{"message": "$message", "info": "$info"}""")
-  }
-
+case class ImageQueryService(client: HttpClient) extends SimpleResource {
   val types: Set[String] = Extensions.keySet
-
-  def extractRequestId(req: HttpRequest): RequestId =
-    getFromRequest(req.servletRequest)
-
-  def extractHost(req: HttpRequest): Try[(String, Option[Int])] = {
-    req.header("X-Socrata-Host") match {
-      case Some(h) =>
-        h.split(':') match {
-          case Array(host, port) => Try { (host, Some(port.toInt)) }
-          case Array(host) => Success ( (host, None) )
-          case _ => Failure(InvalidRequest("Invalid X-Socrata-Host header", h))
-        }
-      case None => Failure(InvalidRequest("Invalid X-Socrata-Host header",
-                                          "Missing header"))
-    }
-  }
 
   def geoJsonQuery(hostDef: (String, Option[Int]),
                    requestId: RequestId,
@@ -92,59 +56,7 @@ case class ImageQueryService(http: HttpClient) extends SimpleResource {
       case None => builder.get
     }
 
-    (URLDecoder.decode(jsonReq.toString, "UTF-8"), http.execute(jsonReq, rs))
-  }
-
-  def encoder(mapper: CoordinateMapper): Response => Option[Array[Byte]] = resp => {
-    val encoder: VectorTileEncoder = new VectorTileEncoder(ImageQueryService.TileExtent)
-    val jsonp: ContentP = _ map { t =>
-      t.getBaseType.startsWith("application/") && t.getBaseType.endsWith("json")
-    } getOrElse false
-
-    GeoJson.codec.decode(resp.jValue(jsonp).toV2) collect {
-      case FeatureCollectionJson(features, _) => {
-        val coords = features map { f =>
-          (f.geometry.getCoordinate, f.properties)
-        }
-
-        val pixels = coords map { case (coord, props) =>
-          (mapper.px(coord), props)
-        }
-
-        val points = pixels groupBy { case (px, props) =>
-          (geomFactory.createPoint(px), props)
-        }
-
-        val rollups = points map {
-          case (k, v) => (k, v.size)
-        }
-
-        rollups foreach { case ((pt, jprops), count) =>
-          val props = jprops map { case (k, v) =>
-            (k, fromJValue[String](v.toV3))
-          }
-
-          val attrs = new java.util.HashMap[String, JValue]
-          attrs.put("count", toJValue(count))
-          attrs.put("properties", toJValue(props))
-          encoder.addFeature("main", attrs, pt)
-        }
-
-        encoder.encode()
-      }
-    }
-  }
-
-  def augmentParams(req: HttpRequest,
-                    where: String,
-                    select: String): Map[String, String] = {
-    val params = req.queryParameters
-    val whereParam =
-      if (params.contains("$where")) params("$where") + s"and $where" else where
-    val selectParam =
-      if (params.contains("$select")) params("$select") + s", $select" else select
-
-    params + ("$where" -> whereParam) + ("$select" -> selectParam)
+    (URLDecoder.decode(jsonReq.toString, "UTF-8"), client.execute(jsonReq, rs))
   }
 
   def handleLayer(req: HttpRequest,
@@ -201,6 +113,95 @@ case class ImageQueryService(http: HttpClient) extends SimpleResource {
 }
 
 object ImageQueryService {
-  private val TileExtent: Int = 4096
-  private val HttpSuccess: Int = 200
+  implicit val logger: Logger = LoggerFactory.getLogger(getClass)
+  private val geomFactory = new GeometryFactory()
+
+  val HttpSuccess: Int = 200
+  val TileExtent: Int = 4096
+
+  def badRequest(message: String, cause: Throwable)(implicit logger: Logger): HttpResponse = {
+    logger.warn(message, cause)
+
+    BadRequest ~>
+      Header("Access-Control-Allow-Origin", "*") ~>
+      Content("application/json",
+              s"""{"message": "$message", "cause": "${cause.getMessage}"}""")
+  }
+
+  def badRequest(message: String, info: String)(implicit logger: Logger): HttpResponse = {
+    logger.warn(s"$message: $info")
+
+    BadRequest ~>
+      Header("Access-Control-Allow-Origin", "*") ~>
+      Content("application/json",
+              s"""{"message": "$message", "info": "$info"}""")
+  }
+
+  def extractRequestId(req: HttpRequest): RequestId =
+    getFromRequest(req.servletRequest)
+
+  def extractHost(req: HttpRequest): Try[(String, Option[Int])] = {
+    req.header("X-Socrata-Host") match {
+      case Some(h) =>
+        h.split(':') match {
+          case Array(host, port) => Try { (host, Some(port.toInt)) }
+          case Array(host) => Success ( (host, None) )
+          case _ => Failure(InvalidRequest("Invalid X-Socrata-Host header", h))
+        }
+      case None => Failure(InvalidRequest("Invalid X-Socrata-Host header",
+                                          "Missing header"))
+    }
+  }
+
+  def augmentParams(req: HttpRequest,
+                    where: String,
+                    select: String): Map[String, String] = {
+    val params = req.queryParameters
+    val whereParam =
+      if (params.contains("$where")) params("$where") + s"and $where" else where
+    val selectParam =
+      if (params.contains("$select")) params("$select") + s", $select" else select
+
+    params + ("$where" -> whereParam) + ("$select" -> selectParam)
+  }
+
+  def encoder(mapper: CoordinateMapper): Response => Option[Array[Byte]] = resp => {
+    val encoder: VectorTileEncoder = new VectorTileEncoder(ImageQueryService.TileExtent)
+    val jsonp: ContentP = _ map { t =>
+      t.getBaseType.startsWith("application/") && t.getBaseType.endsWith("json")
+    } getOrElse false
+
+    GeoJson.codec.decode(resp.jValue(jsonp).toV2) collect {
+      case FeatureCollectionJson(features, _) => {
+        val coords = features map { f =>
+          (f.geometry.getCoordinate, f.properties)
+        }
+
+        val pixels = coords map { case (coord, props) =>
+          (mapper.px(coord), props)
+        }
+
+        val points = pixels groupBy { case (px, props) =>
+          (geomFactory.createPoint(px), props)
+        }
+
+        val rollups = points map {
+          case (k, v) => (k, v.size)
+        }
+
+        rollups foreach { case ((pt, jprops), count) =>
+          val props = jprops map { case (k, v) =>
+            (k, fromJValue[String](v.toV3))
+          }
+
+          val attrs = new java.util.HashMap[String, JValue]
+          attrs.put("count", toJValue(count))
+          attrs.put("properties", toJValue(props))
+          encoder.addFeature("main", attrs, pt)
+        }
+
+        encoder.encode()
+      }
+    }
+  }
 }
