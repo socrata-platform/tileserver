@@ -1,13 +1,15 @@
 package com.socrata.tileserver
 
+import scala.collection.JavaConverters._
+
+import no.ecc.vectortile.VectorTileDecoder
+import org.apache.commons.codec.binary.Base64
+import org.apache.commons.io.IOUtils
+
 import com.socrata.http.client.Response
 import com.socrata.http.server.HttpResponse
 import com.socrata.http.server.implicits._
 import com.socrata.http.server.responses._
-import no.ecc.vectortile.VectorTileDecoder
-import org.apache.commons.codec.binary.Base64
-import org.apache.commons.io.IOUtils
-import scala.collection.JavaConverters._
 
 package object util {
   type Encoder = Response => Option[Array[Byte]]

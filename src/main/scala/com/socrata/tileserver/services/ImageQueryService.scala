@@ -1,11 +1,18 @@
 package com.socrata.tileserver
 package services
 
+import java.net.URLDecoder
+import scala.util.{Try, Success, Failure}
+
 import com.rojoma.json.v3.ast.JValue
 import com.rojoma.json.v3.codec.JsonDecode.fromJValue
 import com.rojoma.json.v3.codec.JsonEncode.toJValue
 import com.rojoma.json.v3.conversions._
 import com.rojoma.simplearm.v2.{Managed, ResourceScope}
+import com.vividsolutions.jts.geom.GeometryFactory
+import no.ecc.vectortile.{VectorTileDecoder, VectorTileEncoder}
+import org.slf4j.LoggerFactory
+
 import com.socrata.http.client.Response.ContentP
 import com.socrata.http.client.{HttpClient, RequestBuilder, Response}
 import com.socrata.http.server.implicits._
@@ -14,11 +21,7 @@ import com.socrata.http.server.routing.{SimpleResource, TypedPathComponent}
 import com.socrata.http.server.util.RequestId.{RequestId, ReqIdHeader, getFromRequest}
 import com.socrata.http.server.{HttpRequest, HttpResponse, HttpService}
 import com.socrata.thirdparty.geojson.{GeoJson, FeatureCollectionJson}
-import com.vividsolutions.jts.geom.GeometryFactory
-import java.net.URLDecoder
-import no.ecc.vectortile.{VectorTileDecoder, VectorTileEncoder}
-import org.slf4j.LoggerFactory
-import scala.util.{Try, Success, Failure}
+
 import util.{CoordinateMapper, ExcludedHeaders, Extensions, InvalidRequest, QuadTile}
 
 case class ImageQueryService(http: HttpClient) extends SimpleResource {

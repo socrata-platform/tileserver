@@ -1,17 +1,21 @@
 package com.socrata.tileserver
 
+import java.util.concurrent.Executors
+import javax.servlet.http.HttpServletRequest
+
 import com.rojoma.simplearm.v2.{Resource, managed}
+import org.slf4j.LoggerFactory
+
 import com.socrata.http.client.HttpClientHttpClient
 import com.socrata.http.server.implicits._
 import com.socrata.http.server.responses._
 import com.socrata.http.server.routing.SimpleRouteContext.{Route, Routes}
 import com.socrata.http.server.routing.TypedPathComponent
 import com.socrata.http.server.{HttpRequest, HttpResponse, HttpService, SocrataServerJetty}
-import java.util.concurrent.Executors
-import javax.servlet.http.HttpServletRequest
-import org.slf4j.LoggerFactory
+
 import services.{HealthService, ImageQueryService}
 
+// $COVERAGE-OFF$ Disabled because this is basically configuration.
 class Router(healthService: HttpService,
              imageQueryTypes : String => Boolean,
              imageQueryService: (String,
@@ -62,3 +66,4 @@ object TileServer extends App {
     server.run()
   }
 }
+// $COVERAGE-ON$
