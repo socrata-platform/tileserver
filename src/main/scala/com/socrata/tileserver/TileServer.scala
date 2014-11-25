@@ -34,12 +34,6 @@ class Router(healthService: HttpService,
       Content("application/json", """{"error": "not found" }""")
   }
 
-  val badRequest: HttpService = req => {
-    logger.warn(s"bad request")
-    BadRequest ~>
-      Content("application/json", """{"error": "bad request" }""")
-  }
-
   def route(req: HttpRequest): HttpResponse =
     routes(req.requestPath).getOrElse(notFound)(req)
 }
