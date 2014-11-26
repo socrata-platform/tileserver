@@ -15,8 +15,6 @@ package object util {
   type Encoder = Response => Option[Array[Byte]]
   type Extension = (Encoder, Response) => HttpResponse
 
-  val DefaultResponse = OK ~> Header("Access-Control-Allow-Origin", "*")
-
   val ExcludedHeaders = Set("Accept",
                             "Accept-Language",
                             "Cache-Control",
@@ -27,6 +25,8 @@ package object util {
 
   val InvalidJson = InternalServerError ~>
     Content("application/json", """{"message":"Invalid geo-json returned from underlying service."}""")
+
+  val DefaultResponse = OK ~> Header("Access-Control-Allow-Origin", "*")
 
   val Pbf: Extension = (encoder, resp) => encoder(resp) map { bytes: Array[Byte] =>
     DefaultResponse ~>
@@ -41,12 +41,14 @@ package object util {
 
   val Txt: Extension = (encoder, resp) => encoder(resp) map {
     bytes: Array[Byte] => {
+      // $COVERAGE-OFF$ Disabled because the ".txt" extension is purely for debugging.
       val decoder = new VectorTileDecoder()
       decoder.decode(bytes)
 
       val features = decoder.getFeatures("main").asScala map { f =>
         s"geometry: ${f.getGeometry.toString}  \tattributes: ${f.getAttributes}"
       }
+      // $COVERAGE-ON$
 
       DefaultResponse ~>
         Content("text/plain", features.mkString("\n"))
