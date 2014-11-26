@@ -8,6 +8,7 @@ import com.rojoma.json.v3.ast.JValue
 import com.rojoma.json.v3.codec.JsonDecode.fromJValue
 import com.rojoma.json.v3.codec.JsonEncode.toJValue
 import com.rojoma.json.v3.conversions._
+import com.rojoma.json.v3.interpolation._
 import com.rojoma.simplearm.v2.{Managed, ResourceScope}
 import com.vividsolutions.jts.geom.GeometryFactory
 import no.ecc.vectortile.{VectorTileDecoder, VectorTileEncoder}
@@ -122,9 +123,10 @@ object ImageQueryService {
   def badRequest(message: String, cause: Throwable)(implicit logger: Logger): HttpResponse = {
     logger.warn(message, cause)
 
+    // TODO: Ask Robert about escaping of Unicode characters.
     BadRequest ~>
       Header("Access-Control-Allow-Origin", "*") ~>
-      Content("application/json",
+      Content("application/json; charset=UTF-8",
               s"""{"message": "$message", "cause": "${cause.getMessage}"}""")
   }
 
@@ -133,7 +135,7 @@ object ImageQueryService {
 
     BadRequest ~>
       Header("Access-Control-Allow-Origin", "*") ~>
-      Content("application/json",
+      Content("application/json; charset=UTF-8",
               s"""{"message": "$message", "info": "$info"}""")
   }
 

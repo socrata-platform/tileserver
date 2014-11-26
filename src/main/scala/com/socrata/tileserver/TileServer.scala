@@ -3,6 +3,7 @@ package com.socrata.tileserver
 import java.util.concurrent.Executors
 import javax.servlet.http.HttpServletRequest
 
+import com.rojoma.json.v3.interpolation._
 import com.rojoma.simplearm.v2.{Resource, managed}
 import org.slf4j.LoggerFactory
 
@@ -13,10 +14,10 @@ import com.socrata.http.server.routing.SimpleRouteContext.{Route, Routes}
 import com.socrata.http.server.routing.TypedPathComponent
 import com.socrata.http.server.{HttpRequest, HttpResponse, HttpService, SocrataServerJetty}
 
-import services.{HealthService, ImageQueryService}
+import services.{ImageQueryService, VersionService}
 
 // $COVERAGE-OFF$ Disabled because this is basically configuration.
-class Router(healthService: HttpService,
+class Router(versionService: HttpService,
              imageQueryTypes : String => Boolean,
              imageQueryService: (String,
                                  String,
@@ -26,7 +27,7 @@ class Router(healthService: HttpService,
   private val logger = LoggerFactory.getLogger(getClass)
 
   val routes = Routes(
-    Route("/health", healthService),
+    Route("/version", versionService),
     // domain/tiles/abcd-1234/pointColumn/z/x/y.pbf
     Route("/tiles/{String}/{String}/{Int}/{Int}/{{Int!imageQueryTypes}}",
           imageQueryService)
@@ -35,7 +36,7 @@ class Router(healthService: HttpService,
   val notFound: HttpService = req => {
     logger.warn(s"path not found: ${req.requestPathStr}")
     NotFound ~>
-      Content("application/json", """{"error": "not found" }""")
+      Json(json"""{error:"not found"}""")
   }
 
   def route(req: HttpRequest): HttpResponse =
@@ -54,7 +55,7 @@ object TileServer extends App {
                                                withUserAgent("tileserver")))
   } {
     val imageQueryService = ImageQueryService(http)
-    val router = new Router(HealthService,
+    val router = new Router(VersionService,
                             imageQueryService.types,
                             imageQueryService.service)
     val handler = router.route _

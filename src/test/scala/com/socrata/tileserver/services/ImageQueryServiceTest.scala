@@ -29,7 +29,7 @@ class ImageQueryServiceTest
       ImageQueryService.badRequest(message, cause).apply(resp)
 
       verify(resp).setStatus(400)
-      verify(resp).setContentType("application/json")
+      verify(resp).setContentType("application/json; charset=UTF-8")
 
       outputStream.getLowStr must include ("message")
       outputStream.getString must include (message)
@@ -44,6 +44,9 @@ class ImageQueryServiceTest
       val resp = outputStream.responseFor
 
       ImageQueryService.badRequest(message, info).apply(resp)
+
+      verify(resp).setStatus(400)
+      verify(resp).setContentType("application/json; charset=UTF-8")
 
       outputStream.getLowStr must include ("message")
       outputStream.getString must include (message)

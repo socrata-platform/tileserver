@@ -7,7 +7,7 @@ import org.scalatest.{FunSuite, MustMatchers}
 
 import com.socrata.http.server.HttpRequest
 
-class HealthServiceTest
+class VersionServiceTest
     extends FunSuite
     with MustMatchers
     with MockitoSugar {
@@ -16,10 +16,10 @@ class HealthServiceTest
     val outputStream = new util.ByteArrayServletOutputStream
     val resp = outputStream.responseFor
 
-    HealthService.get(req)(resp)
+    VersionService.get(req)(resp)
 
     verify(resp).setStatus(200)
-    verify(resp).setContentType("application/json")
+    verify(resp).setContentType("application/json; charset=UTF-8")
 
     outputStream.getLowStr must include ("health")
     outputStream.getLowStr must include ("alive")
