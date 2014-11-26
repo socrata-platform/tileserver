@@ -99,14 +99,14 @@ case class ImageQueryService(client: HttpClient) extends SimpleResource {
 
   def service(identifier: String,
               pointColumn: String,
-              z: Int,
+              zoom: Int,
               x: Int,
               typedY: TypedPathComponent[Int]): SimpleResource =
     new SimpleResource {
       val TypedPathComponent(y, ext) = typedY
 
       override def get: HttpService = if (types(ext)) {
-        req => handleLayer(req, identifier, pointColumn, QuadTile(x, y, z), ext)
+        req => handleLayer(req, identifier, pointColumn, QuadTile(x, y, zoom), ext)
       } else {
         req => badRequest("Invalid file type", ext)
       }
