@@ -123,11 +123,9 @@ object ImageQueryService {
   private[services] def badRequest(message: String, cause: Throwable)(implicit logger: Logger): HttpResponse = {
     logger.warn(message, cause)
 
-    // TODO: Ask Robert about escaping of Unicode characters.
     BadRequest ~>
       Header("Access-Control-Allow-Origin", "*") ~>
-      Content("application/json; charset=UTF-8",
-              s"""{"message": "$message", "cause": "${cause.getMessage}"}""")
+      Json(json"""{message: $message, cause: ${cause.getMessage}}""")
   }
 
   private[services] def badRequest(message: String, info: String)(implicit logger: Logger): HttpResponse = {
@@ -135,8 +133,7 @@ object ImageQueryService {
 
     BadRequest ~>
       Header("Access-Control-Allow-Origin", "*") ~>
-      Content("application/json; charset=UTF-8",
-              s"""{"message": "$message", "info": "$info"}""")
+      Json(json"""{message: $message, info: $info}""")
   }
 
   private[services] def extractRequestId(req: HttpRequest): RequestId =

@@ -3,6 +3,7 @@ package services
 
 import scala.util.control.NoStackTrace
 
+import com.rojoma.json.v3.ast.JString
 import org.mockito.Mockito.{verify, when}
 import org.scalatest.mock.MockitoSugar
 import org.scalatest.prop.PropertyChecks
@@ -18,6 +19,8 @@ class ImageQueryServiceTest
     with MockitoSugar {
   implicit val logger: Logger = mock[Logger]
 
+  def jStr(s: String): String = JString(s).toString
+
   test("Bad request must include message and cause") {
     forAll { (message: String, causeMessage: String) =>
       val outputStream = new util.ByteArrayServletOutputStream
@@ -32,9 +35,9 @@ class ImageQueryServiceTest
       verify(resp).setContentType("application/json; charset=UTF-8")
 
       outputStream.getLowStr must include ("message")
-      outputStream.getString must include (message)
+      outputStream.getString must include (jStr(message))
       outputStream.getLowStr must include ("cause")
-      outputStream.getString must include (causeMessage)
+      outputStream.getString must include (jStr(causeMessage))
     }
   }
 
@@ -49,9 +52,9 @@ class ImageQueryServiceTest
       verify(resp).setContentType("application/json; charset=UTF-8")
 
       outputStream.getLowStr must include ("message")
-      outputStream.getString must include (message)
+      outputStream.getString must include (jStr(message))
       outputStream.getLowStr must include ("info")
-      outputStream.getString must include (info)
+      outputStream.getString must include (jStr(info))
     }
   }
 }
