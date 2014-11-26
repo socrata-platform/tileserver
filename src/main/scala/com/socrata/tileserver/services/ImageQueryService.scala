@@ -14,6 +14,7 @@ import com.vividsolutions.jts.geom.GeometryFactory
 import no.ecc.vectortile.{VectorTileDecoder, VectorTileEncoder}
 import org.slf4j.{Logger, LoggerFactory}
 
+import com.socrata.backend.client.CoreServerClient
 import com.socrata.http.client.Response.ContentP
 import com.socrata.http.client.{HttpClient, RequestBuilder, Response}
 import com.socrata.http.server.implicits._
@@ -26,7 +27,8 @@ import com.socrata.thirdparty.geojson.{GeoJson, FeatureCollectionJson}
 import ImageQueryService._
 import util.{CoordinateMapper, ExcludedHeaders, Extensions, InvalidRequest, QuadTile}
 
-case class ImageQueryService(client: HttpClient) extends SimpleResource {
+case class ImageQueryService(client: CoreServerClient)
+    extends SimpleResource {
   val types: Set[String] = Extensions.keySet
 
   private def geoJsonQuery(hostDef: (String, Option[Int]),
@@ -46,18 +48,14 @@ case class ImageQueryService(client: HttpClient) extends SimpleResource {
         req.headers(name) map { (name, _) }
       } toIterable
 
-    val builder = RequestBuilder(host).
-      path(Seq("api", "id", s"$id.geojson")).
-      addHeaders(headers).
-      addHeader(ReqIdHeader -> requestId).
-      query(params)
-
-    val jsonReq = maybePort match {
-      case Some(port) => builder.port(port).get
-      case None => builder.get
+    val jsonReq = { base: RequestBuilder =>
+      base.path(Seq("api", "id", s"$id.geojson")).
+        addHeaders(headers).
+        addHeader(ReqIdHeader -> requestId).
+        query(params).get
     }
 
-    (URLDecoder.decode(jsonReq.toString, "UTF-8"), client.execute(jsonReq, rs))
+    (URLDecoder.decode(jsonReq.toString, "UTF-8"), client.execute(jsonReq))
   }
 
   private def handleLayer(req: HttpRequest,
