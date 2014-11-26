@@ -29,11 +29,11 @@ import util.{CoordinateMapper, ExcludedHeaders, Extensions, InvalidRequest, Quad
 case class ImageQueryService(client: HttpClient) extends SimpleResource {
   val types: Set[String] = Extensions.keySet
 
-  def geoJsonQuery(hostDef: (String, Option[Int]),
-                   requestId: RequestId,
-                   req: HttpRequest,
-                   id: String,
-                   params: Map[String, String]): (String, Response) = {
+  private def geoJsonQuery(hostDef: (String, Option[Int]),
+                           requestId: RequestId,
+                           req: HttpRequest,
+                           id: String,
+                           params: Map[String, String]): (String, Response) = {
     val rs = req.resourceScope
     val (host, maybePort) = hostDef
 
@@ -60,11 +60,11 @@ case class ImageQueryService(client: HttpClient) extends SimpleResource {
     (URLDecoder.decode(jsonReq.toString, "UTF-8"), client.execute(jsonReq, rs))
   }
 
-  def handleLayer(req: HttpRequest,
-                  identifier: String,
-                  pointColumn: String,
-                  tile: QuadTile,
-                  ext: String): HttpResponse = {
+  private def handleLayer(req: HttpRequest,
+                          identifier: String,
+                          pointColumn: String,
+                          tile: QuadTile,
+                          ext: String): HttpResponse = {
     val mapper = tile.mapper
     val withinBox = tile.withinBox(pointColumn)
 
@@ -120,6 +120,8 @@ object ImageQueryService {
   val HttpSuccess: Int = 200
   val TileExtent: Int = 4096
 
+  // TODO: Consider private methods vs unit testability.
+  // These aren't re-used, but also don't feel like they're specific to this class.
   def badRequest(message: String, cause: Throwable)(implicit logger: Logger): HttpResponse = {
     logger.warn(message, cause)
 
