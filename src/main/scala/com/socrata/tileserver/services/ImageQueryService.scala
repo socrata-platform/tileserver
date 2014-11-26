@@ -120,9 +120,7 @@ object ImageQueryService {
   val HttpSuccess: Int = 200
   val TileExtent: Int = 4096
 
-  // TODO: Consider private methods vs unit testability.
-  // These aren't re-used, but also don't feel like they're specific to this class.
-  def badRequest(message: String, cause: Throwable)(implicit logger: Logger): HttpResponse = {
+  private[services] def badRequest(message: String, cause: Throwable)(implicit logger: Logger): HttpResponse = {
     logger.warn(message, cause)
 
     // TODO: Ask Robert about escaping of Unicode characters.
@@ -132,7 +130,7 @@ object ImageQueryService {
               s"""{"message": "$message", "cause": "${cause.getMessage}"}""")
   }
 
-  def badRequest(message: String, info: String)(implicit logger: Logger): HttpResponse = {
+  private[services] def badRequest(message: String, info: String)(implicit logger: Logger): HttpResponse = {
     logger.warn(s"$message: $info")
 
     BadRequest ~>
@@ -141,10 +139,10 @@ object ImageQueryService {
               s"""{"message": "$message", "info": "$info"}""")
   }
 
-  def extractRequestId(req: HttpRequest): RequestId =
+  private[services] def extractRequestId(req: HttpRequest): RequestId =
     getFromRequest(req.servletRequest)
 
-  def extractHost(req: HttpRequest): Try[(String, Option[Int])] = {
+  private[services] def extractHost(req: HttpRequest): Try[(String, Option[Int])] = {
     req.header("X-Socrata-Host") match {
       case Some(h) =>
         h.split(':') match {
@@ -157,9 +155,9 @@ object ImageQueryService {
     }
   }
 
-  def augmentParams(req: HttpRequest,
-                    where: String,
-                    select: String): Map[String, String] = {
+  private[services] def augmentParams(req: HttpRequest,
+                                      where: String,
+                                      select: String): Map[String, String] = {
     val params = req.queryParameters
     val whereParam =
       if (params.contains("$where")) params("$where") + s"and $where" else where
@@ -169,7 +167,7 @@ object ImageQueryService {
     params + ("$where" -> whereParam) + ("$select" -> selectParam)
   }
 
-  def encoder(mapper: CoordinateMapper): Response => Option[Array[Byte]] = resp => {
+  private[services] def encoder(mapper: CoordinateMapper): Response => Option[Array[Byte]] = resp => {
     val encoder: VectorTileEncoder = new VectorTileEncoder(ImageQueryService.TileExtent)
     val jsonp: ContentP = _ map { t =>
       t.getBaseType.startsWith("application/") && t.getBaseType.endsWith("json")
