@@ -6,6 +6,9 @@ import com.vividsolutions.jts.geom.Coordinate
 
 import CoordinateMapper._
 
+/** Most of the mapping logic is ported from here:
+  * https://github.com/mapbox/node-sphericalmercator
+  */
 case class CoordinateMapper(val zoom: Int) {
   val SizeZoomed: Int = Size * (1 << zoom)
   val ZoomFactor: Float = (1 << zoom) * 1.0f
