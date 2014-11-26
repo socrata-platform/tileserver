@@ -97,7 +97,7 @@ class UtilPackageTest
     }
   }
 
-  test("B64Pbf sends base 64 encoded bytes from encoder") {}
-  test("Txt") {}
-  test("Json") {}
+  test("B64Pbf sends base 64 encoded bytes from encoder")(pending)
+  test("Txt")(pending)
+  test("Json")(pending)
 }
