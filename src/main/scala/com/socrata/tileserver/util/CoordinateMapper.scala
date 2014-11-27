@@ -17,7 +17,7 @@ case class CoordinateMapper(val zoom: Int) {
     * y should be in TMS Coordinates.
     */
   def lat(y: Int): Double = {
-    val g = -1 * ((Pi * (2 * y + SizeZoomed)) / SizeZoomed)
+    val g = (Pi * (2 * -y + SizeZoomed)) / SizeZoomed
     val r2d = 180 / Pi
 
     -1 * r2d * (2 * atan(exp(g)) - 0.5 * Pi)
