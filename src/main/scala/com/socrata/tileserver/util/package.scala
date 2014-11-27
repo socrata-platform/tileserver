@@ -1,19 +1,19 @@
 package com.socrata.tileserver
 
+import scala.collection.JavaConverters._
+
+import no.ecc.vectortile.VectorTileDecoder
+import org.apache.commons.codec.binary.Base64
+import org.apache.commons.io.IOUtils
+
 import com.socrata.http.client.Response
 import com.socrata.http.server.HttpResponse
 import com.socrata.http.server.implicits._
 import com.socrata.http.server.responses._
-import no.ecc.vectortile.VectorTileDecoder
-import org.apache.commons.codec.binary.Base64
-import org.apache.commons.io.IOUtils
-import scala.collection.JavaConverters._
 
 package object util {
   type Encoder = Response => Option[Array[Byte]]
   type Extension = (Encoder, Response) => HttpResponse
-
-  val DefaultResponse = OK ~> Header("Access-Control-Allow-Origin", "*")
 
   val ExcludedHeaders = Set("Accept",
                             "Accept-Language",
@@ -25,6 +25,8 @@ package object util {
 
   val InvalidJson = InternalServerError ~>
     Content("application/json", """{"message":"Invalid geo-json returned from underlying service."}""")
+
+  val DefaultResponse = OK ~> Header("Access-Control-Allow-Origin", "*")
 
   val Pbf: Extension = (encoder, resp) => encoder(resp) map { bytes: Array[Byte] =>
     DefaultResponse ~>
@@ -39,22 +41,25 @@ package object util {
 
   val Txt: Extension = (encoder, resp) => encoder(resp) map {
     bytes: Array[Byte] => {
+      // $COVERAGE-OFF$ Disabled because the ".txt" extension is purely for debugging.
       val decoder = new VectorTileDecoder()
       decoder.decode(bytes)
 
       val features = decoder.getFeatures("main").asScala map { f =>
         s"geometry: ${f.getGeometry.toString}  \tattributes: ${f.getAttributes}"
       }
+      // $COVERAGE-ON$
 
       DefaultResponse ~>
         Content("text/plain", features.mkString("\n"))
     }
   } getOrElse InvalidJson
 
-  val Json: Extension = (unused, resp) =>
-  DefaultResponse ~>
-    ContentType("application/json") ~>
-    Stream(IOUtils.copy(resp.inputStream(), _))
+  val Json: Extension = (unused, resp) => {
+    DefaultResponse ~>
+      ContentType("application/json") ~>
+      Stream(IOUtils.copy(resp.inputStream(), _))
+  }
 
   val Extensions: Map[String, Extension] = Map("pbf" -> Pbf,
                                                "bpbf" -> B64Pbf,

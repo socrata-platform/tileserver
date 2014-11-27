@@ -8,7 +8,7 @@ Start the server with ```sbt run```.
 Hit the server with:
 
 ```
-localhost:2048/tiles/{4x4}/{zoom}/{x}/{y}.{extension}
+http://localhost:2048/tiles/{4x4}/{point_column}/{zoom}/{x}/{y}.{extension}
 ```
 
 For example:
@@ -21,5 +21,9 @@ The following extensions are supported:
 
 * .pbf:  proto-buffer / binary vector tile.
 * .bpbf: base 64 encoded proto-buffer.
-* .txt:  text representation of the proto-buffer.
 * .json: the raw json returned from soda-fountain.
+
+The following is also supported for debugging purposes,
+do not depend on the output format.
+
+* .txt:  text representation of the proto-buffer.

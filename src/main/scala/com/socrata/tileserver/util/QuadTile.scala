@@ -1,7 +1,6 @@
 package com.socrata.tileserver.util
 
 import CoordinateMapper.Size
-import scala.math.{Pi, atan, exp}
 
 case class QuadTile(rawX: Int, rawY: Int, zoom: Int) {
   val mapper = CoordinateMapper(zoom)
