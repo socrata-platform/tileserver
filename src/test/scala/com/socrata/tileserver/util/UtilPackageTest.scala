@@ -4,7 +4,10 @@ package util
 import java.io.InputStream
 import javax.servlet.http.HttpServletResponse
 
+import com.rojoma.json.v3.io.JsonReader
 import org.mockito.Mockito.{verify, when}
+import org.mockito.invocation.InvocationOnMock
+import org.mockito.stubbing.Answer
 import org.scalatest.mock.MockitoSugar
 import org.scalatest.prop.PropertyChecks
 import org.scalatest.{FunSuite, MustMatchers}
@@ -34,7 +37,7 @@ class UtilPackageTest
     val clientResp = mock[Response]
     val noneEncoder: Encoder = _ => None
 
-    Extensions.values filter (_ != Json) foreach { ext: Extension =>
+    Extensions.values filter (_ != JsonExt) foreach { ext: Extension =>
       val outputStream = new util.ByteArrayServletOutputStream
       val resp = outputStream.responseFor
 
@@ -69,7 +72,7 @@ class UtilPackageTest
 
     val emptyEncoder: Encoder = _ => Some(Array.empty)
 
-    Extensions.values foreach { ext: Extension =>
+    Extensions.values filter (_ != JsonExt) foreach { ext: Extension =>
       val outputStream = new util.ByteArrayServletOutputStream
       val resp = outputStream.responseFor
 
@@ -88,7 +91,7 @@ class UtilPackageTest
       val resp = outputStream.responseFor
       val encoder: Encoder = r => Some(bytes)
 
-      Pbf(encoder, clientResp)(resp)
+      PbfExt(encoder, clientResp)(resp)
 
       verify(resp).setStatus(200)
       verify(resp).setHeader("Access-Control-Allow-Origin", "*")

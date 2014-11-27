@@ -117,7 +117,8 @@ object ImageQueryService {
   val TileExtent: Int = 4096
 
   private[services] def badRequest(message: String,
-                                   info: String): HttpResponse = {
+                                   info: String)
+                                  (implicit logger: Logger): HttpResponse = {
     logger.warn(s"$message: $info")
 
     BadRequest ~>
