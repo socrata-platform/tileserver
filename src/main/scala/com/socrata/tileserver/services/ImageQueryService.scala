@@ -9,12 +9,14 @@ import com.rojoma.json.v3.codec.JsonDecode.fromJValue
 import com.rojoma.json.v3.codec.JsonEncode.toJValue
 import com.rojoma.json.v3.conversions._
 import com.rojoma.json.v3.interpolation._
+import com.rojoma.json.v3.io.JsonReader
 import com.rojoma.simplearm.v2.{Managed, ResourceScope}
 import com.vividsolutions.jts.geom.GeometryFactory
 import no.ecc.vectortile.{VectorTileDecoder, VectorTileEncoder}
+import org.apache.commons.io.IOUtils
 import org.slf4j.{Logger, LoggerFactory}
 
-import com.socrata.http.client.Response.ContentP
+import com.socrata.backend.client.CoreServerClient
 import com.socrata.http.client.{HttpClient, RequestBuilder, Response}
 import com.socrata.http.server.implicits._
 import com.socrata.http.server.responses._
@@ -24,19 +26,17 @@ import com.socrata.http.server.{HttpRequest, HttpResponse, HttpService}
 import com.socrata.thirdparty.geojson.{GeoJson, FeatureCollectionJson}
 
 import ImageQueryService._
-import util.{CoordinateMapper, ExcludedHeaders, Extensions, InvalidRequest, QuadTile}
+import util.{CoordinateMapper, ExcludedHeaders, Extensions, JsonP, InvalidRequest, QuadTile}
 
-case class ImageQueryService(client: HttpClient) extends SimpleResource {
+case class ImageQueryService(client: CoreServerClient)
+    extends SimpleResource {
   val types: Set[String] = Extensions.keySet
 
-  private def geoJsonQuery(hostDef: (String, Option[Int]),
-                           requestId: RequestId,
+  private def geoJsonQuery(requestId: RequestId,
                            req: HttpRequest,
                            id: String,
-                           params: Map[String, String]): (String, Response) = {
-    val rs = req.resourceScope
-    val (host, maybePort) = hostDef
-
+                           params: Map[String, String],
+                           callback: Response => HttpResponse): HttpResponse = {
     val headerNames = req.headerNames filterNot { s: String =>
       ExcludedHeaders(s.toLowerCase)
     }
@@ -46,18 +46,16 @@ case class ImageQueryService(client: HttpClient) extends SimpleResource {
         req.headers(name) map { (name, _) }
       } toIterable
 
-    val builder = RequestBuilder(host).
-      path(Seq("api", "id", s"$id.geojson")).
-      addHeaders(headers).
-      addHeader(ReqIdHeader -> requestId).
-      query(params)
-
-    val jsonReq = maybePort match {
-      case Some(port) => builder.port(port).get
-      case None => builder.get
+    val jsonReq = { base: RequestBuilder =>
+      val req = base.path(Seq("id", s"$id.geojson")).
+        addHeaders(headers).
+        addHeader(ReqIdHeader -> requestId).
+        query(params).get
+      logger.info(URLDecoder.decode(req.toString, "UTF-8"))
+      req
     }
 
-    (URLDecoder.decode(jsonReq.toString, "UTF-8"), client.execute(jsonReq, rs))
+    client.execute(jsonReq, callback)
   }
 
   private def handleLayer(req: HttpRequest,
@@ -68,23 +66,21 @@ case class ImageQueryService(client: HttpClient) extends SimpleResource {
     val mapper = tile.mapper
     val withinBox = tile.withinBox(pointColumn)
 
-    val resp = extractHost(req) map { hostDef =>
+    val resp = Try {
       val params = augmentParams(req, withinBox, pointColumn)
       val requestId = extractRequestId(req)
       logger.info(s"$ReqIdHeader: $requestId")
 
-      val (jsonReq, resp) = geoJsonQuery(hostDef,
-                                         requestId,
-                                         req,
-                                         identifier,
-                                         params)
-      resp.resultCode match {
-        case ImageQueryService.HttpSuccess => {
-          logger.info(s"Success! ${jsonReq}")
-          Extensions(ext)(encoder(mapper), resp)
+      val callback = { resp: Response =>
+        resp.resultCode match {
+          case ImageQueryService.HttpSuccess => {
+            Extensions(ext)(encoder(mapper), resp)
+          }
+          case _ => badRequest("Underlying request failed", resp)
         }
-        case _ => badRequest("Underlying request failed", jsonReq)
       }
+
+      geoJsonQuery(requestId, req, identifier, params, callback)
     }
 
     resp match {
@@ -120,15 +116,8 @@ object ImageQueryService {
   val HttpSuccess: Int = 200
   val TileExtent: Int = 4096
 
-  private[services] def badRequest(message: String, cause: Throwable)(implicit logger: Logger): HttpResponse = {
-    logger.warn(message, cause)
-
-    BadRequest ~>
-      Header("Access-Control-Allow-Origin", "*") ~>
-      Json(json"""{message: $message, cause: ${cause.getMessage}}""")
-  }
-
-  private[services] def badRequest(message: String, info: String)(implicit logger: Logger): HttpResponse = {
+  private[services] def badRequest(message: String,
+                                   info: String): HttpResponse = {
     logger.warn(s"$message: $info")
 
     BadRequest ~>
@@ -136,21 +125,29 @@ object ImageQueryService {
       Json(json"""{message: $message, info: $info}""")
   }
 
+  private[services] def badRequest(message: String,
+                                   cause: Throwable)
+                                  (implicit logger: Logger): HttpResponse = {
+    logger.warn(message, cause)
+
+    BadRequest ~>
+      Header("Access-Control-Allow-Origin", "*") ~>
+      Json(json"""{message: $message, cause: ${cause.getMessage}}""")
+  }
+
+  private[services] def badRequest(message: String,
+                                   resp: Response)
+                                  (implicit logger: Logger): HttpResponse = {
+    val body: JValue = JsonReader.fromString(IOUtils.toString(resp.inputStream()))
+    logger.warn(s"$message: ${resp.resultCode}: $body")
+
+    BadRequest ~>
+      Header("Access-Control-Allow-Origin", "*") ~>
+      Json(json"""{message: $message, resultCode:${resp.resultCode}, body: $body}""")
+  }
+
   private[services] def extractRequestId(req: HttpRequest): RequestId =
     getFromRequest(req.servletRequest)
-
-  private[services] def extractHost(req: HttpRequest): Try[(String, Option[Int])] = {
-    req.header("X-Socrata-Host") match {
-      case Some(h) =>
-        h.split(':') match {
-          case Array(host, port) => Try { (host, Some(port.toInt)) }
-          case Array(host) => Success ( (host, None) )
-          case _ => Failure(InvalidRequest("Invalid X-Socrata-Host header", h))
-        }
-      case None => Failure(InvalidRequest("Invalid X-Socrata-Host header",
-                                          "Missing header"))
-    }
-  }
 
   private[services] def augmentParams(req: HttpRequest,
                                       where: String,
@@ -166,11 +163,8 @@ object ImageQueryService {
 
   private[services] def encoder(mapper: CoordinateMapper): Response => Option[Array[Byte]] = resp => {
     val encoder: VectorTileEncoder = new VectorTileEncoder(ImageQueryService.TileExtent)
-    val jsonp: ContentP = _ map { t =>
-      t.getBaseType.startsWith("application/") && t.getBaseType.endsWith("json")
-    } getOrElse false
 
-    GeoJson.codec.decode(resp.jValue(jsonp).toV2) collect {
+    GeoJson.codec.decode(resp.jValue(JsonP).toV2) collect {
       case FeatureCollectionJson(features, _) => {
         val coords = features map { f =>
           (f.geometry.getCoordinate, f.properties)

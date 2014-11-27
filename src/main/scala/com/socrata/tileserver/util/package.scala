@@ -7,6 +7,7 @@ import org.apache.commons.codec.binary.Base64
 import org.apache.commons.io.IOUtils
 
 import com.socrata.http.client.Response
+import com.socrata.http.client.Response.ContentP
 import com.socrata.http.server.HttpResponse
 import com.socrata.http.server.implicits._
 import com.socrata.http.server.responses._
@@ -14,6 +15,10 @@ import com.socrata.http.server.responses._
 package object util {
   type Encoder = Response => Option[Array[Byte]]
   type Extension = (Encoder, Response) => HttpResponse
+
+  val JsonP: ContentP = _ map { t =>
+      t.getBaseType.startsWith("application/") && t.getBaseType.endsWith("json")
+    } getOrElse false
 
   val ExcludedHeaders = Set("Accept",
                             "Accept-Language",
@@ -28,18 +33,18 @@ package object util {
 
   val DefaultResponse = OK ~> Header("Access-Control-Allow-Origin", "*")
 
-  val Pbf: Extension = (encoder, resp) => encoder(resp) map { bytes: Array[Byte] =>
+  val PbfExt: Extension = (encoder, resp) => encoder(resp) map { bytes: Array[Byte] =>
     DefaultResponse ~>
       ContentType("application/octet-stream") ~>
       ContentBytes(bytes)
   } getOrElse InvalidJson
 
-  val B64Pbf: Extension = (encoder, resp) => encoder(resp) map { bytes: Array[Byte] =>
+  val B64PbfExt: Extension = (encoder, resp) => encoder(resp) map { bytes: Array[Byte] =>
     DefaultResponse ~>
       Content("text/plain", Base64.encodeBase64String(bytes))
   } getOrElse InvalidJson
 
-  val Txt: Extension = (encoder, resp) => encoder(resp) map {
+  val TxtExt: Extension = (encoder, resp) => encoder(resp) map {
     bytes: Array[Byte] => {
       // $COVERAGE-OFF$ Disabled because the ".txt" extension is purely for debugging.
       val decoder = new VectorTileDecoder()
@@ -55,14 +60,12 @@ package object util {
     }
   } getOrElse InvalidJson
 
-  val Json: Extension = (unused, resp) => {
-    DefaultResponse ~>
-      ContentType("application/json") ~>
-      Stream(IOUtils.copy(resp.inputStream(), _))
+  val JsonExt: Extension = (unused, resp) => {
+    DefaultResponse ~> Json(resp.jValue(JsonP))
   }
 
-  val Extensions: Map[String, Extension] = Map("pbf" -> Pbf,
-                                               "bpbf" -> B64Pbf,
-                                               "txt" -> Txt,
-                                               "json" -> Json)
+  val Extensions: Map[String, Extension] = Map("pbf" -> PbfExt,
+                                               "bpbf" -> B64PbfExt,
+                                               "txt" -> TxtExt,
+                                               "json" -> JsonExt)
 }
