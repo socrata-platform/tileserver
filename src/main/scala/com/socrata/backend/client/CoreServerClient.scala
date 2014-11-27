@@ -9,6 +9,7 @@ import com.rojoma.json.v3.ast.{JString, JValue}
 import org.slf4j.LoggerFactory
 
 import com.socrata.http.client.{RequestBuilder, Response, SimpleHttpRequest}
+import com.socrata.http.server.HttpResponse
 import com.socrata.thirdparty.curator.ServerProvider
 import com.socrata.thirdparty.curator.ServerProvider.{Complete, Retry}
 
@@ -29,11 +30,12 @@ class CoreServerClient(coreProvider: ServerProvider,
     * and returns the response
     * @return HTTP response code and body
     */
-  def execute(request: RequestBuilder => SimpleHttpRequest): Response = {
+  def execute[T](request: RequestBuilder => SimpleHttpRequest,
+                 callback: Response => T): T = {
     coreProvider.withRetries(maxRetries,
                              request,
                              ServerProvider.RetryOnAllExceptionsDuringInitialRequest) {
-      case Some(response) => Complete(response)
+      case Some(response) => Complete(callback(response))
       case None => throw ServiceDiscoveryException("core server")
     }
   }
