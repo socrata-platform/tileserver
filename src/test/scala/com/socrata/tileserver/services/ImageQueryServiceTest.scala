@@ -21,7 +21,7 @@ class ImageQueryServiceTest
 
   def jStr(s: String): String = JString(s).toString
 
-  test("Bad request must include message and cause") {
+  ignore("Bad request must include message and cause") {
     forAll { (message: String, causeMessage: String) =>
       val outputStream = new util.ByteArrayServletOutputStream
       val resp = outputStream.responseFor
@@ -41,7 +41,7 @@ class ImageQueryServiceTest
     }
   }
 
-  test("Bad request must include message and info") {
+  ignore("Bad request must include message and info") {
     forAll { (message: String, info: String) =>
       val outputStream = new util.ByteArrayServletOutputStream
       val resp = outputStream.responseFor
