@@ -4,7 +4,6 @@ package util
 import java.io.InputStream
 import javax.servlet.http.HttpServletResponse
 
-import com.rojoma.json.v3.io.JsonReader
 import org.mockito.Mockito.{verify, when}
 import org.mockito.invocation.InvocationOnMock
 import org.mockito.stubbing.Answer
@@ -34,7 +33,7 @@ class UtilPackageTest
   }
 
   test("Extensions return error on encoder failure") {
-    val clientResp = mock[Response]
+    val clientResp = EmptyResponse
     val noneEncoder: Encoder = _ => None
 
     Extensions.values filter (_ != JsonExt) foreach { ext: Extension =>
@@ -61,18 +60,10 @@ class UtilPackageTest
   }
 
   test("Extensions include CORS header on success") {
-    val inputStream: InputStream with Acknowledgeable =
-      new InputStream with Acknowledgeable {
-        override def acknowledge() = {}
-        override def read() = -1
-      }
-
-    val clientResp = mock[Response]
-    when(clientResp.inputStream()).thenReturn(inputStream)
-
+    val clientResp = EmptyResponse
     val emptyEncoder: Encoder = _ => Some(Array.empty)
 
-    Extensions.values filter (_ != JsonExt) foreach { ext: Extension =>
+    Extensions.values foreach { ext: Extension =>
       val outputStream = new util.ByteArrayServletOutputStream
       val resp = outputStream.responseFor
 

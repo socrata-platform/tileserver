@@ -18,7 +18,7 @@ class ByteArrayServletOutputStream extends ServletOutputStream {
   // Shortened so it is the same length as "getString"
   def getLowStr: String = getString.toLowerCase
 
-  def responseFor: HttpServletResponse = {
+  val responseFor: HttpServletResponse = {
     val resp = mock(classOf[HttpServletResponse])
     when(resp.getOutputStream()).thenReturn(this)
     resp
