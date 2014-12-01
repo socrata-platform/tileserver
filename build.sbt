@@ -47,3 +47,11 @@ scalacOptions ++= Seq("-optimize",
                       "-Xfatal-warnings")
 
 Revolver.settings
+
+lazy val styletask = taskKey[Unit]("a task that wraps 'scalastyle' with no input parameters")
+
+styletask := { val _ = (scalastyle in Compile).toTask("").value }
+
+(Keys.`package` in Compile) <<= (Keys.`package` in Compile) dependsOn styletask
+
+AssemblyKeys.assembly <<= AssemblyKeys.assembly dependsOn styletask
