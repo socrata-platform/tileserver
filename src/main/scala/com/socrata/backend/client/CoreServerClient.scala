@@ -42,9 +42,12 @@ class CoreServerClient(coreProvider: ServerProvider,
 }
 
 object CoreServerClient {
+  private val DefaultConnectTimeoutSec: Int = 10
+  private val DefaultMaxRetries: Int = 5
+
   def apply(coreProvider: ServerProvider,
-            connectTimeout: FiniteDuration = new FiniteDuration(10, SECONDS),
-            maxRetries: Int = 5): CoreServerClient = {
+            connectTimeout: FiniteDuration = new FiniteDuration(DefaultConnectTimeoutSec, SECONDS),
+            maxRetries: Int = DefaultMaxRetries): CoreServerClient = {
     if (connectTimeout.toMillis != connectTimeout.toMillis.toInt) {
       throw new IllegalArgumentException(
         "Connect timeout out of range (milliseconds must fit in an Int).")
