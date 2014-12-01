@@ -23,13 +23,15 @@ $(boot2docker up 2>&1 | tail -n 4)
 
 ADDRS=$(ifconfig | grep 'inet ' | awk '{print $2}' | grep -v 127.0.0.1)
 
-ENSEMBLE=$(
-    echo "$ADDRS" | while read addr; do
-        echo "$addr:2181"
-    done
-)
+if ! [ "$ENSEMBLE" ]; then
+    ENSEMBLE=$(
+        echo "$ADDRS" | while read addr; do
+            echo "$addr:2181"
+        done
+    )
 
-ENSEMBLE=$(echo $ENSEMBLE | sed 's/ /, /g')
+    ENSEMBLE=$(echo $ENSEMBLE | sed 's/ /, /g')
+fi
 
 boot2docker ssh <<EOF
     mkdir armada
