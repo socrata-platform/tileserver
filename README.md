@@ -27,3 +27,9 @@ The following is also supported for debugging purposes,
 do not depend on the output format.
 
 * .txt:  text representation of the proto-buffer.
+
+Calling the tileserver requires setting X-Socrata-Host properly.
+
+A valid staging value is: dataspace-demo.test-socrata.com
+
+A valid production value is: dataspace.demo.socrata.com
