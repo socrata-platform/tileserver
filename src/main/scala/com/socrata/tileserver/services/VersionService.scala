@@ -1,6 +1,8 @@
-package com.socrata.tileserver.services
+package com.socrata.tileserver
+package services
 
-import com.rojoma.json.v3.interpolation._
+import org.joda.time.DateTime
+import com.rojoma.json.v3.codec.JsonEncode
 import org.slf4j.LoggerFactory
 
 import com.socrata.http.server.implicits.httpResponseToChainedResponse
@@ -14,6 +16,11 @@ object VersionService extends SimpleResource {
   override def get: HttpService = { req =>
     logger.info("Alive!")
 
-    OK ~> Json(json"""{health:"alive", version:"0.1.0"}""") // TODO: Do this dynamically.
+    OK ~>
+      Json(JsonEncode.toJValue(
+             Map("health" -> "alive",
+                 "version" -> BuildInfo.version,
+                 "scalaVersion" -> BuildInfo.scalaVersion,
+                 "buildTime" -> new DateTime(BuildInfo.buildTime).toString())))
   }
 }

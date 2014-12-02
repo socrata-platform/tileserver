@@ -54,3 +54,16 @@ styletask := { val _ = (scalastyle in Compile).toTask("").value }
 (Keys.`package` in Compile) <<= (Keys.`package` in Compile) dependsOn styletask
 
 AssemblyKeys.assembly <<= AssemblyKeys.assembly dependsOn styletask
+
+// Generate com.socrata.tileserver.BuildInfo
+buildInfoSettings
+
+sourceGenerators in Compile <+= buildInfo
+
+buildInfoKeys := Seq[BuildInfoKey](name,
+                                   version,
+                                   scalaVersion,
+                                   sbtVersion,
+                                   BuildInfoKey.action("buildTime") { System.currentTimeMillis })
+
+buildInfoPackage := organization.value + "." + name.value
