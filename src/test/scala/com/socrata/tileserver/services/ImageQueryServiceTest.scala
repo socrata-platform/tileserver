@@ -18,7 +18,6 @@ class ImageQueryServiceTest
     with PropertyChecks
     with MockitoSugar {
   implicit val logger: Logger = mock[Logger]
-  val lgr = org.slf4j.LoggerFactory.getLogger(getClass)
 
   def jStr(s: String): String = JString(s).toString
 
@@ -26,9 +25,6 @@ class ImageQueryServiceTest
 
   test("Bad request must include message and cause") {
     forAll { (message: String, causeMessage: String) =>
-      lgr.info("message: " + escape(message))
-      lgr.info("info: " + escape(causeMessage))
-
       val outputStream = new util.ByteArrayServletOutputStream
       val resp = outputStream.responseFor
       val cause = new NoStackTrace {
@@ -49,9 +45,6 @@ class ImageQueryServiceTest
 
   test("Bad request must include message and info") {
     forAll { (message: String, info: String) =>
-      lgr.info("message: " + escape(message))
-      lgr.info("info: " + escape(info))
-
       val outputStream = new util.ByteArrayServletOutputStream
       val resp = outputStream.responseFor
 
