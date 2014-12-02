@@ -21,7 +21,9 @@ class ImageQueryServiceTest
 
   def jStr(s: String): String = JString(s).toString
 
-  ignore("Bad request must include message and cause") {
+  def escape(s: String): String = s.toCharArray map { _.toInt } mkString ","
+
+  test("Bad request must include message and cause") {
     forAll { (message: String, causeMessage: String) =>
       val outputStream = new util.ByteArrayServletOutputStream
       val resp = outputStream.responseFor
@@ -35,13 +37,13 @@ class ImageQueryServiceTest
       verify(resp).setContentType("application/json; charset=UTF-8")
 
       outputStream.getLowStr must include ("message")
-      outputStream.getString must include (jStr(message))
+      escape(outputStream.getString) must include (escape(jStr(message)))
       outputStream.getLowStr must include ("cause")
-      outputStream.getString must include (jStr(causeMessage))
+      escape(outputStream.getString) must include (escape(jStr(causeMessage)))
     }
   }
 
-  ignore("Bad request must include message and info") {
+  test("Bad request must include message and info") {
     forAll { (message: String, info: String) =>
       val outputStream = new util.ByteArrayServletOutputStream
       val resp = outputStream.responseFor
@@ -52,9 +54,9 @@ class ImageQueryServiceTest
       verify(resp).setContentType("application/json; charset=UTF-8")
 
       outputStream.getLowStr must include ("message")
-      outputStream.getString must include (jStr(message))
+      escape(outputStream.getString) must include (escape(jStr(message)))
       outputStream.getLowStr must include ("info")
-      outputStream.getString must include (jStr(info))
+      escape(outputStream.getString) must include (escape(jStr(info)))
     }
   }
 }
