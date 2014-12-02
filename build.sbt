@@ -2,8 +2,6 @@ name := "tileserver"
 
 organization := "com.socrata"
 
-version := "0.2.0-SNAPSHOT"
-
 scalaVersion := "2.10.4"
 
 resolvers ++= Seq(
@@ -46,8 +44,10 @@ scalacOptions ++= Seq("-optimize",
                       "-Xlint",
                       "-Xfatal-warnings")
 
+// Setup revolver.
 Revolver.settings
 
+// Make "assembly" depend on "scalastyle".  
 lazy val styletask = taskKey[Unit]("a task that wraps 'scalastyle' with no input parameters")
 
 styletask := { val _ = (scalastyle in Compile).toTask("").value }
