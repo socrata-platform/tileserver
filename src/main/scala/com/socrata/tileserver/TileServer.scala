@@ -5,7 +5,6 @@ import javax.servlet.http.HttpServletRequest
 
 import com.rojoma.simplearm.v2.conversions._
 import com.rojoma.simplearm.v2.{Resource, managed}
-import com.typesafe.config.ConfigFactory
 
 import com.socrata.backend.client.CoreServerClient
 import com.socrata.backend.util.ServiceProviderFromConfig
@@ -23,7 +22,7 @@ object TileServer extends App {
   private val ListenPort: Int = 2048
 
   implicit val shutdownTimeout = Resource.executorShutdownNoTimeout
-  lazy val config = TileServerConfig(ConfigFactory.load().getConfig("com.socrata"))
+  lazy val config = TileServerConfig
 
   for {
     executor <- managed(Executors.newCachedThreadPool())

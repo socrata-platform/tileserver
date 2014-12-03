@@ -36,7 +36,7 @@ class CoreServerClient(coreProvider: ServerProvider,
                              request,
                              ServerProvider.RetryOnAllExceptionsDuringInitialRequest) {
       case Some(response) => Complete(callback(response))
-      case None => throw ServiceDiscoveryException("core server")
+      case None => throw ServiceDiscoveryException("Failed to discover core server.")
     }
   }
 }

@@ -18,7 +18,6 @@ libraryDependencies ++= Seq(
   "com.typesafe"             % "config"                   % "1.2.1",
   "commons-codec"            % "commons-codec"            % "1.10",
   "commons-io"               % "commons-io"               % "2.4",
-  "net.databinder.dispatch" %% "dispatch-core"            % "0.11.2",
   "no.ecc.vectortile"        % "java-vector-tile"         % "1.0.1",
   "org.apache.curator"       % "curator-x-discovery"      % "2.7.0",
   "org.slf4j"                % "slf4j-simple"             % "1.7.2"
@@ -55,3 +54,16 @@ styletask := { val _ = (scalastyle in Compile).toTask("").value }
 (Keys.`package` in Compile) <<= (Keys.`package` in Compile) dependsOn styletask
 
 AssemblyKeys.assembly <<= AssemblyKeys.assembly dependsOn styletask
+
+// Generate com.socrata.tileserver.BuildInfo
+buildInfoSettings
+
+sourceGenerators in Compile <+= buildInfo
+
+buildInfoKeys := Seq[BuildInfoKey](name,
+                                   version,
+                                   scalaVersion,
+                                   sbtVersion,
+                                   BuildInfoKey.action("buildTime") { System.currentTimeMillis })
+
+buildInfoPackage := organization.value + "." + name.value
