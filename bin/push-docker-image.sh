@@ -16,12 +16,13 @@ ping -c 2 $REG_HOST >/dev/null 2>/dev/null \
     || { echo "AWS VPN connection required to push image." ; exit ; }
 
 boot2docker ssh <<EOF
+  set -v
   # Point docker at the registry.
   sudo /etc/init.d/docker stop
   sleep 2 # Give docker time to spin down.
   sudo sed -i '1s/$/\n\nEXTRA_ARGS="--insecure-registry registry.docker.aws-us-west-2-infrastructure.socrata.net:5000"\n/' /etc/init.d/docker
   sudo /etc/init.d/docker start
-  sleep 2 # Give docker time to spin up.
+  sleep 5 # Give docker time to spin up.
 
   # Tag the image.
   docker tag $PROJ_NAME $REGISTRY/internal/$PROJ_NAME:$PROJ_VER
