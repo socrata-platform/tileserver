@@ -18,19 +18,14 @@ case class QuadTile(rawX: Int, rawY: Int, zoom: Int) {
 
   /** North edge of the tile (lat). */
   val north: Double = mapper.lat(y * Size)
-<<<<<<< Updated upstream
-  val east:  Double = mapper.lon(x * Size + Size - 1)
-  val south: Double = mapper.lat(y * Size + Size - 1)
-=======
 
   /** East edge of the tile (lon). */
-  val east:  Double = mapper.lon(x * Size + Size)
+  val east:  Double = mapper.lon(x * Size + Size - 1)
 
   /** South edge of the tile (lat). */
-  val south: Double = mapper.lat(y * Size + Size)
+  val south: Double = mapper.lat(y * Size + Size - 1)
 
   /** West edge of the tile (lon). */
->>>>>>> Stashed changes
   val west:  Double = mapper.lon(x * Size)
 
   /** Return the within_box SoQL fragment for the given column.
