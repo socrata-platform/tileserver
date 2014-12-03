@@ -18,11 +18,12 @@ import config.TileServerConfig
 import services.{ImageQueryService, VersionService}
 
 // $COVERAGE-OFF$ Disabled because this is framework boilerplate.
+/** Main object that actually starts up the server; wires everything together. */
 object TileServer extends App {
   private val ListenPort: Int = 2048
 
   implicit val shutdownTimeout = Resource.executorShutdownNoTimeout
-  lazy val config = TileServerConfig
+  val config = TileServerConfig
 
   for {
     executor <- managed(Executors.newCachedThreadPool())
@@ -52,4 +53,5 @@ object TileServer extends App {
     server.run()
   }
 }
+
 // $COVERAGE-ON$
