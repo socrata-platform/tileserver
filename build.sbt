@@ -55,6 +55,9 @@ styletask := { val _ = (scalastyle in Compile).toTask("").value }
 
 AssemblyKeys.assembly <<= AssemblyKeys.assembly dependsOn styletask
 
+// Make test:scalastyle use scalastyle-test-config.xml
+(scalastyleConfig in Test) := baseDirectory.value / "scalastyle-test-config.xml"
+
 // Generate com.socrata.tileserver.BuildInfo
 buildInfoSettings
 
