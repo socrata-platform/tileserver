@@ -19,10 +19,21 @@ boot2docker ssh <<EOF
   set -v
   # Point docker at the registry.
   sudo /etc/init.d/docker stop
-  sleep 2 # Give docker time to spin down.
+
+  # Give docker time to spin down.
+  while docker ps >/dev/null 2>/dev/null; do
+    echo -n '.'
+    sleep 1
+  done
+
   sudo sed -i '1s/$/\n\nEXTRA_ARGS="--insecure-registry registry.docker.aws-us-west-2-infrastructure.socrata.net:5000"\n/' /etc/init.d/docker
   sudo /etc/init.d/docker start
-  sleep 5 # Give docker time to spin up.
+
+  # Give docker time to spin up.
+  until docker ps >/dev/null 2>/dev/null; do
+    echo -n '.'
+    sleep 1
+  done
 
   # Tag the image.
   docker tag $PROJ_NAME $REGISTRY/internal/$PROJ_NAME:$PROJ_VER
