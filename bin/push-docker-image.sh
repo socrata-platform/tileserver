@@ -33,7 +33,11 @@ boot2docker ssh <<EOF
   done
 EOF
 
-BUILD="-$1"
+BUILD=""
+if [ "$1" ]; then
+    BUILD="-$1"
+fi
+
 TAG_EXISTS=$(boot2docker ssh "docker images| egrep '$REGISTRY/internal/$PROJ_NAME[[:space:]]+$PROJ_VER$BUILD[[:space:]]'")
 
 if [ "$TAG_EXISTS" ]; then
