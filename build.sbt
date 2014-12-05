@@ -47,13 +47,20 @@ scalacOptions ++= Seq("-optimize",
 Revolver.settings
 
 // Make "assembly" depend on "scalastyle".  
-lazy val styletask = taskKey[Unit]("a task that wraps 'scalastyle' with no input parameters")
+lazy val styleTask = taskKey[Unit]("a task that wraps 'scalastyle' with no input parameters.")
 
-styletask := { val _ = (scalastyle in Compile).toTask("").value }
+styleTask := { val _ = (scalastyle in Compile).toTask("").value }
 
-(Keys.`package` in Compile) <<= (Keys.`package` in Compile) dependsOn styletask
+(Keys.`package` in Compile) <<= (Keys.`package` in Compile) dependsOn styleTask
 
-AssemblyKeys.assembly <<= AssemblyKeys.assembly dependsOn styletask
+AssemblyKeys.assembly <<= AssemblyKeys.assembly dependsOn styleTask
+
+// Make "test:test" depend on "test:scalastyle"
+lazy val testStyleTask = taskKey[Unit]("a task that wraps 'test:scalastyle' with no input parameters.")
+
+testStyleTask := { val _ = (scalastyle in Test).toTask("").value }
+
+(test in Test) <<= (test in Test) dependsOn (testStyleTask)
 
 // Make test:scalastyle use scalastyle-test-config.xml
 (scalastyleConfig in Test) := baseDirectory.value / "scalastyle-test-config.xml"
