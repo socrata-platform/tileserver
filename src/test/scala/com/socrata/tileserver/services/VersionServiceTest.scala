@@ -1,6 +1,8 @@
 package com.socrata.tileserver
 package services
 
+import javax.servlet.http.HttpServletResponse.{SC_OK => ScOk}
+
 import org.mockito.Mockito.{verify, when}
 import org.scalatest.mock.MockitoSugar
 import org.scalatest.{FunSuite, MustMatchers}
@@ -18,7 +20,7 @@ class VersionServiceTest
 
     VersionService.get(req)(resp)
 
-    verify(resp).setStatus(200)
+    verify(resp).setStatus(ScOk)
     verify(resp).setContentType("application/json; charset=UTF-8")
 
     outputStream.getLowStr must include ("health")
