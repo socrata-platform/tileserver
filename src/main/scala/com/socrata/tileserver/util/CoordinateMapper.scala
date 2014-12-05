@@ -6,20 +6,34 @@ import com.vividsolutions.jts.geom.Coordinate
 
 import CoordinateMapper._
 
-/** Most of the mapping logic is ported from here:
+/** Map coordinates between lat/lon and pixels.
+  *
+  * Most of the mapping logic is ported from here:
   * https://github.com/mapbox/node-sphericalmercator
+  *
+  * @constructor Create an instance for this zoom level.
+  * @param zoom The zoom level, lower numbers are zoomed out further.
   */
 case class CoordinateMapper(val zoom: Int) {
-  val SizeZoomed: Int = Size * (1 << zoom)
-  val ZoomFactor: Float = (1 << zoom) * 1.0f
+  private val SizeZoomed: Int = Size * (1 << zoom)
+  private val ZoomFactor: Float = (1 << zoom) * 1.0f
 
+  /** Returns TMS coordinates.
+    *
+    * @param x the x coordinate to be mapped.
+    * @param y the y coordinate to be mapped.
+    */
   def tmsCoordinates(x: Int, y: Int): (Int, Int) = (x, (1 << zoom) - (y + 1))
 
-  /** Returns the longitude corresponding to "x". */
+  /** The longitude for x.
+    *
+    * @param x the x coordinate in TMS coordinates.
+    */
   def lon(x: Int): Double = (x - SizeZoomed / 2) / (SizeZoomed / 360.0)
 
-  /** Returns the latitude corresponding to "y".
-    * y should be in TMS Coordinates.
+  /** The latitude for y.
+    *
+    * @param y the y coordinate in TMS coordinates.
     */
   def lat(y: Int): Double = {
     val g = (Pi * (2 * -y + SizeZoomed)) / SizeZoomed

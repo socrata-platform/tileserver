@@ -13,7 +13,7 @@ case class QuadTile(rawX: Int, rawY: Int, zoom: Int) {
   /** The mapper for this zoom. **/
   val mapper = CoordinateMapper(zoom)
 
-  /** The mapped x and y values. */
+  /** The mapped TMS coordinate. */
   val (x: Int, y: Int) = mapper.tmsCoordinates(rawX, rawY)
 
   /** North edge of the tile (lat). */
@@ -29,6 +29,7 @@ case class QuadTile(rawX: Int, rawY: Int, zoom: Int) {
   val west:  Double = mapper.lon(x * Size)
 
   /** Return the within_box SoQL fragment for the given column.
+    *
     * @param pointColumn the column to match against.
     */
   def withinBox(pointColumn: String): String = {

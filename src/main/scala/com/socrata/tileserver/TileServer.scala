@@ -20,17 +20,15 @@ import services.{ImageQueryService, VersionService}
 // $COVERAGE-OFF$ Disabled because this is framework boilerplate.
 /** Main object that actually starts up the server; wires everything together. */
 object TileServer extends App {
-  private val ListenPort: Int = 2048
-
+  /** Never timeout shutting down an executor. */
   implicit val shutdownTimeout = Resource.executorShutdownNoTimeout
-  val config = TileServerConfig
 
   for {
     executor <- managed(Executors.newCachedThreadPool())
-    curator <- CuratorFromConfig(config.curator).toV2
+    curator <- CuratorFromConfig(TileServerConfig.curator).toV2
     discovery <- DiscoveryFromConfig(classOf[Void],
                                      curator,
-                                     config.discovery)
+                                     TileServerConfig.discovery)
     coreServerCurator <- ServiceProviderFromConfig[Void](discovery, "core")
     http <- managed(new HttpClientHttpClient(executor,
                                              HttpClientHttpClient.
@@ -48,7 +46,7 @@ object TileServer extends App {
 
     val server = new SocrataServerJetty(
       handler,
-      SocrataServerJetty.defaultOptions.withPort(ListenPort))
+      SocrataServerJetty.defaultOptions.withPort(TileServerConfig.port))
 
     server.run()
   }
