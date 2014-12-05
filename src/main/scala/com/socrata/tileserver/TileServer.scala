@@ -25,10 +25,10 @@ object TileServer extends App {
 
   for {
     executor <- managed(Executors.newCachedThreadPool())
-    curator <- CuratorFromConfig(TileServerConfig.curator).toV2
+    curator <- CuratorFromConfig(TileServerConfig.Curator).toV2
     discovery <- DiscoveryFromConfig(classOf[Void],
                                      curator,
-                                     TileServerConfig.discovery)
+                                     TileServerConfig.Discovery)
     coreServerCurator <- ServiceProviderFromConfig[Void](discovery, "core")
     http <- managed(new HttpClientHttpClient(executor,
                                              HttpClientHttpClient.
@@ -36,7 +36,7 @@ object TileServer extends App {
                                                withUserAgent("tileserver")))
   } {
     val coreServerProvider = CuratorServerProvider(http, coreServerCurator, identity)
-    val core = CoreServerClient(coreServerProvider)
+    val core = CoreServerClient(coreServerProvider, TileServerConfig)
 
     val imageQueryService = ImageQueryService(core)
     val router = new Router(VersionService,
@@ -46,7 +46,7 @@ object TileServer extends App {
 
     val server = new SocrataServerJetty(
       handler,
-      SocrataServerJetty.defaultOptions.withPort(TileServerConfig.port))
+      SocrataServerJetty.defaultOptions.withPort(TileServerConfig.Port))
 
     server.run()
   }

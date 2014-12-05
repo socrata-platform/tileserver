@@ -2,7 +2,6 @@ package com.socrata.backend
 package client
 
 import scala.concurrent.duration.FiniteDuration
-import java.util.concurrent.TimeUnit.SECONDS
 import scala.util.{Failure, Success, Try}
 
 import com.rojoma.json.v3.ast.{JString, JValue}
@@ -13,19 +12,20 @@ import com.socrata.http.server.HttpResponse
 import com.socrata.thirdparty.curator.ServerProvider
 import com.socrata.thirdparty.curator.ServerProvider.{Complete, Retry}
 
-import errors.{ServiceDiscoveryException}
+import errors.ServiceDiscoveryException
+import config.CoreServerClientConfig
 
 // TODO: Pull this into its own project.
-// TODO: Consider defining a trait for this in SocrataHttp.
 /**
   * Manages connections and requests to the Soda Fountain service
   * @param coreProvider Service discovery object
   * @param connectTimeout Timeout setting for connecting to the service
   */
-class CoreServerClient(coreProvider: ServerProvider,
-                       connectTimeoutMs: Int,
-                       maxRetries: Int) {
+case class CoreServerClient(coreProvider: ServerProvider,
+                            config: CoreServerClientConfig) {
   private val logger = LoggerFactory.getLogger(getClass)
+  private val connectTimeoutMs = config.ConnectTimeout.toMillis
+  private val maxRetries = config.MaxRetries
 
   /**
     * Sends a get request to Soda Fountain
@@ -40,21 +40,5 @@ class CoreServerClient(coreProvider: ServerProvider,
       case Some(response) => Complete(callback(response))
       case None => throw ServiceDiscoveryException("Failed to discover core server.")
     }
-  }
-}
-
-object CoreServerClient {
-  private val DefaultConnectTimeoutSec: Int = 10
-  private val DefaultMaxRetries: Int = 5
-
-  def apply(coreProvider: ServerProvider,
-            connectTimeout: FiniteDuration = new FiniteDuration(DefaultConnectTimeoutSec, SECONDS),
-            maxRetries: Int = DefaultMaxRetries): CoreServerClient = {
-    if (connectTimeout.toMillis != connectTimeout.toMillis.toInt) {
-      throw new IllegalArgumentException(
-        "Connect timeout out of range (milliseconds must fit in an Int).")
-    }
-
-    new CoreServerClient(coreProvider, connectTimeout.toMillis.toInt, maxRetries)
   }
 }

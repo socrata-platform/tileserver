@@ -1,10 +1,11 @@
-package com.socrata.tileserver.util
+package com.socrata.tileserver
+package util
 
 import scala.math.{Pi, atan, exp, log, min, max, sin, round}
 
 import com.vividsolutions.jts.geom.Coordinate
 
-import CoordinateMapper._
+import config.TileServerConfig
 
 /** Map coordinates between lat/lon and pixels.
   *
@@ -15,10 +16,13 @@ import CoordinateMapper._
   * @param zoom The zoom level, lower numbers are zoomed out further.
   */
 case class CoordinateMapper(val zoom: Int) {
-  private val SizeZoomed: Int = Size * (1 << zoom)
+  private val size: Int = TileServerConfig.TileSize
+
+  private val SizeZoomed: Int = size * (1 << zoom)
   private val ZoomFactor: Float = (1 << zoom) * 1.0f
 
-  /** Returns TMS coordinates.
+
+  /** (x, y) in TMS coordinates.
     *
     * @param x the x coordinate to be mapped.
     * @param y the y coordinate to be mapped.
@@ -42,13 +46,8 @@ case class CoordinateMapper(val zoom: Int) {
     -1 * r2d * (2 * atan(exp(g)) - 0.5 * Pi)
   }
 
-  def px(c: Coordinate): Coordinate = {
-    val (x, y) = px(c.x, c.y)
-    new Coordinate(x, y)
-  }
-
-  /** Returns the pixel (x and y) corresponding to "lon" and "lat" */
-  def px(lon: Double, lat: Double): (Int, Int) = {
+  /** The pixel (x, y) corresponding to "lon" and "lat" */
+  private def px(lon: Double, lat: Double): (Int, Int) = {
     val d2r = Pi / 180.0
     val bc = SizeZoomed / 360.0
     val cc = SizeZoomed / (2.0 * Pi)
@@ -58,10 +57,19 @@ case class CoordinateMapper(val zoom: Int) {
     val x = (d + lon * bc).round.toInt
     val y = (d + 0.5 * log((1.0 + f) / (1.0 - f)) * (-cc)).round.toInt
 
-    (x % Size, y % Size)
+    (x % size, y % size)
   }
-}
 
-object CoordinateMapper {
-  val Size: Int = 256
+  /** The pixel (x, y) corresponding * to "lon" and "lat" in 256x256 space. */
+  def tilePx(lon: Double, lat:Double): (Int, Int) = {
+    val (x, y) = px(lon, lat)
+
+    (x % size, y % size)
+  }
+
+  /** Map a (lon, lat) coordinate into (x, y) in 256x256 space. */
+  def tilePx(c: Coordinate): Coordinate = {
+    val (x, y) = tilePx(c.x, c.y)
+    new Coordinate(x, y)
+  }
 }
