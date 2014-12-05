@@ -28,8 +28,14 @@ import com.socrata.thirdparty.geojson.{GeoJson, FeatureCollectionJson}
 import ImageQueryService._
 import util.{CoordinateMapper, ExcludedHeaders, Extensions, JsonP, InvalidRequest, QuadTile}
 
+/** Service that provides the actual tiles.
+  *
+  * @constructor This should only be called once, by the main application.
+  * @param client The client to talk to the upstream geo-json service.
+  */
 case class ImageQueryService(client: CoreServerClient)
     extends SimpleResource {
+  /** The types (file extensions) supported by this endpoint. */
   val types: Set[String] = Extensions.keySet
 
   private def geoJsonQuery(requestId: RequestId,
@@ -93,6 +99,15 @@ case class ImageQueryService(client: CoreServerClient)
     }
   }
 
+  /** Handle the request.
+    *
+    * @param identifier unique identifier for this set
+    * @param pointColumn the column in the dataset that contains the
+    *                    location information.
+    * @param zoom the zoom level, 1 is zoomed all the way out.
+    * @param x the x coordinate of the tile.
+    * @param typedY the y coordinate of the tile, and the type (extension).
+    */
   def service(identifier: String,
               pointColumn: String,
               zoom: Int,
@@ -113,8 +128,8 @@ object ImageQueryService {
   implicit val logger: Logger = LoggerFactory.getLogger(getClass)
   private val geomFactory = new GeometryFactory()
 
-  val HttpSuccess: Int = 200
-  val TileExtent: Int = 4096
+  val HttpSuccess: Int = 200 // TODO: Replace with a constant, somewhere.
+  val TileExtent: Int = 4096 // TODO: Config?
 
   private[services] def badRequest(message: String,
                                    info: String)

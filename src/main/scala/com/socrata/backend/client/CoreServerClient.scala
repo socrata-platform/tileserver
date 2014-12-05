@@ -15,6 +15,8 @@ import com.socrata.thirdparty.curator.ServerProvider.{Complete, Retry}
 
 import errors.{ServiceDiscoveryException}
 
+// TODO: Pull this into its own project.
+// TODO: Consider defining a trait for this in SocrataHttp.
 /**
   * Manages connections and requests to the Soda Fountain service
   * @param coreProvider Service discovery object
