@@ -4,6 +4,8 @@ package util
 import java.io.InputStream
 import javax.activation.MimeType
 import javax.servlet.http.HttpServletResponse
+import javax.servlet.http.HttpServletResponse.{SC_INTERNAL_SERVER_ERROR => ScInternalServerError}
+import javax.servlet.http.HttpServletResponse.{SC_OK => ScOk}
 
 import com.rojoma.json.v3.io.JsonReader
 import org.apache.commons.codec.binary.Base64
@@ -38,7 +40,7 @@ class UtilPackageTest
 
     InvalidJson(resp)
 
-    verify(resp).setStatus(500)
+    verify(resp).setStatus(ScInternalServerError)
     verify(resp).setContentType("application/json")
 
     outputStream.getLowStr must include ("invalid")
@@ -55,7 +57,7 @@ class UtilPackageTest
 
       ext(noneEncoder, clientResp)(resp)
 
-      verify(resp).setStatus(500)
+      verify(resp).setStatus(ScInternalServerError)
       verify(resp).setContentType("application/json")
 
       outputStream.getLowStr must include ("invalid")
@@ -68,7 +70,7 @@ class UtilPackageTest
 
     DefaultResponse(resp)
 
-    verify(resp).setStatus(200)
+    verify(resp).setStatus(ScOk)
     verify(resp).setHeader("Access-Control-Allow-Origin", "*")
   }
 
@@ -82,7 +84,7 @@ class UtilPackageTest
 
       ext(emptyEncoder, clientResp)(resp)
 
-      verify(resp).setStatus(200)
+      verify(resp).setStatus(ScOk)
       verify(resp).setHeader("Access-Control-Allow-Origin", "*")
     }
   }
@@ -97,7 +99,7 @@ class UtilPackageTest
 
       PbfExt(encoder, clientResp)(resp)
 
-      verify(resp).setStatus(200)
+      verify(resp).setStatus(ScOk)
       verify(resp).setContentType("application/octet-stream")
       verify(resp).setHeader("Access-Control-Allow-Origin", "*")
 
@@ -115,7 +117,7 @@ class UtilPackageTest
 
       B64PbfExt(encoder, clientResp)(resp)
 
-      verify(resp).setStatus(200)
+      verify(resp).setStatus(ScOk)
       verify(resp).setContentType("text/plain")
       verify(resp).setHeader("Access-Control-Allow-Origin", "*")
 
@@ -156,7 +158,7 @@ class UtilPackageTest
 
     JsonExt(ignored, clientResp)(resp)
 
-    verify(resp).setStatus(200)
+    verify(resp).setStatus(ScOk)
     verify(resp).setContentType("application/json; charset=UTF-8")
     verify(resp).setHeader("Access-Control-Allow-Origin", "*")
 

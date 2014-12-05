@@ -16,8 +16,8 @@ object EmptyResponse extends Response {
 
   val EmptyInputStream: InputStream with Acknowledgeable = {
     new InputStream with Acknowledgeable {
-      override def acknowledge() = {}
-      override def read() = -1
+      override def acknowledge(): Unit = {}
+      override def read(): Int = -1
     }
   }
 

@@ -2,7 +2,7 @@ package com.socrata.tileserver
 package services
 
 import java.net.URLDecoder
-import javax.servlet.http.HttpServletResponse.{SC_OK => HttpSuccess}
+import javax.servlet.http.HttpServletResponse.{SC_OK => ScOk}
 import scala.util.{Try, Success, Failure}
 
 import com.rojoma.json.v3.ast.JValue
@@ -80,7 +80,7 @@ case class ImageQueryService(client: CoreServerClient)
 
       val callback = { resp: Response =>
         resp.resultCode match {
-          case HttpSuccess => {
+          case ScOk => {
             Extensions(ext)(encoder(mapper), resp)
           }
           case _ => badRequest("Underlying request failed", resp)

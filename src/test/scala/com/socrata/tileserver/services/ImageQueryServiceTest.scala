@@ -1,6 +1,7 @@
 package com.socrata.tileserver
 package services
 
+import javax.servlet.http.HttpServletResponse.{SC_BAD_REQUEST => ScBadRequest}
 import scala.util.control.NoStackTrace
 
 import com.rojoma.json.v3.ast.JString
@@ -28,12 +29,12 @@ class ImageQueryServiceTest
       val outputStream = new util.ByteArrayServletOutputStream
       val resp = outputStream.responseFor
       val cause = new NoStackTrace {
-        override def getMessage = causeMessage
+        override def getMessage: String = causeMessage
       }
 
       ImageQueryService.badRequest(message, cause).apply(resp)
 
-      verify(resp).setStatus(400)
+      verify(resp).setStatus(ScBadRequest)
       verify(resp).setContentType("application/json; charset=UTF-8")
 
       outputStream.getLowStr must include ("message")
@@ -50,7 +51,7 @@ class ImageQueryServiceTest
 
       ImageQueryService.badRequest(message, info).apply(resp)
 
-      verify(resp).setStatus(400)
+      verify(resp).setStatus(ScBadRequest)
       verify(resp).setContentType("application/json; charset=UTF-8")
 
       outputStream.getLowStr must include ("message")
