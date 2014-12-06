@@ -11,7 +11,7 @@ import config.TileServerConfig
   * @param zoom zoom level of the map
   */
 case class QuadTile(rawX: Int, rawY: Int, zoom: Int) {
-  private val size: Int = TileServerConfig.TileSize
+  private val size: Int = TileServerConfig.tileSize
 
   /** The mapper for this zoom. **/
   val mapper = CoordinateMapper(zoom)

@@ -16,7 +16,7 @@ import config.TileServerConfig
   * @param zoom The zoom level, lower numbers are zoomed out further.
   */
 case class CoordinateMapper(val zoom: Int) {
-  private val size: Int = TileServerConfig.TileSize
+  private val size: Int = TileServerConfig.tileSize
 
   private val SizeZoomed: Int = size * (1 << zoom)
   private val ZoomFactor: Float = (1 << zoom) * 1.0f

@@ -5,11 +5,11 @@ import java.util.concurrent.TimeUnit.SECONDS
 import scala.concurrent.duration.FiniteDuration
 
 trait CoreServerClientConfig {
-  def MaxRetries: Int
-  def ConnectTimeoutSec: Int
+  def maxRetries: Int
+  def connectTimeoutSec: Int
 
-  final def ConnectTimeout: FiniteDuration = {
-    val connectTimeout = new FiniteDuration(ConnectTimeoutSec, SECONDS)
+  final def connectTimeout: FiniteDuration = {
+    val connectTimeout = new FiniteDuration(connectTimeoutSec, SECONDS)
 
     if (connectTimeout.toMillis != connectTimeout.toMillis.toInt) {
       throw new IllegalArgumentException(

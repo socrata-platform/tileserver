@@ -24,8 +24,8 @@ import config.CoreServerClientConfig
 case class CoreServerClient(coreProvider: ServerProvider,
                             config: CoreServerClientConfig) {
   private val logger = LoggerFactory.getLogger(getClass)
-  private val connectTimeoutMs = config.ConnectTimeout.toMillis
-  private val maxRetries = config.MaxRetries
+  private val connectTimeoutMs = config.connectTimeout.toMillis
+  private val maxRetries = config.maxRetries
 
   /**
     * Sends a get request to Soda Fountain

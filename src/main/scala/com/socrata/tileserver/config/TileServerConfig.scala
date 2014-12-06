@@ -10,23 +10,23 @@ object TileServerConfig extends CoreServerClientConfig {
   private lazy val config = ConfigFactory.load().getConfig("com.socrata")
 
   /** Port to listen on. */
-  lazy val Port = config.getInt("tileserver.port")
+  lazy val port = config.getInt("tileserver.port")
 
   /** Zookeeper configuration. */
-  lazy val Curator = new CuratorConfig(config, "curator")
+  lazy val curator = new CuratorConfig(config, "curator")
 
   /** Zookeeper configuration. */
-  lazy val Discovery = new DiscoveryConfig(config, "curator")
+  lazy val discovery = new DiscoveryConfig(config, "curator")
 
   /** The size (in points) of the tiles. */
-  lazy val TileSize: Int = config.getInt("tileserver.tileSize")
+  lazy val tileSize: Int = config.getInt("tileserver.tileSize")
 
   /** Extent for vector tile encoder. */
-  lazy val TileExtent: Int = config.getInt("tileserver.tileExtent")
+  lazy val tileExtent: Int = config.getInt("tileserver.tileExtent")
 
   /** Max client retries. */
-  lazy val MaxRetries = config.getInt("backend.maxRetries")
+  lazy val maxRetries = config.getInt("backend.maxRetries")
 
   /** Client timeout. */
-  lazy val ConnectTimeoutSec = config.getInt("backend.connectTimeout")
+  lazy val connectTimeoutSec = config.getInt("backend.connectTimeout")
 }
