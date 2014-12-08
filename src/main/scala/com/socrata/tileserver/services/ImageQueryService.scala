@@ -27,6 +27,7 @@ import com.socrata.http.server.{HttpRequest, HttpResponse, HttpService}
 import com.socrata.thirdparty.geojson.{GeoJson, FeatureCollectionJson}
 
 import ImageQueryService._
+import config.TileServerConfig
 import util.{CoordinateMapper, ExcludedHeaders, Extensions, JsonP, InvalidRequest, QuadTile}
 
 /** Service that provides the actual tiles.
@@ -129,8 +130,6 @@ object ImageQueryService {
   implicit val logger: Logger = LoggerFactory.getLogger(getClass)
   private val geomFactory = new GeometryFactory()
 
-  val TileExtent: Int = 4096 // TODO: Config?
-
   private[services] def badRequest(message: String,
                                    info: String)
                                   (implicit logger: Logger): HttpResponse = {
@@ -178,7 +177,7 @@ object ImageQueryService {
   }
 
   private[services] def encoder(mapper: CoordinateMapper): Response => Option[Array[Byte]] = resp => {
-    val encoder: VectorTileEncoder = new VectorTileEncoder(ImageQueryService.TileExtent)
+    val encoder: VectorTileEncoder = new VectorTileEncoder()
 
     GeoJson.codec.decode(resp.jValue(JsonP).toV2) collect {
       case FeatureCollectionJson(features, _) => {
@@ -187,7 +186,7 @@ object ImageQueryService {
         }
 
         val pixels = coords map { case (coord, props) =>
-          (mapper.px(coord), props)
+          (mapper.tilePx(coord), props)
         }
 
         val points = pixels groupBy { case (px, props) =>

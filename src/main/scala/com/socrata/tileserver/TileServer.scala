@@ -36,7 +36,7 @@ object TileServer extends App {
                                                withUserAgent("tileserver")))
   } {
     val coreServerProvider = CuratorServerProvider(http, coreServerCurator, identity)
-    val core = CoreServerClient(coreServerProvider)
+    val core = CoreServerClient(coreServerProvider, TileServerConfig)
 
     val imageQueryService = ImageQueryService(core)
     val router = new Router(VersionService,
