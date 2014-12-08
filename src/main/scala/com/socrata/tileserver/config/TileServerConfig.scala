@@ -19,14 +19,11 @@ object TileServerConfig extends CoreServerClientConfig {
   lazy val discovery = new DiscoveryConfig(config, "curator")
 
   /** The size (in points) of the tiles. */
-  lazy val tileSize: Int = config.getInt("tileserver.tileSize")
-
-  /** Extent for vector tile encoder. */
-  lazy val tileExtent: Int = config.getInt("tileserver.tileExtent")
+  lazy val tileSize: Int = config.getInt("tileserver.tile-size")
 
   /** Max client retries. */
-  lazy val maxRetries = config.getInt("backend.maxRetries")
+  lazy val maxRetries = config.getInt("backend.max-retries")
 
   /** Client timeout. */
-  lazy val connectTimeoutSec = config.getInt("backend.connectTimeout")
+  lazy val connectTimeoutSec = config.getInt("backend.connect-timeout")
 }

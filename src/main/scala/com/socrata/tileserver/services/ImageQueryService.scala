@@ -177,7 +177,7 @@ object ImageQueryService {
   }
 
   private[services] def encoder(mapper: CoordinateMapper): Response => Option[Array[Byte]] = resp => {
-    val encoder: VectorTileEncoder = new VectorTileEncoder(TileServerConfig.tileExtent)
+    val encoder: VectorTileEncoder = new VectorTileEncoder()
 
     GeoJson.codec.decode(resp.jValue(JsonP).toV2) collect {
       case FeatureCollectionJson(features, _) => {
