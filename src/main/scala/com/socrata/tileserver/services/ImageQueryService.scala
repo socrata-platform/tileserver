@@ -15,7 +15,7 @@ import com.rojoma.simplearm.v2.{Managed, ResourceScope}
 import com.vividsolutions.jts.geom.GeometryFactory
 import no.ecc.vectortile.{VectorTileDecoder, VectorTileEncoder}
 import org.apache.commons.io.IOUtils
-import org.slf4j.{Logger, LoggerFactory}
+import org.slf4j.{Logger, LoggerFactory, MDC}
 
 import com.socrata.backend.client.CoreServerClient
 import com.socrata.http.client.{HttpClient, RequestBuilder, Response}
@@ -119,6 +119,8 @@ case class ImageQueryService(client: CoreServerClient)
       val TypedPathComponent(y, ext) = typedY
 
       override def get: HttpService = if (types(ext)) {
+        MDC.put("X-Socrata-Resource", identifier)
+
         req => handleLayer(req, identifier, pointColumn, QuadTile(x, y, zoom), ext)
       } else {
         req => badRequest("Invalid file type", ext)

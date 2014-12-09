@@ -10,6 +10,7 @@ resolvers ++= Seq(
 )
 
 libraryDependencies ++= Seq(
+  "ch.qos.logback"           % "logback-classic"          % "1.1.2",
   "com.rojoma"              %% "rojoma-json-v3"           % "3.2.0",
   "com.rojoma"              %% "simple-arm-v2"            % "2.0.0",
   "com.socrata"             %% "socrata-http-client"      % "3.0.0",
@@ -19,8 +20,7 @@ libraryDependencies ++= Seq(
   "commons-codec"            % "commons-codec"            % "1.10",
   "commons-io"               % "commons-io"               % "2.4",
   "no.ecc.vectortile"        % "java-vector-tile"         % "1.0.1",
-  "org.apache.curator"       % "curator-x-discovery"      % "2.7.0",
-  "org.slf4j"                % "slf4j-simple"             % "1.7.2"
+  "org.apache.curator"       % "curator-x-discovery"      % "2.7.0"
 )
 
 libraryDependencies ++= Seq(
@@ -46,7 +46,7 @@ scalacOptions ++= Seq("-optimize",
 // Setup revolver.
 Revolver.settings
 
-// Make "assembly" depend on "scalastyle".  
+// Make "assembly" depend on "scalastyle".
 lazy val styleTask = taskKey[Unit]("a task that wraps 'scalastyle' with no input parameters.")
 
 styleTask := { val _ = (scalastyle in Compile).toTask("").value }
