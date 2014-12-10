@@ -77,7 +77,6 @@ case class ImageQueryService(client: CoreServerClient)
     val resp = Try {
       val params = augmentParams(req, withinBox, pointColumn)
       val requestId = extractRequestId(req)
-      logger.info(s"$ReqIdHeader: $requestId")
 
       val callback = { resp: Response =>
         resp.resultCode match {
