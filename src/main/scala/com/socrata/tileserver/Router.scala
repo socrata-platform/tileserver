@@ -21,6 +21,7 @@ class Router(versionService: HttpService,
                                  TypedPathComponent[Int]) => HttpService) {
   private val logger = LoggerFactory.getLogger(getClass)
   private val logWrapper =
+    // TODO: Pull this set from config.
     NewLoggingHandler(LoggingOptions(logger, Set("X-Socrata-Host",
                                                  "X-Socrata-RequestId",
                                                  "X-Socrata-Resource"))) _

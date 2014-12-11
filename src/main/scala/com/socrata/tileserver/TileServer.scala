@@ -15,7 +15,7 @@ import com.socrata.http.server.{HttpRequest, HttpResponse, HttpService, SocrataS
 import com.socrata.thirdparty.curator.{CuratorFromConfig, CuratorServerProvider, DiscoveryFromConfig}
 
 import config.TileServerConfig
-import services.{ImageQueryService, VersionService}
+import services.{TileService, VersionService}
 
 // $COVERAGE-OFF$ Disabled because this is framework boilerplate.
 /** Main object that actually starts up the server; wires everything together. */
@@ -38,7 +38,7 @@ object TileServer extends App {
     val coreServerProvider = CuratorServerProvider(http, coreServerCurator, identity)
     val core = CoreServerClient(coreServerProvider, TileServerConfig)
 
-    val imageQueryService = ImageQueryService(core)
+    val imageQueryService = TileService(core)
     val router = new Router(VersionService,
                             imageQueryService.types,
                             imageQueryService.service)

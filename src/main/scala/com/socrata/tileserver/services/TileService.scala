@@ -11,7 +11,6 @@ import com.rojoma.json.v3.codec.JsonEncode.toJValue
 import com.rojoma.json.v3.conversions._
 import com.rojoma.json.v3.interpolation._
 import com.rojoma.json.v3.io.JsonReader
-import com.rojoma.simplearm.v2.{Managed, ResourceScope}
 import com.vividsolutions.jts.geom.GeometryFactory
 import no.ecc.vectortile.{VectorTileDecoder, VectorTileEncoder}
 import org.apache.commons.io.IOUtils
@@ -26,7 +25,7 @@ import com.socrata.http.server.util.RequestId.{RequestId, ReqIdHeader, getFromRe
 import com.socrata.http.server.{HttpRequest, HttpResponse, HttpService}
 import com.socrata.thirdparty.geojson.{GeoJson, FeatureCollectionJson}
 
-import ImageQueryService._
+import TileService._
 import config.TileServerConfig
 import util.{CoordinateMapper, ExcludedHeaders, Extensions, JsonP, InvalidRequest, QuadTile}
 
@@ -35,8 +34,7 @@ import util.{CoordinateMapper, ExcludedHeaders, Extensions, JsonP, InvalidReques
   * @constructor This should only be called once, by the main application.
   * @param client The client to talk to the upstream geo-json service.
   */
-case class ImageQueryService(client: CoreServerClient)
-    extends SimpleResource {
+case class TileService(client: CoreServerClient) extends SimpleResource {
   /** The types (file extensions) supported by this endpoint. */
   val types: Set[String] = Extensions.keySet
 
@@ -127,7 +125,7 @@ case class ImageQueryService(client: CoreServerClient)
     }
 }
 
-object ImageQueryService {
+object TileService {
   implicit val logger: Logger = LoggerFactory.getLogger(getClass)
   private val geomFactory = new GeometryFactory()
 
@@ -170,16 +168,18 @@ object ImageQueryService {
                                       select: String): Map[String, String] = {
     val params = req.queryParameters
     val whereParam =
-      if (params.contains("$where")) params("$where") + s"and $where" else where
+      if (params.contains("$where")) params("$where") + s" and $where" else where
     val selectParam =
       if (params.contains("$select")) params("$select") + s", $select" else select
 
     params + ("$where" -> whereParam) + ("$select" -> selectParam)
   }
 
-  private[services] def encoder(mapper: CoordinateMapper): Response => Option[Array[Byte]] = resp => {
-    val encoder: VectorTileEncoder = new VectorTileEncoder()
+  implicit val vectorizer: VectorTileEncoder = new VectorTileEncoder()
 
+  private[services] def encoder(mapper: CoordinateMapper)
+                               (implicit vectorizer: VectorTileEncoder):
+      Response => Option[Array[Byte]] = resp => {
     GeoJson.codec.decode(resp.jValue(JsonP).toV2) collect {
       case FeatureCollectionJson(features, _) => {
         val coords = features map { f =>
@@ -206,10 +206,10 @@ object ImageQueryService {
           val attrs = new java.util.HashMap[String, JValue]
           attrs.put("count", toJValue(count))
           attrs.put("properties", toJValue(props))
-          encoder.addFeature("main", attrs, pt)
+          vectorizer.addFeature("main", attrs, pt)
         }
 
-        encoder.encode()
+        vectorizer.encode()
       }
     }
   }
