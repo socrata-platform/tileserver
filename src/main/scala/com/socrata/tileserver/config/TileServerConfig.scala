@@ -5,6 +5,7 @@ import com.typesafe.config.ConfigFactory
 import com.socrata.thirdparty.curator.{CuratorConfig, DiscoveryConfig}
 import com.socrata.backend.config.CoreServerClientConfig
 
+// $COVERAGE-OFF$ Disabled because this is configuration boilerplate.
 /** Container for global configuration. */
 object TileServerConfig extends CoreServerClientConfig {
   private lazy val config = ConfigFactory.load().getConfig("com.socrata")
@@ -27,3 +28,4 @@ object TileServerConfig extends CoreServerClientConfig {
   /** Client timeout. */
   lazy val connectTimeoutSec = config.getInt("backend.connect-timeout")
 }
+// $COVERAGE-ON$
