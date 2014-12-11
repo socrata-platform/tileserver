@@ -1,5 +1,5 @@
 *~
-target
-.idea
-reference-impl
-notes.txt
+/target
+/project/project
+/project/target
+
