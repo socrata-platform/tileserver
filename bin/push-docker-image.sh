@@ -24,7 +24,9 @@ boot2docker ssh <<EOF
     sleep 0.5
   done
 
-  sudo sed -i '1s/$/\n\nEXTRA_ARGS="--insecure-registry registry.docker.aws-us-west-2-infrastructure.socrata.net:5000"\n/' /etc/init.d/docker
+  # Point docker at the registry.
+  sudo sh -c 'echo "EXTRA_ARGS=\"--insecure-registry $REGISTRY\"" > /var/lib/boot2docker/profile'
+
   sudo /etc/init.d/docker start >/dev/null
 
   # Give docker time to spin up.

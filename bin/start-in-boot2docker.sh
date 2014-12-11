@@ -7,15 +7,16 @@ ping -c 2 jenkins.sea1.socrata.com >/dev/null 2>/dev/null \
     || { echo "VPN connection required to download artifact(s)." ; exit ; }
 
 boot2docker init
+boot2docker down
 
-if [ ! -e "$DEV_ROOT/armada/.git" ]; then
+if [ ! -e "$DEV_ROOT/tileserver-docker/.git" ]; then
     cd "$DEV_ROOT"
-    git clone --recursive git@git.socrata.com:armada.git
+    git clone --recursive git@git.socrata.com:tileserver-docker.git
 fi
 
 VBoxManage sharedfolder add 'boot2docker-vm' \
-    --name 'armada' \
-    --hostpath "$DEV_ROOT/armada" \
+    --name 'tileserver-docker' \
+    --hostpath "$DEV_ROOT/tileserver-docker" \
     --automount 2>/dev/null
 
 echo "Starting VM..."
@@ -34,10 +35,10 @@ if ! [ "$ENSEMBLE" ]; then
 fi
 
 boot2docker ssh <<EOF
-    mkdir armada
-    sudo mount -t vboxsf -o uid=1000,gid=50 armada armada
-    cd armada/internal/tileserver
-    docker build --rm -t tileserver .
+    mkdir tileserver-docker
+    sudo mount -t vboxsf -o uid=1000,gid=50 tileserver-docker tileserver-docker
+    cd tileserver-docker
+    docker build --no-cache --rm -t tileserver .
     echo ZOOKEEPER_ENSEMBLE=[$ENSEMBLE] > $ENVFILE
     sed -i 's/\[/["/' $ENVFILE
     sed -i 's/, /", "/g' $ENVFILE
