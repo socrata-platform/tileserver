@@ -25,9 +25,7 @@ class TileServiceTest
     with MockitoSugar {
   implicit val logger: Logger = mock[Logger]
 
-  def jStr(s: String): String = JString(s).toString
-
-  def escape(s: String): String = s.toCharArray map { _.toInt } mkString ","
+  def encode(s: String): String = JString(s).toString
 
   test("Bad request must include message and cause") {
     forAll { (message: String, causeMessage: String) =>
@@ -43,9 +41,9 @@ class TileServiceTest
       verify(resp).setContentType("application/json; charset=UTF-8")
 
       outputStream.getLowStr must include ("message")
-      escape(outputStream.getString) must include (escape(jStr(message)))
+      outputStream.getString must include (encode(message))
       outputStream.getLowStr must include ("cause")
-      escape(outputStream.getString) must include (escape(jStr(causeMessage)))
+      outputStream.getString must include (encode(causeMessage))
     }
   }
 
@@ -60,9 +58,9 @@ class TileServiceTest
       verify(resp).setContentType("application/json; charset=UTF-8")
 
       outputStream.getLowStr must include ("message")
-      escape(outputStream.getString) must include (escape(jStr(message)))
+      outputStream.getString must include (encode(message))
       outputStream.getLowStr must include ("info")
-      escape(outputStream.getString) must include (escape(jStr(info)))
+      outputStream.getString must include (encode(info))
     }
   }
 
@@ -82,27 +80,33 @@ class TileServiceTest
     val whereKey = "$where"
     val selectKey = "$select"
 
-    forAll { (otherValue: String,
-              whereBase: String,
-              whereValue: String,
-              selectBase: String,
-              selectValue: String) =>
+    forAll { (rawOtherValue: String,
+              rawWhereBase: String,
+              rawWhereValue: String,
+              rawSelectBase: String,
+              rawSelectValue: String) =>
+      val otherValue = encode(rawOtherValue) filter (_.isLetterOrDigit)
+      val whereBase = encode(rawWhereBase) filter (_.isLetterOrDigit)
+      val whereValue = encode(rawWhereValue) filter (_.isLetterOrDigit)
+      val selectBase = encode(rawSelectBase) filter (_.isLetterOrDigit)
+      val selectValue = encode(rawSelectValue) filter (_.isLetterOrDigit)
+
       val neither = MapRequest(otherKey -> otherValue)
       val where = MapRequest(whereKey -> whereBase)
       val select = MapRequest(selectKey -> selectBase)
 
       neither.queryParameters must have size (1)
       val nParams = TileService.augmentParams(neither,
-                                                    whereValue,
-                                                    selectValue)
+                                              whereValue,
+                                              selectValue)
       nParams must have size (3)
       nParams(otherKey) must equal (otherValue)
       nParams(whereKey) must equal (whereValue)
       nParams(selectKey) must equal (selectValue)
 
       val wParams = TileService.augmentParams(neither ++ where,
-                                                    whereValue,
-                                                    selectValue)
+                                              whereValue,
+                                              selectValue)
       wParams must have size (3)
       wParams(otherKey) must equal (otherValue)
 
@@ -113,8 +117,8 @@ class TileServiceTest
       wParams(selectKey) must equal (selectValue)
 
       val sParams = TileService.augmentParams(neither ++ select,
-                                                    whereValue,
-                                                    selectValue)
+                                              whereValue,
+                                              selectValue)
       sParams must have size (3)
       sParams(otherKey) must equal (otherValue)
       sParams(whereKey) must equal (whereValue)
@@ -124,8 +128,8 @@ class TileServiceTest
       sParams(selectKey) must include regex (",\\s*")
 
       val wsParams = TileService.augmentParams(neither ++ where ++ select,
-                                                     whereValue,
-                                                     selectValue)
+                                               whereValue,
+                                               selectValue)
       sParams must have size (3)
       sParams(otherKey) must equal (otherValue)
 
