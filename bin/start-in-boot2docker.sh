@@ -50,5 +50,5 @@ boot2docker ssh <<EOF
 EOF
 
 echo "Forwarding localhost:${PORT} to boot2docker (Ctrl+C to exit)"
-set -v
+echo "boot2docker ssh -L ${PORT}:localhost:${PORT} -N"
 boot2docker ssh -L ${PORT}:localhost:${PORT} -N
