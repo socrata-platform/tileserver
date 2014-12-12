@@ -144,17 +144,8 @@ class TileServiceTest
     }
   }
 
-  private val noneMapper = new CoordinateMapper {
+  private val noneMapper = new CoordinateMapper(0) {
     override def tilePx(lon: Double, lat:Double): (Int, Int) =
       (lon.toInt, lat.toInt)
-  }
-
-  private def decode(bytes: Array[Byte]): (Geometry, Map[String, String]) = {
-    val decoder = new VectorTileDecoder()
-    decoder.decode(bytes)
-
-    val features = decoder.getFeatures("main").asScala map { f =>
-      (f.getGeometry, f.getAttributes)
-    }
   }
 }
