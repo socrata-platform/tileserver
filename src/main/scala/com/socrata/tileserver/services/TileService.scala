@@ -3,6 +3,7 @@ package services
 
 import java.net.URLDecoder
 import javax.servlet.http.HttpServletResponse.{SC_OK => ScOk}
+import scala.collection.JavaConverters._
 import scala.util.{Try, Success, Failure}
 
 import com.rojoma.json.v3.ast.JValue
@@ -11,8 +12,8 @@ import com.rojoma.json.v3.codec.JsonEncode.toJValue
 import com.rojoma.json.v3.conversions._
 import com.rojoma.json.v3.interpolation._
 import com.rojoma.json.v3.io.JsonReader
-import com.vividsolutions.jts.geom.GeometryFactory
-import no.ecc.vectortile.{VectorTileDecoder, VectorTileEncoder}
+import com.vividsolutions.jts.geom.{Geometry, GeometryFactory}
+import no.ecc.vectortile.VectorTileEncoder
 import org.apache.commons.io.IOUtils
 import org.slf4j.{Logger, LoggerFactory, MDC}
 
@@ -23,11 +24,12 @@ import com.socrata.http.server.responses._
 import com.socrata.http.server.routing.{SimpleResource, TypedPathComponent}
 import com.socrata.http.server.util.RequestId.{RequestId, ReqIdHeader, getFromRequest}
 import com.socrata.http.server.{HttpRequest, HttpResponse, HttpService}
-import com.socrata.thirdparty.geojson.{GeoJson, FeatureCollectionJson}
+import com.socrata.thirdparty.geojson.GeoJson.codec.decode
+import com.socrata.thirdparty.geojson.{GeoJson, FeatureCollectionJson, FeatureJson}
 
 import TileService._
 import config.TileServerConfig
-import util.{CoordinateMapper, ExcludedHeaders, Extensions, JsonP, InvalidRequest, QuadTile}
+import util._
 
 /** Service that provides the actual tiles.
   *
@@ -175,41 +177,48 @@ object TileService {
     params + ("$where" -> whereParam) + ("$select" -> selectParam)
   }
 
-  implicit val vectorizer: VectorTileEncoder = new VectorTileEncoder()
+  type Feature = (Geometry, Map[String, JValue])
 
-  private[services] def encoder(mapper: CoordinateMapper)
-                               (implicit vectorizer: VectorTileEncoder):
-      Response => Option[Array[Byte]] = resp => {
-    GeoJson.codec.decode(resp.jValue(JsonP).toV2) collect {
+  private[services] def rollup(mapper: CoordinateMapper,
+                               features: Seq[FeatureJson]): Seq[Feature] = {
+    val coords = features map { f =>
+      (f.geometry.getCoordinate, f.properties)
+    }
+
+    val pixels = coords map { case (coord, props) =>
+      (mapper.tilePx(coord), props)
+    }
+
+    val points = pixels groupBy { case (px, props) =>
+      (geomFactory.createPoint(px), props)
+    }
+
+    val ptCounts = points map {
+      case (k, v) => (k, v.size)
+    }
+
+    val rollups = ptCounts map { case ((pt, jprops), count) =>
+      val props = jprops map { case (k, v) => (k, v.toV3) }
+      val attrs = Map("count" -> toJValue(count),
+                      "properties" -> toJValue(props))
+      (pt, attrs)
+    }
+
+    rollups.toSeq
+  }
+
+  private[services] def encoder(mapper: CoordinateMapper): Encoder = resp => {
+    implicit val enc: VectorTileEncoder = new VectorTileEncoder()
+
+    decode(resp.jValue(JsonP).toV2) collect {
       case FeatureCollectionJson(features, _) => {
-        val coords = features map { f =>
-          (f.geometry.getCoordinate, f.properties)
+        val rollups = rollup(mapper, features)
+
+        rollups foreach { case (pt, attrs) =>
+          enc.addFeature("main", attrs.asJava, pt)
         }
 
-        val pixels = coords map { case (coord, props) =>
-          (mapper.tilePx(coord), props)
-        }
-
-        val points = pixels groupBy { case (px, props) =>
-          (geomFactory.createPoint(px), props)
-        }
-
-        val rollups = points map {
-          case (k, v) => (k, v.size)
-        }
-
-        rollups foreach { case ((pt, jprops), count) =>
-          val props = jprops map { case (k, v) =>
-            (k, fromJValue[String](v.toV3))
-          }
-
-          val attrs = new java.util.HashMap[String, JValue]
-          attrs.put("count", toJValue(count))
-          attrs.put("properties", toJValue(props))
-          vectorizer.addFeature("main", attrs, pt)
-        }
-
-        vectorizer.encode()
+        enc.encode()
       }
     }
   }
