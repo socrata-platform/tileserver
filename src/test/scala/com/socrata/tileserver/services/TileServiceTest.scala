@@ -5,8 +5,9 @@ import javax.servlet.http.HttpServletRequest
 import javax.servlet.http.HttpServletResponse.{SC_BAD_REQUEST => ScBadRequest}
 import scala.util.control.NoStackTrace
 
-import com.socrata.http.server.util.RequestId.ReqIdHeader
 import com.rojoma.json.v3.ast.JString
+import com.socrata.http.server.util.RequestId.ReqIdHeader
+import com.vividsolutions.jts.geom.Geometry
 import org.mockito.Mockito.{verify, when}
 import org.scalatest.mock.MockitoSugar
 import org.scalatest.prop.PropertyChecks
@@ -16,7 +17,7 @@ import org.slf4j.Logger
 import com.socrata.http.server.HttpRequest
 import com.socrata.http.server.HttpRequest.AugmentedHttpServletRequest
 
-import util.MapRequest
+import util.{MapRequest, CoordinateMapper}
 
 class TileServiceTest
     extends FunSuite
@@ -140,6 +141,20 @@ class TileServiceTest
       sParams(selectKey) must startWith (selectBase)
       sParams(selectKey) must endWith (selectValue)
       sParams(selectKey) must include regex (",\\s*")
+    }
+  }
+
+  private val noneMapper = new CoordinateMapper {
+    override def tilePx(lon: Double, lat:Double): (Int, Int) =
+      (lon.toInt, lat.toInt)
+  }
+
+  private def decode(bytes: Array[Byte]): (Geometry, Map[String, String]) = {
+    val decoder = new VectorTileDecoder()
+    decoder.decode(bytes)
+
+    val features = decoder.getFeatures("main").asScala map { f =>
+      (f.getGeometry, f.getAttributes)
     }
   }
 }
