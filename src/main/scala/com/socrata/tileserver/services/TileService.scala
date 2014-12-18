@@ -128,6 +128,8 @@ case class TileService(client: CoreServerClient) extends SimpleResource {
 }
 
 object TileService {
+  type Feature = (Geometry, Map[String, JValue])
+
   implicit val logger: Logger = LoggerFactory.getLogger(getClass)
   private val geomFactory = new GeometryFactory()
 
@@ -177,12 +179,10 @@ object TileService {
     params + ("$where" -> whereParam) + ("$select" -> selectParam)
   }
 
-  type Feature = (Geometry, Map[String, JValue])
-
   private[services] def rollup(mapper: CoordinateMapper,
-                               features: Seq[FeatureJson]): Seq[Feature] = {
+                               features: Seq[FeatureJson]): Set[Feature] = {
     val coords = features map { f =>
-      (f.geometry.getCoordinate, f.properties)
+      (f.geometry.getCoordinate, f.properties.mapValues(_.toV3))
     }
 
     val pixels = coords map { case (coord, props) =>
@@ -193,22 +193,17 @@ object TileService {
       (geomFactory.createPoint(px), props)
     }
 
-    val ptCounts = points map {
+    val ptCounts = points.toSeq map {
       case (k, v) => (k, v.size)
     }
 
-    val rollups = ptCounts map { case ((pt, jprops), count) =>
-      val props = jprops map { case (k, v) => (k, v.toV3) }
-      val attrs = Map("count" -> toJValue(count),
-                      "properties" -> toJValue(props))
-      (pt, attrs)
-    }
-
-    rollups.toSeq
+    ptCounts.map { case ((pt, props), count) =>
+      pt -> Map("count" -> toJValue(count), "properties" -> toJValue(props))
+    } (collection.breakOut) // Build `Set` not `Seq`.
   }
 
   private[services] def encoder(mapper: CoordinateMapper): Encoder = resp => {
-    implicit val enc: VectorTileEncoder = new VectorTileEncoder()
+    val enc: VectorTileEncoder = new VectorTileEncoder()
 
     decode(resp.jValue(JsonP).toV2) collect {
       case FeatureCollectionJson(features, _) => {
