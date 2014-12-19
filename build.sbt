@@ -15,7 +15,7 @@ libraryDependencies ++= Seq(
   "com.rojoma"              %% "simple-arm-v2"            % "2.0.0",
   "com.socrata"             %% "socrata-http-client"      % "3.0.0",
   "com.socrata"             %% "socrata-http-jetty"       % "3.0.0",
-  "com.socrata"             %% "socrata-thirdparty-utils" % "2.5.6",
+  "com.socrata"             %% "socrata-thirdparty-utils" % "2.6.2",
   "com.typesafe"             % "config"                   % "1.2.1",
   "commons-codec"            % "commons-codec"            % "1.10",
   "commons-io"               % "commons-io"               % "2.4",
@@ -29,7 +29,7 @@ libraryDependencies ++= Seq(
   "org.scalatest"           %% "scalatest"                % "2.2.1"  % "test"
 )
 
-testOptions in Test += Tests.Argument(TestFrameworks.ScalaTest, "-oDS")
+testOptions in Test += Tests.Argument(TestFrameworks.ScalaTest, "-oD")
 
 com.socrata.cloudbeessbt.SocrataCloudbeesSbt.socrataSettings(assembly = true)
 

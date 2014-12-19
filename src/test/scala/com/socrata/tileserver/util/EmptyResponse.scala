@@ -10,7 +10,24 @@ import com.rojoma.json.v3.interpolation._
 import com.socrata.http.client.Response
 import com.socrata.http.common.util.Acknowledgeable
 
-object EmptyResponse extends Response {
+class EmptyResponse extends Response {
+  val resultCode: Int = 0
+  val charset: Charset = StandardCharsets.UTF_8
+  val streamCreated: Boolean = true
+  val headerNames: Set[String] = Set.empty
+
+  def headers(name: String): Array[String] = Array.empty
+  def inputStream(maxBetween: Long): InputStream with Acknowledgeable =
+    EmptyResponse.EmptyInputStream
+
+  override def jValue(ct: Option[MimeType] => Boolean = EmptyResponse.AnyMimeType,
+                      max: Long = 0): JValue = EmptyResponse.EmptyJson
+
+  override val contentType: Option[MimeType] =
+    Some(new MimeType("application/json"))
+}
+
+object EmptyResponse {
   val AnyMimeType: Option[MimeType] => Boolean = { mt => true }
   val EmptyJson: JValue = json"{}"
 
@@ -21,17 +38,5 @@ object EmptyResponse extends Response {
     }
   }
 
-  val resultCode: Int = 0
-  val charset: Charset = StandardCharsets.UTF_8
-  val streamCreated: Boolean = true
-  val headerNames: Set[String] = Set.empty
-
-  def headers(name: String): Array[String] = Array.empty
-  def inputStream(maxBetween: Long): InputStream with Acknowledgeable = EmptyInputStream
-
-  override def jValue(ct: Option[MimeType] => Boolean = EmptyResponse.AnyMimeType,
-                      max: Long = 0): JValue = EmptyJson
-
-  override val contentType: Option[MimeType] =
-    Some(new MimeType("application/json"))
+  def apply(): EmptyResponse = new EmptyResponse
 }

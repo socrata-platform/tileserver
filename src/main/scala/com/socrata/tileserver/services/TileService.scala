@@ -131,6 +131,7 @@ object TileService {
   type Feature = (Geometry, Map[String, JValue])
 
   implicit val logger: Logger = LoggerFactory.getLogger(getClass)
+  implicit val enc: VectorTileEncoder = new VectorTileEncoder()
   private val geomFactory = new GeometryFactory()
 
   private[services] def badRequest(message: String,
@@ -202,9 +203,8 @@ object TileService {
     } (collection.breakOut) // Build `Set` not `Seq`.
   }
 
-  private[services] def encoder(mapper: CoordinateMapper): Encoder = resp => {
-    val enc: VectorTileEncoder = new VectorTileEncoder()
-
+  private[services] def encoder(mapper: CoordinateMapper)
+                               (implicit enc: VectorTileEncoder): Encoder = resp => {
     decode(resp.jValue(JsonP).toV2) collect {
       case FeatureCollectionJson(features, _) => {
         val rollups = rollup(mapper, features)

@@ -9,7 +9,7 @@ import com.rojoma.json.v3.ast.{JString, JValue}
 import com.rojoma.json.v3.codec.JsonEncode.toJValue
 import com.rojoma.json.v3.conversions._
 import com.socrata.http.server.util.RequestId.ReqIdHeader
-import com.vividsolutions.jts.geom.{Coordinate, GeometryFactory, Point}
+import com.vividsolutions.jts.geom.{Coordinate, Geometry, GeometryFactory, Point}
 import org.mockito.Mockito.{verify, when}
 import org.scalatest.mock.MockitoSugar
 import org.scalatest.prop.PropertyChecks
@@ -20,20 +20,21 @@ import com.socrata.http.server.HttpRequest
 import com.socrata.http.server.HttpRequest.AugmentedHttpServletRequest
 import com.socrata.thirdparty.geojson.FeatureJson
 
-import util.{MapRequest, CoordinateMapper}
+import util.{CoordinateMapper, MapRequest, SeqResponse, StringEncoder}
 
 class TileServiceTest
     extends FunSuite
     with MustMatchers
     with PropertyChecks
     with MockitoSugar {
-  implicit val logger: Logger = mock[Logger]
-
-  private val geomFactory = new GeometryFactory()
-  private val echoMapper = new CoordinateMapper(0) {
+  val logger: Logger = mock[Logger]
+  val geomFactory = new GeometryFactory()
+  val echoMapper = new CoordinateMapper(0) {
     override def tilePx(lon: Double, lat:Double): (Int, Int) =
       (lon.toInt, lat.toInt)
   }
+
+  def uniq(objs: AnyRef*): Boolean = Set(objs: _*).size == objs.size
 
   def encode(s: String): String = JString(s).toString
 
@@ -64,7 +65,7 @@ class TileServiceTest
         override def getMessage: String = causeMessage
       }
 
-      TileService.badRequest(message, cause).apply(resp)
+      TileService.badRequest(message, cause)(logger)(resp)
 
       verify(resp).setStatus(ScBadRequest)
       verify(resp).setContentType("application/json; charset=UTF-8")
@@ -81,7 +82,7 @@ class TileServiceTest
       val outputStream = new util.ByteArrayServletOutputStream
       val resp = outputStream.responseFor
 
-      TileService.badRequest(message, info).apply(resp)
+      TileService.badRequest(message, info)(logger)(resp)
 
       verify(resp).setStatus(ScBadRequest)
       verify(resp).setContentType("application/json; charset=UTF-8")
@@ -185,7 +186,7 @@ class TileServiceTest
 
   test("Unique coordinates are included when rolled up") {
     forAll { (pt0: (Int, Int), pt1: (Int, Int), pt2: (Int, Int)) =>
-      whenever (pt0 != pt1 && pt0 != pt2 && pt1 != pt2) {
+      whenever (uniq(pt0, pt1, pt2)) {
         val coordinates = Seq(fJson(pt0),
                               fJson(pt1),
                               fJson(pt2))
@@ -201,7 +202,7 @@ class TileServiceTest
 
   test("Coordinates have correct counts when rolled up") {
     forAll { (pt0: (Int, Int), pt1: (Int, Int), pt2: (Int, Int)) =>
-      whenever (pt0 != pt1 && pt0 != pt2 && pt1 != pt2) {
+      whenever (uniq(pt0, pt1, pt2)) {
         val coordinates = Seq(fJson(pt0),
                               fJson(pt1),
                               fJson(pt1),
@@ -239,6 +240,31 @@ class TileServiceTest
         val actual = TileService.rollup(echoMapper, coordinates)
 
         actual must equal (expected)
+      }
+    }
+  }
+
+  test("Encoder includes all features") {
+    forAll { (pt0: (Int, Int),
+              pt1: (Int, Int),
+              pt2: (Int, Int),
+              prop0: (String, String),
+              prop1: (String, String)) =>
+      val (k0, _) = prop0
+      val (k1, _) = prop1
+
+      whenever (uniq(pt0, pt1, pt2) && prop0 != prop1 && k0 != k1) {
+        val coordinates = Seq(fJson(pt0),
+                              fJson(pt1),
+                              fJson(pt2))
+        val expected = Set(feature(pt0),
+                           feature(pt1),
+                           feature(pt2))
+
+        val bytes = TileService.encoder(echoMapper)(StringEncoder())(SeqResponse(coordinates))
+        bytes must be ('defined)
+        bytes.get.length must be > 0
+        new String(bytes.get, "UTF-8") must equal (StringEncoder.encFeatures(expected))
       }
     }
   }
