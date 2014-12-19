@@ -16,6 +16,7 @@ import org.scalatest.prop.PropertyChecks
 import org.scalatest.{FunSuite, MustMatchers}
 import org.slf4j.Logger
 
+import com.socrata.backend.client.CoreServerClient
 import com.socrata.http.server.HttpRequest
 import com.socrata.http.server.HttpRequest.AugmentedHttpServletRequest
 import com.socrata.thirdparty.geojson.FeatureJson
@@ -55,6 +56,14 @@ class TileServiceTest
               attributes: Map[String, String] = Map.empty): TileService.Feature = {
     (point(pt), Map("count" -> toJValue(count)) ++
        Map("properties" -> toJValue(attributes)))
+  }
+
+  test("Service supports at least .pbf, .bpbf and .json") {
+    val svc = TileService(mock[CoreServerClient])
+
+    svc.types must contain ("pbf")
+    svc.types must contain ("bpbf")
+    svc.types must contain ("json")
   }
 
   test("Bad request must include message and cause") {
@@ -261,7 +270,8 @@ class TileServiceTest
                            feature(pt1),
                            feature(pt2))
 
-        val bytes = TileService.encoder(echoMapper)(StringEncoder())(SeqResponse(coordinates))
+        val bytes = TileService.
+          encoder(echoMapper, StringEncoder())(SeqResponse(coordinates))
         bytes must be ('defined)
         bytes.get.length must be > 0
         new String(bytes.get, "UTF-8") must equal (StringEncoder.encFeatures(expected))

@@ -44,7 +44,8 @@ case class TileService(client: CoreServerClient) extends SimpleResource {
                            req: HttpRequest,
                            id: String,
                            params: Map[String, String],
-                           callback: Response => HttpResponse): HttpResponse = {
+                           callback: Response => HttpResponse,
+                           logger: Logger = TileService.defaultLogger): HttpResponse = {
     val headerNames = req.headerNames filterNot { s: String =>
       ExcludedHeaders(s.toLowerCase)
     }
@@ -130,13 +131,12 @@ case class TileService(client: CoreServerClient) extends SimpleResource {
 object TileService {
   type Feature = (Geometry, Map[String, JValue])
 
-  implicit val logger: Logger = LoggerFactory.getLogger(getClass)
-  implicit val enc: VectorTileEncoder = new VectorTileEncoder()
+  implicit val defaultLogger: Logger = LoggerFactory.getLogger(getClass)
+  private val defaultTileEncoder: VectorTileEncoder = new VectorTileEncoder()
   private val geomFactory = new GeometryFactory()
 
-  private[services] def badRequest(message: String,
-                                   info: String)
-                                  (implicit logger: Logger): HttpResponse = {
+  private[services] def badRequest(message: String, info: String)
+                                  (implicit logger: Logger) : HttpResponse = {
     logger.warn(s"$message: $info")
 
     BadRequest ~>
@@ -144,8 +144,7 @@ object TileService {
       Json(json"""{message: $message, info: $info}""")
   }
 
-  private[services] def badRequest(message: String,
-                                   cause: Throwable)
+  private[services] def badRequest(message: String, cause: Throwable)
                                   (implicit logger: Logger): HttpResponse = {
     logger.warn(message, cause)
 
@@ -154,8 +153,7 @@ object TileService {
       Json(json"""{message: $message, cause: ${cause.getMessage}}""")
   }
 
-  private[services] def badRequest(message: String,
-                                   resp: Response)
+  private[services] def badRequest(message: String, resp: Response)
                                   (implicit logger: Logger): HttpResponse = {
     val body: JValue = JsonReader.fromString(IOUtils.toString(resp.inputStream()))
     logger.warn(s"$message: ${resp.resultCode}: $body")
@@ -203,17 +201,23 @@ object TileService {
     } (collection.breakOut) // Build `Set` not `Seq`.
   }
 
-  private[services] def encoder(mapper: CoordinateMapper)
-                               (implicit enc: VectorTileEncoder): Encoder = resp => {
+  /** Returns a function that will encode a GeoJson response as a vector tile.
+    *
+    * @param mapper The mapper the encoder will use.
+    * @param tileEnc The underlying encoder that will produce the vector tile.
+    */
+  private[services] def encoder(mapper: CoordinateMapper,
+                                tileEncoder: VectorTileEncoder = defaultTileEncoder):
+      Encoder = resp => {
     decode(resp.jValue(JsonP).toV2) collect {
       case FeatureCollectionJson(features, _) => {
         val rollups = rollup(mapper, features)
 
         rollups foreach { case (pt, attrs) =>
-          enc.addFeature("main", attrs.asJava, pt)
+          tileEncoder.addFeature("main", attrs.asJava, pt)
         }
 
-        enc.encode()
+        tileEncoder.encode()
       }
     }
   }
