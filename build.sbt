@@ -29,7 +29,10 @@ libraryDependencies ++= Seq(
   "org.scalatest"           %% "scalatest"                % "2.2.1"  % "test"
 )
 
-testOptions in Test += Tests.Argument(TestFrameworks.ScalaTest, "-oD")
+testOptions in Test += Tests.Argument(TestFrameworks.ScalaTest, "-oD") // No traces.
+// testOptions in Test += Tests.Argument(TestFrameworks.ScalaTest, "-oDS")   // Short traces.
+// testOptions in Test += Tests.Argument(TestFrameworks.ScalaTest, "-oDF")   // Full traces.
+
 
 com.socrata.cloudbeessbt.SocrataCloudbeesSbt.socrataSettings(assembly = true)
 

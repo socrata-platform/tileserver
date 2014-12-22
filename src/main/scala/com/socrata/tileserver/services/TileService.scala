@@ -40,6 +40,7 @@ case class TileService(client: CoreServerClient) extends SimpleResource {
   /** The types (file extensions) supported by this endpoint. */
   val types: Set[String] = Extensions.keySet
 
+  // Call to the underlying service.
   private[services] def geoJsonQuery(requestId: RequestId,
                                      req: HttpRequest,
                                      id: String,
@@ -68,11 +69,12 @@ case class TileService(client: CoreServerClient) extends SimpleResource {
     client.execute(jsonReq, callback)
   }
 
+  // Do the actual heavy lifting for the request handling.
   private def handleRequest(req: HttpRequest,
-                          identifier: String,
-                          pointColumn: String,
-                          tile: QuadTile,
-                          ext: String): HttpResponse = {
+                            identifier: String,
+                            pointColumn: String,
+                            tile: QuadTile,
+                            ext: String): HttpResponse = {
     val mapper = tile.mapper
     val withinBox = tile.withinBox(pointColumn)
 

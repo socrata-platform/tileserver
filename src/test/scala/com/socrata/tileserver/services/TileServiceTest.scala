@@ -153,6 +153,23 @@ class TileServiceTest
     }
   }
 
+  test("Bad request must include message and response") {
+    forAll { (message: String, pt: (Int, Int)) =>
+      val outputStream = new util.ByteArrayServletOutputStream
+      val resp = outputStream.responseFor
+
+      val upstream = SeqResponse(Seq(fJson(pt)))
+      TileService.badRequest(message, upstream)(logger)(resp)
+
+      outputStream.getLowStr must include ("message")
+      outputStream.getString must include (encode(message))
+      outputStream.getLowStr must include ("resultcode")
+      outputStream.getString must include (upstream.resultCode.toString)
+      outputStream.getLowStr must include ("body")
+      outputStream.getString must include (upstream.toString)
+    }
+  }
+
   test("Correct request id is extracted") {
     forAll { (reqId: String) =>
       val req = mock[HttpRequest]
