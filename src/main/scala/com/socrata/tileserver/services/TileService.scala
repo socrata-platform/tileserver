@@ -40,12 +40,13 @@ case class TileService(client: CoreServerClient) extends SimpleResource {
   /** The types (file extensions) supported by this endpoint. */
   val types: Set[String] = Extensions.keySet
 
-  private def geoJsonQuery(requestId: RequestId,
-                           req: HttpRequest,
-                           id: String,
-                           params: Map[String, String],
-                           callback: Response => HttpResponse,
-                           logger: Logger = TileService.defaultLogger): HttpResponse = {
+  private[services] def geoJsonQuery(requestId: RequestId,
+                                     req: HttpRequest,
+                                     id: String,
+                                     params: Map[String, String],
+                                     callback: Response => HttpResponse,
+                                     logger: Logger =
+                                       TileService.defaultLogger): HttpResponse = {
     val headerNames = req.headerNames filterNot { s: String =>
       ExcludedHeaders(s.toLowerCase)
     }
@@ -67,7 +68,7 @@ case class TileService(client: CoreServerClient) extends SimpleResource {
     client.execute(jsonReq, callback)
   }
 
-  private def handleLayer(req: HttpRequest,
+  private def handleRequest(req: HttpRequest,
                           identifier: String,
                           pointColumn: String,
                           tile: QuadTile,
@@ -121,7 +122,7 @@ case class TileService(client: CoreServerClient) extends SimpleResource {
       override def get: HttpService = if (types(ext)) {
         MDC.put("X-Socrata-Resource", identifier)
 
-        req => handleLayer(req, identifier, pointColumn, QuadTile(x, y, zoom), ext)
+        req => handleRequest(req, identifier, pointColumn, QuadTile(x, y, zoom), ext)
       } else {
         req => badRequest("Invalid file type", ext)
       }
@@ -207,8 +208,8 @@ object TileService {
     * @param tileEnc The underlying encoder that will produce the vector tile.
     */
   private[services] def encoder(mapper: CoordinateMapper,
-                                tileEncoder: VectorTileEncoder = defaultTileEncoder):
-      Encoder = resp => {
+                                tileEncoder: VectorTileEncoder =
+                                  defaultTileEncoder): Encoder = resp => {
     decode(resp.jValue(JsonP).toV2) collect {
       case FeatureCollectionJson(features, _) => {
         val rollups = rollup(mapper, features)

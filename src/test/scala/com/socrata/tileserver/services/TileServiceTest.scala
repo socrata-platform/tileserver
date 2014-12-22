@@ -3,13 +3,14 @@ package services
 
 import javax.servlet.http.HttpServletRequest
 import javax.servlet.http.HttpServletResponse.{SC_BAD_REQUEST => ScBadRequest}
+import scala.collection.JavaConverters._
 import scala.util.control.NoStackTrace
 
-import com.rojoma.json.v3.ast.{JString, JValue}
+import com.rojoma.json.v3.ast.JString
 import com.rojoma.json.v3.codec.JsonEncode.toJValue
 import com.rojoma.json.v3.conversions._
-import com.socrata.http.server.util.RequestId.ReqIdHeader
-import com.vividsolutions.jts.geom.{Coordinate, Geometry, GeometryFactory, Point}
+import com.socrata.http.server.util.RequestId.{RequestId, ReqIdHeader}
+import com.vividsolutions.jts.geom.{Coordinate, GeometryFactory, Point}
 import org.mockito.Mockito.{verify, when}
 import org.scalatest.mock.MockitoSugar
 import org.scalatest.prop.PropertyChecks
@@ -17,11 +18,14 @@ import org.scalatest.{FunSuite, MustMatchers}
 import org.slf4j.Logger
 
 import com.socrata.backend.client.CoreServerClient
-import com.socrata.http.server.HttpRequest
+import com.socrata.backend.config.CoreServerClientConfig
+import com.socrata.http.client.{RequestBuilder, Response, SimpleHttpRequest}
 import com.socrata.http.server.HttpRequest.AugmentedHttpServletRequest
+import com.socrata.http.server.{HttpRequest, HttpResponse}
+import com.socrata.thirdparty.curator.ServerProvider
 import com.socrata.thirdparty.geojson.FeatureJson
 
-import util.{CoordinateMapper, MapRequest, SeqResponse, StringEncoder}
+import util.{CoordinateMapper, StaticRequest, SeqResponse, StringEncoder}
 
 class TileServiceTest
     extends FunSuite
@@ -58,12 +62,58 @@ class TileServiceTest
        Map("properties" -> toJValue(attributes)))
   }
 
+  val emptyConfig = new CoreServerClientConfig {
+    def connectTimeoutSec: Int = 0
+    def maxRetries: Int = 0
+  }
+
+  val nothingCallback: Response => HttpResponse = r => mock[HttpResponse]
+
   test("Service supports at least .pbf, .bpbf and .json") {
     val svc = TileService(mock[CoreServerClient])
 
     svc.types must contain ("pbf")
     svc.types must contain ("bpbf")
     svc.types must contain ("json")
+  }
+
+  test("Headers and parameters are correct when making a geo-json query") {
+    forAll { (reqId: RequestId,
+              id: String,
+              param: (String, String),
+              header: (String, String)) =>
+      val base = RequestBuilder("mock.socrata.com")
+      val request = StaticRequest(param, header)
+
+      val expected = base.
+        path(Seq("id", s"$id.geojson")).
+        addHeader(ReqIdHeader -> reqId).
+        addHeader(header).
+        query(Map(param)).
+        get.builder
+
+      val client = new CoreServerClient(mock[ServerProvider], emptyConfig) {
+        override def execute[T](request: RequestBuilder => SimpleHttpRequest,
+                                callback: Response => T): T = {
+          val actual = request(base).builder
+          // The assertions are here, because of weird inversion of control.
+          actual.url must equal (expected.url)
+          actual.method must equal (expected.method)
+          actual.query.toSet must equal (expected.query.toSet)
+          actual.headers.toSet must equal (expected.headers.toSet)
+
+          callback(mock[Response])
+        }
+      }
+
+      val resp = TileService(client).geoJsonQuery(reqId,
+                                                  request,
+                                                  id,
+                                                  Map(param),
+                                                  nothingCallback,
+                                                  logger)
+
+    }
   }
 
   test("Bad request must include message and cause") {
@@ -130,9 +180,9 @@ class TileServiceTest
       val selectBase = encode(rawSelectBase) filter (_.isLetterOrDigit)
       val selectValue = encode(rawSelectValue) filter (_.isLetterOrDigit)
 
-      val neither = MapRequest(otherKey -> otherValue)
-      val where = MapRequest(whereKey -> whereBase)
-      val select = MapRequest(selectKey -> selectBase)
+      val neither = StaticRequest(otherKey -> otherValue)
+      val where = StaticRequest(whereKey -> whereBase)
+      val select = StaticRequest(selectKey -> selectBase)
 
       neither.queryParameters must have size (1)
       val nParams = TileService.augmentParams(neither,
