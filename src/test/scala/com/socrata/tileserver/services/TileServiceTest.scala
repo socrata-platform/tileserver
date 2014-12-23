@@ -113,32 +113,58 @@ class TileServiceTest
     }
   }
 
-  test("Handle request returns 400 when underlying returns 400") {
-    val client = new CoreServerClient(mock[ServerProvider], emptyConfig) {
-      override def execute[T](request: RequestBuilder => SimpleHttpRequest,
-                              callback: Response => T): T = {
-        val resp = mock[Response]
-        when(resp.resultCode).thenReturn(ScBadRequest)
-        when(resp.inputStream(anyInt())).
-          thenReturn(StringInputStream("{}"))
+  test("Handle request returns 'bad request' when underlying returns 'bad request'") {
+    forAll { message: String =>
+      val client = new CoreServerClient(mock[ServerProvider], emptyConfig) {
+        override def execute[T](request: RequestBuilder => SimpleHttpRequest,
+                                callback: Response => T): T = {
+          val resp = mock[Response]
+          when(resp.resultCode).thenReturn(ScBadRequest)
+          when(resp.inputStream(anyInt())).
+            thenReturn(StringInputStream(s"""{reason: "$message"}"""))
 
-        callback(resp)
+          callback(resp)
+        }
       }
+
+      val outputStream = new util.ByteArrayServletOutputStream
+      val resp = outputStream.responseFor
+
+      TileService(client).handleRequest(StaticRequest(),
+                                        "dataset id",
+                                        "point column",
+                                        QuadTile(0, 0, 0),
+                                        "json")(resp)
+
+      verify(resp).setStatus(ScBadRequest)
+
+      outputStream.getLowStr must include ("underlying request failed")
+      outputStream.getString must include (encode(message))
     }
+  }
 
-    val outputStream = new util.ByteArrayServletOutputStream
-    val resp = outputStream.responseFor
+  test("Handle request returns 'bad request' if processing throws") {
+    forAll { message: String =>
+      val client = new CoreServerClient(mock[ServerProvider], emptyConfig) {
+        override def execute[T](request: RequestBuilder => SimpleHttpRequest,
+                                callback: Response => T): T = {
+          throw new RuntimeException(message)
+        }
+      }
 
-    val handler = TileService(client).handleRequest(StaticRequest(),
-                                                    "dataset id",
-                                                    "point column",
-                                                    QuadTile(0, 0, 0),
-                                                    "json")
-    handler(resp)
+      val outputStream = new util.ByteArrayServletOutputStream
+      val resp = outputStream.responseFor
 
-    verify(resp).setStatus(ScBadRequest)
+      TileService(client).handleRequest(StaticRequest(),
+                                        "dataset id",
+                                        "point column",
+                                        QuadTile(0, 0, 0),
+                                        "json")(resp)
+      verify(resp).setStatus(ScBadRequest)
 
-    outputStream.getLowStr must include ("underlying request failed")
+      outputStream.getLowStr must include ("unknown error")
+      outputStream.getString must include (encode(message))
+    }
   }
 
   test("Bad request must include message and cause") {
