@@ -2,6 +2,7 @@ package com.socrata.tileserver.util
 
 import java.io.{ByteArrayInputStream, InputStream}
 import javax.activation.MimeType
+import javax.servlet.http.HttpServletResponse.{SC_OK => ScOk}
 
 import com.rojoma.json.v3.ast.JValue
 import com.rojoma.json.v3.conversions._
@@ -12,6 +13,8 @@ import com.socrata.thirdparty.geojson.{FeatureCollectionJson, FeatureJson}
 import com.socrata.http.client.Response
 
 class SeqResponse(seq: Seq[FeatureJson]) extends EmptyResponse {
+  override val resultCode = ScOk
+
   class AckByteArrayInputStream(bytes: Array[Byte])
       extends ByteArrayInputStream(bytes)
       with Acknowledgeable {

@@ -3,6 +3,7 @@ package services
 
 import javax.servlet.http.HttpServletRequest
 import javax.servlet.http.HttpServletResponse.{SC_BAD_REQUEST => ScBadRequest}
+import javax.servlet.http.HttpServletResponse.{SC_OK => ScOk}
 import scala.collection.JavaConverters._
 import scala.util.control.NoStackTrace
 
@@ -11,7 +12,7 @@ import com.rojoma.json.v3.codec.JsonEncode.toJValue
 import com.rojoma.json.v3.conversions._
 import com.socrata.http.server.util.RequestId.{RequestId, ReqIdHeader}
 import com.vividsolutions.jts.geom.{Coordinate, GeometryFactory, Point}
-import org.mockito.Matchers.anyInt
+import org.mockito.Matchers.{anyInt, anyObject}
 import org.mockito.Mockito.{verify, when}
 import org.scalatest.mock.MockitoSugar
 import org.scalatest.prop.PropertyChecks
@@ -105,11 +106,36 @@ class TileServiceTest
         }
       }
 
-      val resp = TileService(client).geoJsonQuery(reqId,
-                                                  request,
-                                                  id,
-                                                  Map(param),
-                                                  nothingCallback)
+      TileService(client).geoJsonQuery(reqId,
+                                       request,
+                                       id,
+                                       Map(param),
+                                       nothingCallback): Unit
+    }
+  }
+
+  test("Handle request returns OK when underlying succeeds") {
+    forAll { pt: (Int, Int) =>
+      val jsonResp = SeqResponse(Seq(fJson(pt)))
+      val client = new CoreServerClient(mock[ServerProvider], emptyConfig) {
+        override def execute[T](request: RequestBuilder => SimpleHttpRequest,
+                              callback: Response => T): T = {
+          callback(jsonResp)
+        }
+      }
+
+      val outputStream = new util.ByteArrayServletOutputStream
+      val resp = outputStream.responseFor
+
+      TileService(client).handleRequest(StaticRequest(),
+                                      "dataset id",
+                                      "point column",
+                                      QuadTile(0, 0, 0),
+                                      "json")(resp)
+
+      verify(resp).setStatus(ScOk)
+
+      outputStream.getString must include (jsonResp.toString)
     }
   }
 

@@ -82,10 +82,10 @@ case class TileService(client: CoreServerClient) extends SimpleResource {
 
       val callback = { resp: Response =>
         resp.resultCode match {
-          case ScOk => {
+          case ScOk =>
             Extensions(ext)(encoder(mapper), resp)
-          }
-          case _ => badRequest("Underlying request failed", resp)
+          case _ =>
+            badRequest("Underlying request failed", resp)
         }
       }
 

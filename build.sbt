@@ -33,7 +33,6 @@ testOptions in Test += Tests.Argument(TestFrameworks.ScalaTest, "-oD") // No tra
 // testOptions in Test += Tests.Argument(TestFrameworks.ScalaTest, "-oDS")   // Short traces.
 // testOptions in Test += Tests.Argument(TestFrameworks.ScalaTest, "-oDF")   // Full traces.
 
-
 com.socrata.cloudbeessbt.SocrataCloudbeesSbt.socrataSettings(assembly = true)
 
 // WARNING: -optimize is not recommended with akka, should that come up.
@@ -80,3 +79,9 @@ buildInfoKeys := Seq[BuildInfoKey](name,
                                    BuildInfoKey.action("buildTime") { System.currentTimeMillis })
 
 buildInfoPackage := organization.value + "." + name.value
+
+// Fail on low coverage.
+// This only fails cloudbees, as jenkins.sea1 does not run scoverage.
+ScoverageKeys.minimumCoverage := 100
+
+ScoverageKeys.failOnMinimumCoverage := true
