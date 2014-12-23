@@ -32,7 +32,8 @@ class StaticRequest(val params: Map[String, String],
         val args = invocation.getArguments()
         args(0) match {
           case name: String => {
-            Collections.enumeration(Seq(headers(name)).asJava)
+            val header = headers.asJava.get(name)
+            Collections.enumeration(Seq(header).asJava)
           }
           case _ => throw new ClassCastException()
         }
@@ -43,7 +44,7 @@ class StaticRequest(val params: Map[String, String],
       override def answer(invocation: InvocationOnMock): String = {
         val args = invocation.getArguments()
         args(0) match {
-          case name: String => headers(name)
+          case name: String => headers.asJava.get(name)
           case _ => throw new ClassCastException()
         }
       }
@@ -64,6 +65,8 @@ class StaticRequest(val params: Map[String, String],
 
 object StaticRequest {
   val httpServletRequest: HttpServletRequest = mock(classOf[HttpServletRequest])
+
+  def apply(): StaticRequest = new StaticRequest(Map.empty)
 
   def apply(params: (String, String)): StaticRequest =
     new StaticRequest(Map(params))

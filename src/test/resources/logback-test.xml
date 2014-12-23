@@ -1,0 +1,15 @@
+<configuration>
+    <appender name="SILENT" class="ch.qos.logback.core.ConsoleAppender">
+        <!-- Deny everything below OFF, that means deny everything -->
+        <filter class="ch.qos.logback.classic.filter.ThresholdFilter">
+            <level>OFF</level>
+        </filter>
+        <encoder>
+            <pattern>%msg%n</pattern>
+        </encoder>
+    </appender>
+
+    <root level="info">
+        <appender-ref ref="SILENT" />
+    </root>
+</configuration>

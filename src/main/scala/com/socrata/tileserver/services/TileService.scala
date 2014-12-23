@@ -45,9 +45,7 @@ case class TileService(client: CoreServerClient) extends SimpleResource {
                                      req: HttpRequest,
                                      id: String,
                                      params: Map[String, String],
-                                     callback: Response => HttpResponse,
-                                     logger: Logger =
-                                       TileService.defaultLogger): HttpResponse = {
+                                     callback: Response => HttpResponse): HttpResponse = {
     val headerNames = req.headerNames filterNot { s: String =>
       ExcludedHeaders(s.toLowerCase)
     }
@@ -70,11 +68,11 @@ case class TileService(client: CoreServerClient) extends SimpleResource {
   }
 
   // Do the actual heavy lifting for the request handling.
-  private def handleRequest(req: HttpRequest,
-                            identifier: String,
-                            pointColumn: String,
-                            tile: QuadTile,
-                            ext: String): HttpResponse = {
+  private[services] def handleRequest(req: HttpRequest,
+                                      identifier: String,
+                                      pointColumn: String,
+                                      tile: QuadTile,
+                                      ext: String) : HttpResponse = {
     val mapper = tile.mapper
     val withinBox = tile.withinBox(pointColumn)
 
@@ -95,12 +93,8 @@ case class TileService(client: CoreServerClient) extends SimpleResource {
     }
 
     resp match {
-      case Success(s) => s
-      case Failure(InvalidRequest(message, info)) =>
-        badRequest(message, info)
-      case Failure(e) => {
-        badRequest("Unknown error", e)
-      }
+      case Success(response) => response
+      case Failure(error) => badRequest("Unknown error", error)
     }
   }
 
@@ -134,35 +128,32 @@ case class TileService(client: CoreServerClient) extends SimpleResource {
 object TileService {
   type Feature = (Geometry, Map[String, JValue])
 
-  implicit val defaultLogger: Logger = LoggerFactory.getLogger(getClass)
+  private val logger: Logger = LoggerFactory.getLogger(getClass)
   private val defaultTileEncoder: VectorTileEncoder = new VectorTileEncoder()
   private val geomFactory = new GeometryFactory()
 
-  private[services] def badRequest(message: String, info: String)
-                                  (implicit logger: Logger) : HttpResponse = {
+  private[services] def badRequest(message: String, info: String): HttpResponse = {
     logger.warn(s"$message: $info")
 
     BadRequest ~>
       Header("Access-Control-Allow-Origin", "*") ~>
-      Json(json"""{message: $message, info: $info}""")
+    Json(json"""{message: $message, info: $info}""")
   }
 
-  private[services] def badRequest(message: String, cause: Throwable)
-                                  (implicit logger: Logger): HttpResponse = {
+  private[services] def badRequest(message: String, cause: Throwable): HttpResponse = {
     logger.warn(message, cause)
 
     BadRequest ~>
-      Header("Access-Control-Allow-Origin", "*") ~>
+    Header("Access-Control-Allow-Origin", "*") ~>
       Json(json"""{message: $message, cause: ${cause.getMessage}}""")
   }
 
-  private[services] def badRequest(message: String, resp: Response)
-                                  (implicit logger: Logger): HttpResponse = {
+  private[services] def badRequest(message: String, resp: Response): HttpResponse = {
     val body: JValue = JsonReader.fromString(IOUtils.toString(resp.inputStream()))
     logger.warn(s"$message: ${resp.resultCode}: $body")
 
     BadRequest ~>
-      Header("Access-Control-Allow-Origin", "*") ~>
+    Header("Access-Control-Allow-Origin", "*") ~>
       Json(json"""{message: $message, resultCode:${resp.resultCode}, body: $body}""")
   }
 

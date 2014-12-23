@@ -11,11 +11,11 @@ import com.rojoma.json.v3.codec.JsonEncode.toJValue
 import com.rojoma.json.v3.conversions._
 import com.socrata.http.server.util.RequestId.{RequestId, ReqIdHeader}
 import com.vividsolutions.jts.geom.{Coordinate, GeometryFactory, Point}
+import org.mockito.Matchers.anyInt
 import org.mockito.Mockito.{verify, when}
 import org.scalatest.mock.MockitoSugar
 import org.scalatest.prop.PropertyChecks
 import org.scalatest.{FunSuite, MustMatchers}
-import org.slf4j.Logger
 
 import com.socrata.backend.client.CoreServerClient
 import com.socrata.backend.config.CoreServerClientConfig
@@ -25,14 +25,13 @@ import com.socrata.http.server.{HttpRequest, HttpResponse}
 import com.socrata.thirdparty.curator.ServerProvider
 import com.socrata.thirdparty.geojson.FeatureJson
 
-import util.{CoordinateMapper, StaticRequest, SeqResponse, StringEncoder}
+import util._
 
 class TileServiceTest
     extends FunSuite
     with MustMatchers
     with PropertyChecks
     with MockitoSugar {
-  val logger: Logger = mock[Logger]
   val geomFactory = new GeometryFactory()
   val echoMapper = new CoordinateMapper(0) {
     override def tilePx(lon: Double, lat:Double): (Int, Int) =
@@ -110,10 +109,36 @@ class TileServiceTest
                                                   request,
                                                   id,
                                                   Map(param),
-                                                  nothingCallback,
-                                                  logger)
-
+                                                  nothingCallback)
     }
+  }
+
+  test("Handle request returns 400 when underlying returns 400") {
+    val client = new CoreServerClient(mock[ServerProvider], emptyConfig) {
+      override def execute[T](request: RequestBuilder => SimpleHttpRequest,
+                              callback: Response => T): T = {
+        val resp = mock[Response]
+        when(resp.resultCode).thenReturn(ScBadRequest)
+        when(resp.inputStream(anyInt())).
+          thenReturn(StringInputStream("{}"))
+
+        callback(resp)
+      }
+    }
+
+    val outputStream = new util.ByteArrayServletOutputStream
+    val resp = outputStream.responseFor
+
+    val handler = TileService(client).handleRequest(StaticRequest(),
+                                                    "dataset id",
+                                                    "point column",
+                                                    QuadTile(0, 0, 0),
+                                                    "json")
+    handler(resp)
+
+    verify(resp).setStatus(ScBadRequest)
+
+    outputStream.getLowStr must include ("underlying request failed")
   }
 
   test("Bad request must include message and cause") {
@@ -124,7 +149,7 @@ class TileServiceTest
         override def getMessage: String = causeMessage
       }
 
-      TileService.badRequest(message, cause)(logger)(resp)
+      TileService.badRequest(message, cause)(resp)
 
       verify(resp).setStatus(ScBadRequest)
       verify(resp).setContentType("application/json; charset=UTF-8")
@@ -141,7 +166,7 @@ class TileServiceTest
       val outputStream = new util.ByteArrayServletOutputStream
       val resp = outputStream.responseFor
 
-      TileService.badRequest(message, info)(logger)(resp)
+      TileService.badRequest(message, info)(resp)
 
       verify(resp).setStatus(ScBadRequest)
       verify(resp).setContentType("application/json; charset=UTF-8")
@@ -159,7 +184,7 @@ class TileServiceTest
       val resp = outputStream.responseFor
 
       val upstream = SeqResponse(Seq(fJson(pt)))
-      TileService.badRequest(message, upstream)(logger)(resp)
+      TileService.badRequest(message, upstream)(resp)
 
       outputStream.getLowStr must include ("message")
       outputStream.getString must include (encode(message))

@@ -17,7 +17,7 @@ class EmptyResponse extends Response {
   val headerNames: Set[String] = Set.empty
 
   def headers(name: String): Array[String] = Array.empty
-  def inputStream(maxBetween: Long): InputStream with Acknowledgeable =
+  def inputStream(maxBetween: Long = 0): InputStream with Acknowledgeable =
     EmptyResponse.EmptyInputStream
 
   override def jValue(ct: Option[MimeType] => Boolean = EmptyResponse.AnyMimeType,
