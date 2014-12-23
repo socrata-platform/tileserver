@@ -22,6 +22,7 @@ import com.socrata.backend.client.CoreServerClient
 import com.socrata.backend.config.CoreServerClientConfig
 import com.socrata.http.client.{RequestBuilder, Response, SimpleHttpRequest}
 import com.socrata.http.server.HttpRequest.AugmentedHttpServletRequest
+import com.socrata.http.server.routing.TypedPathComponent
 import com.socrata.http.server.{HttpRequest, HttpResponse}
 import com.socrata.thirdparty.curator.ServerProvider
 import com.socrata.thirdparty.geojson.FeatureJson
@@ -119,7 +120,7 @@ class TileServiceTest
       val jsonResp = SeqResponse(Seq(fJson(pt)))
       val client = new CoreServerClient(mock[ServerProvider], emptyConfig) {
         override def execute[T](request: RequestBuilder => SimpleHttpRequest,
-                              callback: Response => T): T = {
+                                callback: Response => T): T = {
           callback(jsonResp)
         }
       }
@@ -128,10 +129,10 @@ class TileServiceTest
       val resp = outputStream.responseFor
 
       TileService(client).handleRequest(StaticRequest(),
-                                      "dataset id",
-                                      "point column",
-                                      QuadTile(0, 0, 0),
-                                      "json")(resp)
+                                        "dataset id",
+                                        "point column",
+                                        QuadTile(0, 0, 0),
+                                        "json")(resp)
 
       verify(resp).setStatus(ScOk)
 
@@ -186,11 +187,63 @@ class TileServiceTest
                                         "point column",
                                         QuadTile(0, 0, 0),
                                         "json")(resp)
+
       verify(resp).setStatus(ScBadRequest)
 
       outputStream.getLowStr must include ("unknown error")
       outputStream.getString must include (encode(message))
     }
+  }
+
+  test("Get returns success when underlying succeeds") {
+    forAll { pt: (Int, Int) =>
+      val jsonResp = SeqResponse(Seq(fJson(pt)))
+      val client = new CoreServerClient(mock[ServerProvider], emptyConfig) {
+        override def execute[T](request: RequestBuilder => SimpleHttpRequest,
+                                callback: Response => T): T = {
+          callback(jsonResp)
+        }
+      }
+
+      val outputStream = new util.ByteArrayServletOutputStream
+      val resp = outputStream.responseFor
+
+      TileService(client).
+        service("dataset id",
+                "point column",
+                0,
+                0,
+                TypedPathComponent(0, "json")).
+        get(StaticRequest())(resp)
+
+      verify(resp).setStatus(ScOk)
+
+      outputStream.getString must include (jsonResp.toString)
+    }
+  }
+
+  test("Get returns 'bad request' when given an invalid file extension") {
+    val client = new CoreServerClient(mock[ServerProvider], emptyConfig) {
+      override def execute[T](request: RequestBuilder => SimpleHttpRequest,
+                              callback: Response => T): T = {
+        callback(mock[Response])
+      }
+    }
+
+    val outputStream = new util.ByteArrayServletOutputStream
+    val resp = outputStream.responseFor
+
+    TileService(client).
+      service("dataset id",
+              "point column",
+              0,
+              1,
+              TypedPathComponent(2, "invalid extension")).
+      get(StaticRequest())(resp)
+
+    verify(resp).setStatus(ScBadRequest)
+
+    outputStream.getLowStr must include ("invalid file type")
   }
 
   test("Bad request must include message and cause") {
