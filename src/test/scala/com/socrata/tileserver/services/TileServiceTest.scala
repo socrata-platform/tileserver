@@ -148,7 +148,7 @@ class TileServiceTest
           val resp = mock[Response]
           when(resp.resultCode).thenReturn(ScBadRequest)
           when(resp.inputStream(anyInt())).
-            thenReturn(StringInputStream(s"""{reason: "$message"}"""))
+            thenReturn(StringInputStream(s"""{message: ${encode(message)}}"""))
 
           callback(resp)
         }

@@ -1,7 +1,7 @@
 package com.socrata.tileserver
 package util
 
-import config.TileServerConfig
+import CoordinateMapper.Size
 
 /** A bounding box (tile) on a map.
   *
@@ -11,8 +11,6 @@ import config.TileServerConfig
   * @param zoom zoom level of the map
   */
 case class QuadTile(rawX: Int, rawY: Int, zoom: Int) {
-  private val size: Int = TileServerConfig.tileSize
-
   /** The mapper for this zoom. **/
   val mapper = CoordinateMapper(zoom)
 
@@ -20,16 +18,16 @@ case class QuadTile(rawX: Int, rawY: Int, zoom: Int) {
   val (x: Int, y: Int) = mapper.tmsCoordinates(rawX, rawY)
 
   /** North edge of the tile (lat). */
-  val north: Double = mapper.lat(y * size)
+  val north: Double = mapper.lat(y * Size)
 
   /** East edge of the tile (lon). */
-  val east:  Double = mapper.lon(x * size + size - 1)
+  val east:  Double = mapper.lon(x * Size + Size - 1)
 
   /** South edge of the tile (lat). */
-  val south: Double = mapper.lat(y * size + size - 1)
+  val south: Double = mapper.lat(y * Size + Size - 1)
 
   /** West edge of the tile (lon). */
-  val west:  Double = mapper.lon(x * size)
+  val west:  Double = mapper.lon(x * Size)
 
   /** Return the within_box SoQL fragment for the given column.
     *

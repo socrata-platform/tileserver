@@ -51,5 +51,4 @@ object TileServer extends App {
     server.run()
   }
 }
-
 // $COVERAGE-ON$

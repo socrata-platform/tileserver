@@ -19,9 +19,6 @@ object TileServerConfig extends CoreServerClientConfig {
   /** Zookeeper configuration. */
   lazy val discovery = new DiscoveryConfig(config, "curator")
 
-  /** The size (in points) of the tiles. */
-  lazy val tileSize: Int = config.getInt("tileserver.tile-size")
-
   /** Max client retries. */
   lazy val maxRetries = config.getInt("backend.max-retries")
 

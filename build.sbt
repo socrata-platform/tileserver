@@ -80,8 +80,9 @@ buildInfoKeys := Seq[BuildInfoKey](name,
 
 buildInfoPackage := organization.value + "." + name.value
 
-// Fail on low coverage.
-// This only fails cloudbees, as jenkins.sea1 does not run scoverage.
+// Warn on low coverage.
 ScoverageKeys.minimumCoverage := 100
 
-ScoverageKeys.failOnMinimumCoverage := true
+// Fail on low coverage.
+// This only fails cloudbees, as jenkins.sea1 does not run scoverage.
+// ScoverageKeys.failOnMinimumCoverage := true
