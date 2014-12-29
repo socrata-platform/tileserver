@@ -384,7 +384,7 @@ class TileServiceTest
     TileService.rollup(echoMapper, noFeatures) must be (Set.empty)
   }
 
-  test("A single coordinate is rolls up correctly") {
+  test("A single coordinate rolls up correctly") {
     forAll { pt: (Int, Int) =>
       TileService.rollup(echoMapper, Seq(fJson(pt))) must equal (Set(feature(pt)))
     }

@@ -1,15 +1,13 @@
 <configuration>
-    <appender name="SILENT" class="ch.qos.logback.core.ConsoleAppender">
-        <!-- Deny everything below OFF, that means deny everything -->
-        <filter class="ch.qos.logback.classic.filter.ThresholdFilter">
-            <level>OFF</level>
-        </filter>
+    <appender name="FILE" class="ch.qos.logback.core.FileAppender">
+        <file>tests.log</file>
+        <append>false</append>
         <encoder>
-            <pattern>%msg%n</pattern>
+            <pattern>%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} host:"%X{X-Socrata-Host}" reqId:\(%X{X-Socrata-RequestId}\) 4x4:[%X{X-Socrata-Resource}] - %msg%n</pattern>
         </encoder>
     </appender>
 
     <root level="info">
-        <appender-ref ref="SILENT" />
+        <appender-ref ref="FILE" />
     </root>
 </configuration>
