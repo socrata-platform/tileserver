@@ -76,26 +76,23 @@ case class TileService(client: CoreServerClient) extends SimpleResource {
     val mapper = tile.mapper
     val withinBox = tile.withinBox(pointColumn)
 
+    val callback = { resp: Response =>
+      resp.resultCode match {
+        case ScOk => Extensions(ext)(encoder(mapper), resp)
+        case _ => badRequest("Underlying request failed", resp)
+      }
+    }
+
     val resp = Try {
       val params = augmentParams(req, withinBox, pointColumn)
       val requestId = extractRequestId(req)
 
-      val callback = { resp: Response =>
-        resp.resultCode match {
-          case ScOk =>
-            Extensions(ext)(encoder(mapper), resp)
-          case _ =>
-            badRequest("Underlying request failed", resp)
-        }
-      }
-
       geoJsonQuery(requestId, req, identifier, params, callback)
+    } recover {
+      case e => badRequest("Unknown error", e)
     }
 
-    resp match {
-      case Success(response) => response
-      case Failure(error) => badRequest("Unknown error", error)
-    }
+    resp.get
   }
 
   /** Handle the request.
@@ -137,14 +134,14 @@ object TileService {
 
     BadRequest ~>
       Header("Access-Control-Allow-Origin", "*") ~>
-    Json(json"""{message: $message, info: $info}""")
+      Json(json"""{message: $message, info: $info}""")
   }
 
   private[services] def badRequest(message: String, cause: Throwable): HttpResponse = {
     logger.warn(message, cause)
 
     BadRequest ~>
-    Header("Access-Control-Allow-Origin", "*") ~>
+      Header("Access-Control-Allow-Origin", "*") ~>
       Json(json"""{message: $message, cause: ${cause.getMessage}}""")
   }
 
@@ -153,7 +150,7 @@ object TileService {
     logger.warn(s"$message: ${resp.resultCode}: $body")
 
     BadRequest ~>
-    Header("Access-Control-Allow-Origin", "*") ~>
+      Header("Access-Control-Allow-Origin", "*") ~>
       Json(json"""{message: $message, resultCode:${resp.resultCode}, body: $body}""")
   }
 
