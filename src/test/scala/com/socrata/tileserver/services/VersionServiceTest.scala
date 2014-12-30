@@ -15,7 +15,7 @@ class VersionServiceTest
     with MockitoSugar {
   test("Endpoint must return health = alive") {
     val req = mock[HttpRequest]
-    val outputStream = new util.ByteArrayServletOutputStream
+    val outputStream = new mocks.ByteArrayServletOutputStream
     val resp = outputStream.responseFor
 
     VersionService.get(req)(resp)

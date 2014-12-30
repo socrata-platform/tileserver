@@ -1,5 +1,5 @@
 package com.socrata.tileserver
-package util
+package mocks
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable.Buffer

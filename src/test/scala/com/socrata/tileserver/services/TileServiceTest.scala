@@ -27,7 +27,7 @@ import com.socrata.http.server.{HttpRequest, HttpResponse}
 import com.socrata.thirdparty.curator.ServerProvider
 import com.socrata.thirdparty.geojson.FeatureJson
 
-import util._
+import util.QuadTile
 
 class TileServiceTest
     extends FunSuite
@@ -35,7 +35,7 @@ class TileServiceTest
     with PropertyChecks
     with MockitoSugar {
   val geomFactory = new GeometryFactory()
-  val echoMapper = new CoordinateMapper(0) {
+  val echoMapper = new util.CoordinateMapper(0) {
     override def tilePx(lon: Double, lat:Double): (Int, Int) =
       (lon.toInt, lat.toInt)
   }
@@ -84,7 +84,7 @@ class TileServiceTest
               param: (String, String),
               header: (String, String)) =>
       val base = RequestBuilder("mock.socrata.com")
-      val request = StaticRequest(param, header)
+      val request = mocks.StaticRequest(param, header)
 
       val expected = base.
         path(Seq("id", s"$id.geojson")).
@@ -117,7 +117,7 @@ class TileServiceTest
 
   test("Handle request returns OK when underlying succeeds") {
     forAll { pt: (Int, Int) =>
-      val jsonResp = SeqResponse(Seq(fJson(pt)))
+      val jsonResp = mocks.SeqResponse(Seq(fJson(pt)))
       val client = new CoreServerClient(mock[ServerProvider], emptyConfig) {
         override def execute[T](request: RequestBuilder => SimpleHttpRequest,
                                 callback: Response => T): T = {
@@ -125,10 +125,10 @@ class TileServiceTest
         }
       }
 
-      val outputStream = new util.ByteArrayServletOutputStream
+      val outputStream = new mocks.ByteArrayServletOutputStream
       val resp = outputStream.responseFor
 
-      TileService(client).handleRequest(StaticRequest(),
+      TileService(client).handleRequest(mocks.StaticRequest(),
                                         "dataset id",
                                         "point column",
                                         QuadTile(0, 0, 0),
@@ -148,16 +148,16 @@ class TileServiceTest
           val resp = mock[Response]
           when(resp.resultCode).thenReturn(ScBadRequest)
           when(resp.inputStream(anyInt())).
-            thenReturn(StringInputStream(s"""{message: ${encode(message)}}"""))
+            thenReturn(mocks.StringInputStream(s"""{message: ${encode(message)}}"""))
 
           callback(resp)
         }
       }
 
-      val outputStream = new util.ByteArrayServletOutputStream
+      val outputStream = new mocks.ByteArrayServletOutputStream
       val resp = outputStream.responseFor
 
-      TileService(client).handleRequest(StaticRequest(),
+      TileService(client).handleRequest(mocks.StaticRequest(),
                                         "dataset id",
                                         "point column",
                                         QuadTile(0, 0, 0),
@@ -179,10 +179,10 @@ class TileServiceTest
         }
       }
 
-      val outputStream = new util.ByteArrayServletOutputStream
+      val outputStream = new mocks.ByteArrayServletOutputStream
       val resp = outputStream.responseFor
 
-      TileService(client).handleRequest(StaticRequest(),
+      TileService(client).handleRequest(mocks.StaticRequest(),
                                         "dataset id",
                                         "point column",
                                         QuadTile(0, 0, 0),
@@ -197,7 +197,7 @@ class TileServiceTest
 
   test("Get returns success when underlying succeeds") {
     forAll { pt: (Int, Int) =>
-      val jsonResp = SeqResponse(Seq(fJson(pt)))
+      val jsonResp = mocks.SeqResponse(Seq(fJson(pt)))
       val client = new CoreServerClient(mock[ServerProvider], emptyConfig) {
         override def execute[T](request: RequestBuilder => SimpleHttpRequest,
                                 callback: Response => T): T = {
@@ -205,7 +205,7 @@ class TileServiceTest
         }
       }
 
-      val outputStream = new util.ByteArrayServletOutputStream
+      val outputStream = new mocks.ByteArrayServletOutputStream
       val resp = outputStream.responseFor
 
       TileService(client).
@@ -214,7 +214,7 @@ class TileServiceTest
                 0,
                 0,
                 TypedPathComponent(0, "json")).
-        get(StaticRequest())(resp)
+        get(mocks.StaticRequest())(resp)
 
       verify(resp).setStatus(ScOk)
 
@@ -230,7 +230,7 @@ class TileServiceTest
       }
     }
 
-    val outputStream = new util.ByteArrayServletOutputStream
+    val outputStream = new mocks.ByteArrayServletOutputStream
     val resp = outputStream.responseFor
 
     TileService(client).
@@ -239,7 +239,7 @@ class TileServiceTest
               0,
               1,
               TypedPathComponent(2, "invalid extension")).
-      get(StaticRequest())(resp)
+      get(mocks.StaticRequest())(resp)
 
     verify(resp).setStatus(ScBadRequest)
 
@@ -248,7 +248,7 @@ class TileServiceTest
 
   test("Bad request must include message and cause") {
     forAll { (message: String, causeMessage: String) =>
-      val outputStream = new util.ByteArrayServletOutputStream
+      val outputStream = new mocks.ByteArrayServletOutputStream
       val resp = outputStream.responseFor
       val cause = new NoStackTrace {
         override def getMessage: String = causeMessage
@@ -268,7 +268,7 @@ class TileServiceTest
 
   test("Bad request must include message and info") {
     forAll { (message: String, info: String) =>
-      val outputStream = new util.ByteArrayServletOutputStream
+      val outputStream = new mocks.ByteArrayServletOutputStream
       val resp = outputStream.responseFor
 
       TileService.badRequest(message, info)(resp)
@@ -285,10 +285,10 @@ class TileServiceTest
 
   test("Bad request must include message and response") {
     forAll { (message: String, pt: (Int, Int)) =>
-      val outputStream = new util.ByteArrayServletOutputStream
+      val outputStream = new mocks.ByteArrayServletOutputStream
       val resp = outputStream.responseFor
 
-      val upstream = SeqResponse(Seq(fJson(pt)))
+      val upstream = mocks.SeqResponse(Seq(fJson(pt)))
       TileService.badRequest(message, upstream)(resp)
 
       outputStream.getLowStr must include ("message")
@@ -327,9 +327,9 @@ class TileServiceTest
       val selectBase = encode(rawSelectBase) filter (_.isLetterOrDigit)
       val selectValue = encode(rawSelectValue) filter (_.isLetterOrDigit)
 
-      val neither = StaticRequest(otherKey -> otherValue)
-      val where = StaticRequest(whereKey -> whereBase)
-      val select = StaticRequest(selectKey -> selectBase)
+      val neither = mocks.StaticRequest(otherKey -> otherValue)
+      val where = mocks.StaticRequest(whereKey -> whereBase)
+      val select = mocks.StaticRequest(selectKey -> selectBase)
 
       neither.queryParameters must have size (1)
       val nParams = TileService.augmentParams(neither,
@@ -468,10 +468,10 @@ class TileServiceTest
                            feature(pt2))
 
         val bytes = TileService.
-          encoder(echoMapper, StringEncoder())(SeqResponse(coordinates))
+          encoder(echoMapper, mocks.StringEncoder())(mocks.SeqResponse(coordinates))
         bytes must be ('defined)
         bytes.get.length must be > 0
-        new String(bytes.get, "UTF-8") must equal (StringEncoder.encFeatures(expected))
+        new String(bytes.get, "UTF-8") must equal (mocks.StringEncoder.encFeatures(expected))
       }
     }
   }

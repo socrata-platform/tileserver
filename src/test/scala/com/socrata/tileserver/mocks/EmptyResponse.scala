@@ -1,4 +1,4 @@
-package com.socrata.tileserver.util
+package com.socrata.tileserver.mocks
 
 import java.io.InputStream
 import java.nio.charset.{Charset, StandardCharsets}
