@@ -79,7 +79,7 @@ case class TileService(client: CoreServerClient) extends SimpleResource {
     val callback = { resp: Response =>
       resp.resultCode match {
         case ScOk => Extensions(ext)(encoder(mapper), resp)
-        case _ => badRequest("Underlying request failed", resp)
+        case _ => proxyResponse(resp)
       }
     }
 
@@ -129,6 +129,15 @@ object TileService {
   private val defaultTileEncoder: VectorTileEncoder = new VectorTileEncoder()
   private val geomFactory = new GeometryFactory()
 
+  private[services] def proxyResponse(resp: Response): HttpResponse = {
+    val body: JValue = JsonReader.fromString(IOUtils.toString(resp.inputStream()))
+    logger.warn(s"Proxying response: ${resp.resultCode}: $body")
+
+    Status(resp.resultCode) ~>
+      Header("Access-Control-Allow-Origin", "*") ~>
+      Json(json"""{underlying: {resultCode:${resp.resultCode}, body: $body}}""")
+  }
+
   private[services] def badRequest(message: String, info: String): HttpResponse = {
     logger.warn(s"$message: $info")
 
@@ -143,15 +152,6 @@ object TileService {
     BadRequest ~>
       Header("Access-Control-Allow-Origin", "*") ~>
       Json(json"""{message: $message, cause: ${cause.getMessage}}""")
-  }
-
-  private[services] def badRequest(message: String, resp: Response): HttpResponse = {
-    val body: JValue = JsonReader.fromString(IOUtils.toString(resp.inputStream()))
-    logger.warn(s"$message: ${resp.resultCode}: $body")
-
-    BadRequest ~>
-      Header("Access-Control-Allow-Origin", "*") ~>
-      Json(json"""{message: $message, resultCode:${resp.resultCode}, body: $body}""")
   }
 
   private[services] def extractRequestId(req: HttpRequest): RequestId =

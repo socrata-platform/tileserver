@@ -10,6 +10,7 @@ import scala.util.control.NoStackTrace
 import com.rojoma.json.v3.ast.JString
 import com.rojoma.json.v3.codec.JsonEncode.toJValue
 import com.rojoma.json.v3.conversions._
+import com.rojoma.json.v3.interpolation._
 import com.socrata.http.server.util.RequestId.{RequestId, ReqIdHeader}
 import com.vividsolutions.jts.geom.{Coordinate, GeometryFactory, Point}
 import org.mockito.Matchers.{anyInt, anyObject}
@@ -140,15 +141,15 @@ class TileServiceTest
     }
   }
 
-  test("Handle request returns 'bad request' when underlying returns 'bad request'") {
-    forAll { message: String =>
+  test("Handle request proxies when underlying returns anything but OK") {
+    forAll { (statusCode: Int, payload: String) =>
       val client = new CoreServerClient(mock[ServerProvider], emptyConfig) {
         override def execute[T](request: RequestBuilder => SimpleHttpRequest,
                                 callback: Response => T): T = {
           val resp = mock[Response]
-          when(resp.resultCode).thenReturn(ScBadRequest)
+          when(resp.resultCode).thenReturn(statusCode)
           when(resp.inputStream(anyInt())).
-            thenReturn(mocks.StringInputStream(s"""{message: ${encode(message)}}"""))
+            thenReturn(mocks.StringInputStream(s"""{message: ${encode(payload)}}"""))
 
           callback(resp)
         }
@@ -163,10 +164,10 @@ class TileServiceTest
                                         QuadTile(0, 0, 0),
                                         "json")(resp)
 
-      verify(resp).setStatus(ScBadRequest)
+      verify(resp).setStatus(statusCode)
 
-      outputStream.getLowStr must include ("underlying request failed")
-      outputStream.getString must include (encode(message))
+      outputStream.getLowStr must include ("underlying")
+      outputStream.getString must include (encode(payload))
     }
   }
 
@@ -246,6 +247,24 @@ class TileServiceTest
     outputStream.getLowStr must include ("invalid file type")
   }
 
+  test("Proxied response must include status code, content-type, and payload") {
+    forAll { (statusCode: Int, payload: String) =>
+      val outputStream = new mocks.ByteArrayServletOutputStream
+      val resp = outputStream.responseFor
+      val upstream = mocks.StringResponse(json"""{payload: $payload}""".toString,
+                                          statusCode)
+
+      TileService.proxyResponse(upstream)(resp)
+
+      verify(resp).setStatus(statusCode)
+      verify(resp).setContentType("application/json; charset=UTF-8")
+
+      outputStream.getLowStr must include ("underlying")
+      outputStream.getString must include (statusCode.toString)
+      outputStream.getString must include (encode(payload))
+    }
+  }
+
   test("Bad request must include message and cause") {
     forAll { (message: String, causeMessage: String) =>
       val outputStream = new mocks.ByteArrayServletOutputStream
@@ -283,22 +302,6 @@ class TileServiceTest
     }
   }
 
-  test("Bad request must include message and response") {
-    forAll { (message: String, pt: (Int, Int)) =>
-      val outputStream = new mocks.ByteArrayServletOutputStream
-      val resp = outputStream.responseFor
-
-      val upstream = mocks.SeqResponse(Seq(fJson(pt)))
-      TileService.badRequest(message, upstream)(resp)
-
-      outputStream.getLowStr must include ("message")
-      outputStream.getString must include (encode(message))
-      outputStream.getLowStr must include ("resultcode")
-      outputStream.getString must include (upstream.resultCode.toString)
-      outputStream.getLowStr must include ("body")
-      outputStream.getString must include (upstream.toString)
-    }
-  }
 
   test("Correct request id is extracted") {
     forAll { (reqId: String) =>

@@ -1,6 +1,6 @@
 package com.socrata.tileserver.mocks
 
-import java.io.{ByteArrayInputStream, InputStream}
+import java.io.InputStream
 import javax.activation.MimeType
 import javax.servlet.http.HttpServletResponse.{SC_OK => ScOk}
 
@@ -14,12 +14,6 @@ import com.socrata.http.client.Response
 
 class SeqResponse(seq: Seq[FeatureJson]) extends EmptyResponse {
   override val resultCode = ScOk
-
-  class AckByteArrayInputStream(bytes: Array[Byte])
-      extends ByteArrayInputStream(bytes)
-      with Acknowledgeable {
-    override def acknowledge(): Unit = {}
-  }
 
   override def jValue(ct: Option[MimeType] => Boolean = EmptyResponse.AnyMimeType,
                       max: Long = 0): JValue =
