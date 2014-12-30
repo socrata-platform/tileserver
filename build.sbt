@@ -13,9 +13,9 @@ libraryDependencies ++= Seq(
   "ch.qos.logback"           % "logback-classic"          % "1.1.2",
   "com.rojoma"              %% "rojoma-json-v3"           % "3.2.0",
   "com.rojoma"              %% "simple-arm-v2"            % "2.0.0",
-  "com.socrata"             %% "socrata-http-client"      % "3.0.0",
-  "com.socrata"             %% "socrata-http-jetty"       % "3.0.0",
-  "com.socrata"             %% "socrata-thirdparty-utils" % "2.5.6",
+  "com.socrata"             %% "socrata-http-client"      % "3.0.1",
+  "com.socrata"             %% "socrata-http-jetty"       % "3.0.1",
+  "com.socrata"             %% "socrata-thirdparty-utils" % "2.6.2",
   "com.typesafe"             % "config"                   % "1.2.1",
   "commons-codec"            % "commons-codec"            % "1.10",
   "commons-io"               % "commons-io"               % "2.4",
@@ -29,7 +29,11 @@ libraryDependencies ++= Seq(
   "org.scalatest"           %% "scalatest"                % "2.2.1"  % "test"
 )
 
-testOptions in Test += Tests.Argument(TestFrameworks.ScalaTest, "-oD")
+val TestOptionNoTraces = "-oD"
+val TestOptionShortTraces = "-oDS"
+val TestOptionFullTraces = "-oDF"
+
+testOptions in Test += Tests.Argument(TestFrameworks.ScalaTest, TestOptionNoTraces)
 
 com.socrata.cloudbeessbt.SocrataCloudbeesSbt.socrataSettings(assembly = true)
 
@@ -77,3 +81,13 @@ buildInfoKeys := Seq[BuildInfoKey](name,
                                    BuildInfoKey.action("buildTime") { System.currentTimeMillis })
 
 buildInfoPackage := organization.value + "." + name.value
+
+// Disable highlighting
+ScoverageSbtPlugin.ScoverageKeys.coverageHighlighting := false
+
+// Warn on low coverage.
+// ScoverageKeys.minimumCoverage := 100
+
+// Fail on low coverage.
+// This only fails cloudbees, as jenkins.sea1 does not run scoverage.
+// ScoverageKeys.failOnMinimumCoverage := true

@@ -3,6 +3,7 @@ package services
 
 import java.net.URLDecoder
 import javax.servlet.http.HttpServletResponse.{SC_OK => ScOk}
+import scala.collection.JavaConverters._
 import scala.util.{Try, Success, Failure}
 
 import com.rojoma.json.v3.ast.JValue
@@ -11,9 +12,8 @@ import com.rojoma.json.v3.codec.JsonEncode.toJValue
 import com.rojoma.json.v3.conversions._
 import com.rojoma.json.v3.interpolation._
 import com.rojoma.json.v3.io.JsonReader
-import com.rojoma.simplearm.v2.{Managed, ResourceScope}
-import com.vividsolutions.jts.geom.GeometryFactory
-import no.ecc.vectortile.{VectorTileDecoder, VectorTileEncoder}
+import com.vividsolutions.jts.geom.{Geometry, GeometryFactory}
+import no.ecc.vectortile.VectorTileEncoder
 import org.apache.commons.io.IOUtils
 import org.slf4j.{Logger, LoggerFactory, MDC}
 
@@ -24,27 +24,28 @@ import com.socrata.http.server.responses._
 import com.socrata.http.server.routing.{SimpleResource, TypedPathComponent}
 import com.socrata.http.server.util.RequestId.{RequestId, ReqIdHeader, getFromRequest}
 import com.socrata.http.server.{HttpRequest, HttpResponse, HttpService}
-import com.socrata.thirdparty.geojson.{GeoJson, FeatureCollectionJson}
+import com.socrata.thirdparty.geojson.GeoJson.codec.decode
+import com.socrata.thirdparty.geojson.{GeoJson, FeatureCollectionJson, FeatureJson}
 
-import ImageQueryService._
+import TileService._
 import config.TileServerConfig
-import util.{CoordinateMapper, ExcludedHeaders, Extensions, JsonP, InvalidRequest, QuadTile}
+import util._
 
 /** Service that provides the actual tiles.
   *
   * @constructor This should only be called once, by the main application.
   * @param client The client to talk to the upstream geo-json service.
   */
-case class ImageQueryService(client: CoreServerClient)
-    extends SimpleResource {
+case class TileService(client: CoreServerClient) extends SimpleResource {
   /** The types (file extensions) supported by this endpoint. */
   val types: Set[String] = Extensions.keySet
 
-  private def geoJsonQuery(requestId: RequestId,
-                           req: HttpRequest,
-                           id: String,
-                           params: Map[String, String],
-                           callback: Response => HttpResponse): HttpResponse = {
+  // Call to the underlying service.
+  private[services] def geoJsonQuery(requestId: RequestId,
+                                     req: HttpRequest,
+                                     id: String,
+                                     params: Map[String, String],
+                                     callback: Response => HttpResponse): HttpResponse = {
     val headerNames = req.headerNames filterNot { s: String =>
       ExcludedHeaders(s.toLowerCase)
     }
@@ -66,38 +67,32 @@ case class ImageQueryService(client: CoreServerClient)
     client.execute(jsonReq, callback)
   }
 
-  private def handleLayer(req: HttpRequest,
-                          identifier: String,
-                          pointColumn: String,
-                          tile: QuadTile,
-                          ext: String): HttpResponse = {
+  // Do the actual heavy lifting for the request handling.
+  private[services] def handleRequest(req: HttpRequest,
+                                      identifier: String,
+                                      pointColumn: String,
+                                      tile: QuadTile,
+                                      ext: String) : HttpResponse = {
     val mapper = tile.mapper
     val withinBox = tile.withinBox(pointColumn)
+
+    val callback = { resp: Response =>
+      resp.resultCode match {
+        case ScOk => Extensions(ext)(encoder(mapper), resp)
+        case _ => badRequest("Underlying request failed", resp)
+      }
+    }
 
     val resp = Try {
       val params = augmentParams(req, withinBox, pointColumn)
       val requestId = extractRequestId(req)
 
-      val callback = { resp: Response =>
-        resp.resultCode match {
-          case ScOk => {
-            Extensions(ext)(encoder(mapper), resp)
-          }
-          case _ => badRequest("Underlying request failed", resp)
-        }
-      }
-
       geoJsonQuery(requestId, req, identifier, params, callback)
+    } recover {
+      case e => badRequest("Unknown error", e)
     }
 
-    resp match {
-      case Success(s) => s
-      case Failure(InvalidRequest(message, info)) =>
-        badRequest(message, info)
-      case Failure(e) => {
-        badRequest("Unknown error", e)
-      }
-    }
+    resp.get
   }
 
   /** Handle the request.
@@ -120,20 +115,21 @@ case class ImageQueryService(client: CoreServerClient)
       override def get: HttpService = if (types(ext)) {
         MDC.put("X-Socrata-Resource", identifier)
 
-        req => handleLayer(req, identifier, pointColumn, QuadTile(x, y, zoom), ext)
+        req => handleRequest(req, identifier, pointColumn, QuadTile(x, y, zoom), ext)
       } else {
         req => badRequest("Invalid file type", ext)
       }
     }
 }
 
-object ImageQueryService {
-  implicit val logger: Logger = LoggerFactory.getLogger(getClass)
+object TileService {
+  type Feature = (Geometry, Map[String, JValue])
+
+  private val logger: Logger = LoggerFactory.getLogger(getClass)
+  private val defaultTileEncoder: VectorTileEncoder = new VectorTileEncoder()
   private val geomFactory = new GeometryFactory()
 
-  private[services] def badRequest(message: String,
-                                   info: String)
-                                  (implicit logger: Logger): HttpResponse = {
+  private[services] def badRequest(message: String, info: String): HttpResponse = {
     logger.warn(s"$message: $info")
 
     BadRequest ~>
@@ -141,9 +137,7 @@ object ImageQueryService {
       Json(json"""{message: $message, info: $info}""")
   }
 
-  private[services] def badRequest(message: String,
-                                   cause: Throwable)
-                                  (implicit logger: Logger): HttpResponse = {
+  private[services] def badRequest(message: String, cause: Throwable): HttpResponse = {
     logger.warn(message, cause)
 
     BadRequest ~>
@@ -151,9 +145,7 @@ object ImageQueryService {
       Json(json"""{message: $message, cause: ${cause.getMessage}}""")
   }
 
-  private[services] def badRequest(message: String,
-                                   resp: Response)
-                                  (implicit logger: Logger): HttpResponse = {
+  private[services] def badRequest(message: String, resp: Response): HttpResponse = {
     val body: JValue = JsonReader.fromString(IOUtils.toString(resp.inputStream()))
     logger.warn(s"$message: ${resp.resultCode}: $body")
 
@@ -170,46 +162,53 @@ object ImageQueryService {
                                       select: String): Map[String, String] = {
     val params = req.queryParameters
     val whereParam =
-      if (params.contains("$where")) params("$where") + s"and $where" else where
+      if (params.contains("$where")) params("$where") + s" and $where" else where
     val selectParam =
       if (params.contains("$select")) params("$select") + s", $select" else select
 
     params + ("$where" -> whereParam) + ("$select" -> selectParam)
   }
 
-  private[services] def encoder(mapper: CoordinateMapper): Response => Option[Array[Byte]] = resp => {
-    val encoder: VectorTileEncoder = new VectorTileEncoder()
+  private[services] def rollup(mapper: CoordinateMapper,
+                               features: Seq[FeatureJson]): Set[Feature] = {
+    val coords = features map { f =>
+      (f.geometry.getCoordinate, f.properties.mapValues(_.toV3))
+    }
 
-    GeoJson.codec.decode(resp.jValue(JsonP).toV2) collect {
+    val pixels = coords map { case (coord, props) =>
+      (mapper.tilePx(coord), props)
+    }
+
+    val points = pixels groupBy { case (px, props) =>
+      (geomFactory.createPoint(px), props)
+    }
+
+    val ptCounts = points.toSeq map {
+      case (k, v) => (k, v.size)
+    }
+
+    ptCounts.map { case ((pt, props), count) =>
+      pt -> Map("count" -> toJValue(count), "properties" -> toJValue(props))
+    } (collection.breakOut) // Build `Set` not `Seq`.
+  }
+
+  /** Returns a function that will encode a GeoJson response as a vector tile.
+    *
+    * @param mapper The mapper the encoder will use.
+    * @param tileEnc The underlying encoder that will produce the vector tile.
+    */
+  private[services] def encoder(mapper: CoordinateMapper,
+                                tileEncoder: VectorTileEncoder =
+                                  defaultTileEncoder): Encoder = resp => {
+    decode(resp.jValue(JsonP).toV2) collect {
       case FeatureCollectionJson(features, _) => {
-        val coords = features map { f =>
-          (f.geometry.getCoordinate, f.properties)
+        val rollups = rollup(mapper, features)
+
+        rollups foreach { case (pt, attrs) =>
+          tileEncoder.addFeature("main", attrs.asJava, pt)
         }
 
-        val pixels = coords map { case (coord, props) =>
-          (mapper.tilePx(coord), props)
-        }
-
-        val points = pixels groupBy { case (px, props) =>
-          (geomFactory.createPoint(px), props)
-        }
-
-        val rollups = points map {
-          case (k, v) => (k, v.size)
-        }
-
-        rollups foreach { case ((pt, jprops), count) =>
-          val props = jprops map { case (k, v) =>
-            (k, fromJValue[String](v.toV3))
-          }
-
-          val attrs = new java.util.HashMap[String, JValue]
-          attrs.put("count", toJValue(count))
-          attrs.put("properties", toJValue(props))
-          encoder.addFeature("main", attrs, pt)
-        }
-
-        encoder.encode()
+        tileEncoder.encode()
       }
     }
   }

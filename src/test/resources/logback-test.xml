@@ -1,0 +1,13 @@
+<configuration>
+    <appender name="FILE" class="ch.qos.logback.core.FileAppender">
+        <file>tests.log</file>
+        <append>false</append>
+        <encoder>
+            <pattern>%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} host:"%X{X-Socrata-Host}" reqId:\(%X{X-Socrata-RequestId}\) 4x4:[%X{X-Socrata-Resource}] - %msg%n</pattern>
+        </encoder>
+    </appender>
+
+    <root level="info">
+        <appender-ref ref="FILE" />
+    </root>
+</configuration>

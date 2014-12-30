@@ -48,7 +48,7 @@ class UtilPackageTest
   }
 
   test("Extensions return error on encoder failure") {
-    val clientResp = EmptyResponse
+    val clientResp = EmptyResponse()
     val noneEncoder: Encoder = _ => None
 
     Extensions.values filter (_ != JsonExt) foreach { ext: Extension =>
@@ -75,7 +75,7 @@ class UtilPackageTest
   }
 
   test("Extensions include CORS header on success") {
-    val clientResp = EmptyResponse
+    val clientResp = EmptyResponse()
     val emptyEncoder: Encoder = _ => Some(Array.empty)
 
     Extensions.values foreach { ext: Extension =>
