@@ -3,112 +3,25 @@ package services
 
 import javax.servlet.http.HttpServletRequest
 import javax.servlet.http.HttpServletResponse.{SC_BAD_REQUEST => ScBadRequest}
-import javax.servlet.http.HttpServletResponse.{SC_BAD_REQUEST => ScBadRequest}
 import javax.servlet.http.HttpServletResponse.{SC_INTERNAL_SERVER_ERROR => ScInternalServerError}
 import javax.servlet.http.HttpServletResponse.{SC_NOT_MODIFIED => ScNotModified}
 import javax.servlet.http.HttpServletResponse.{SC_OK => ScOk}
-import scala.collection.JavaConverters._
-import scala.language.implicitConversions
 import scala.util.control.NoStackTrace
 
-import com.rojoma.json.v3.ast.JString
-import com.rojoma.json.v3.codec.JsonEncode.toJValue
-import com.rojoma.json.v3.conversions._
 import com.rojoma.json.v3.interpolation._
 import com.socrata.http.server.util.RequestId.{RequestId, ReqIdHeader}
 import com.vividsolutions.jts.geom.{Coordinate, GeometryFactory, Point}
-import org.mockito.Matchers.{anyInt, anyObject}
+import org.mockito.Matchers.anyInt
 import org.mockito.Mockito.{verify, when}
-import org.scalacheck.Arbitrary
-import org.scalacheck.Gen
 import org.scalatest.mock.MockitoSugar
-import org.scalatest.prop.PropertyChecks
-import org.scalatest.{FunSuite, MustMatchers}
 
 import com.socrata.backend.client.CoreServerClient
-import com.socrata.backend.config.CoreServerClientConfig
-import com.socrata.http.client.{RequestBuilder, Response, SimpleHttpRequest}
+import com.socrata.http.client.{RequestBuilder, Response}
 import com.socrata.http.server.HttpRequest.AugmentedHttpServletRequest
 import com.socrata.http.server.routing.TypedPathComponent
-import com.socrata.http.server.{HttpRequest, HttpResponse}
-import com.socrata.thirdparty.curator.ServerProvider
-import com.socrata.thirdparty.geojson.FeatureJson
+import com.socrata.http.server.HttpRequest
 
-class TileServiceTest
-    extends FunSuite
-    with MustMatchers
-    with PropertyChecks
-    with MockitoSugar {
-  val geomFactory = new GeometryFactory()
-  val echoMapper = new util.CoordinateMapper(0) {
-    override def tilePx(lon: Double, lat:Double): (Int, Int) =
-      (lon.toInt, lat.toInt)
-  }
-
-  trait UnusedValue
-  object Unused extends UnusedValue
-  implicit def unusedToInt(u: UnusedValue): Int = 0
-  implicit def unusedToString(u: UnusedValue): String = "unused"
-  implicit def unusedToHttpRequest(u: UnusedValue): HttpRequest =
-    mocks.StaticRequest()
-  implicit def unusedToQuadTile(u: UnusedValue): util.QuadTile =
-    util.QuadTile(0, 0, 0)
-
-  object StatusCodes {
-    case class KnownStatusCode(val underlying: Int) {
-      override val toString: String = underlying.toString
-    }
-    implicit def knownStatusCodeToInt(k: KnownStatusCode): Int = k.underlying
-
-    case class UnknownStatusCode(val underlying: Int) {
-      override val toString: String = underlying.toString
-    }
-    implicit def unknownStatusCodeToInt(u: UnknownStatusCode): Int = u.underlying
-
-    // scalastyle:off magic.number
-    val knownStatusCodes = Set(400, 401, 403, 404, 408, 500, 501, 503)
-
-    val knownScGen = for {
-      statusCode <- Gen.oneOf(knownStatusCodes.toSeq)
-    } yield (KnownStatusCode(statusCode))
-
-    val unknownScGen = for {
-      statusCode <- Gen.choose(100, 599) suchThat { statusCode: Int =>
-        !knownStatusCodes(statusCode) && statusCode != ScOk && statusCode != ScNotModified
-      }
-    } yield (UnknownStatusCode(statusCode))
-    // scalastyle:on magic.number
-    implicit val knownSc = Arbitrary(knownScGen)
-    implicit val unknownSc = Arbitrary(unknownScGen)
-  }
-
-  def uniq(objs: AnyRef*): Boolean = Set(objs: _*).size == objs.size
-
-  def encode(s: String): String = JString(s).toString
-
-  def point(pt: (Int, Int)): Point = {
-    val (x, y) = pt
-
-    geomFactory.createPoint(new Coordinate(x, y))
-  }
-
-  def fJson(pt: (Int, Int),
-            attributes: Map[String, String] = Map.empty): FeatureJson = {
-    val attributesV2 = attributes map { case (k, v) => (k, toJValue(v).toV2) }
-    FeatureJson(attributesV2, point(pt))
-  }
-
-  def feature(pt: (Int, Int),
-              count: Int = 1,
-              attributes: Map[String, String] = Map.empty): TileService.Feature = {
-    (point(pt), Map("count" -> toJValue(count)) ++
-       Map("properties" -> toJValue(attributes)))
-  }
-
-
-
-  val nothingCallback: Response => HttpResponse = r => mock[HttpResponse]
-
+class TileServiceTest extends TestBase with UnusedSugar with MockitoSugar {
   test("Service supports at least .pbf, .bpbf and .json") {
     val svc = TileService(mock[CoreServerClient])
 
@@ -148,7 +61,7 @@ class TileServiceTest
                                        request,
                                        id,
                                        Map(param),
-                                       nothingCallback): Unit
+                                       Unused): Unit
     }
   }
 
@@ -183,7 +96,7 @@ class TileServiceTest
   }
 
   test("Handle request echos known codes") {
-    import StatusCodes._
+    import implicits.StatusCodes._
 
     forAll { (statusCode: KnownStatusCode, payload: String) =>
       val message = s"""{message: ${encode(payload)}}"""
@@ -205,7 +118,7 @@ class TileServiceTest
   }
 
   test("Handle request returns 'internal server error' on unknown status") {
-    import StatusCodes._
+    import implicits.StatusCodes._
 
 
     forAll { (statusCode: UnknownStatusCode, payload: String) =>
@@ -238,7 +151,7 @@ class TileServiceTest
       val outputStream = new mocks.ByteArrayServletOutputStream
       val resp = outputStream.responseFor
 
-      TileService(client).handleRequest(Unused, Unused, Unused, Unused, Unused)(resp)
+      TileService(client).handleRequest(Unused, Unused, Unused, Unused, "json")(resp)
 
       verify(resp).setStatus(ScBadRequest)
 
@@ -287,7 +200,7 @@ class TileServiceTest
   }
 
   test("Proxied response must include known status code, content-type, and payload") {
-    import StatusCodes._
+    import implicits.StatusCodes._
 
     forAll { (statusCode: KnownStatusCode, payload: String) =>
       val outputStream = new mocks.ByteArrayServletOutputStream
@@ -425,12 +338,12 @@ class TileServiceTest
 
   test("An empty list of coordinates rolls up correctly") {
     val noFeatures = Seq.empty
-    TileService.rollup(echoMapper, noFeatures) must be (Set.empty)
+    TileService.rollup(Unused, noFeatures) must be (Set.empty)
   }
 
   test("A single coordinate rolls up correctly") {
     forAll { pt: (Int, Int) =>
-      TileService.rollup(echoMapper, Seq(fJson(pt))) must equal (Set(feature(pt)))
+      TileService.rollup(Unused, Seq(fJson(pt))) must equal (Set(feature(pt)))
     }
   }
 
@@ -443,7 +356,7 @@ class TileServiceTest
         val expected = Set(feature(pt0),
                            feature(pt1),
                            feature(pt2))
-        val actual = TileService.rollup(echoMapper, coordinates)
+        val actual = TileService.rollup(Unused, coordinates)
 
         actual must equal (expected)
       }
@@ -461,7 +374,7 @@ class TileServiceTest
         val expected = Set(feature(pt0, count=1),
                            feature(pt1, count=2),
                            feature(pt2, count=2))
-        val actual = TileService.rollup(echoMapper, coordinates)
+        val actual = TileService.rollup(Unused, coordinates)
 
         actual must equal (expected)
       }
@@ -487,7 +400,7 @@ class TileServiceTest
                            feature(pt0, 1, Map(prop1)),
                            feature(pt1, 2, Map(prop1)))
 
-        val actual = TileService.rollup(echoMapper, coordinates)
+        val actual = TileService.rollup(Unused, coordinates)
 
         actual must equal (expected)
       }
@@ -512,7 +425,7 @@ class TileServiceTest
                            feature(pt2))
 
         val bytes = TileService.
-          encoder(echoMapper, mocks.StringEncoder())(mocks.SeqResponse(coordinates))
+          encoder(Unused, mocks.StringEncoder())(mocks.SeqResponse(coordinates))
         bytes must be ('defined)
         bytes.get.length must be > 0
         new String(bytes.get, "UTF-8") must equal (mocks.StringEncoder.encFeatures(expected))

@@ -9,10 +9,7 @@ import org.scalatest.{FunSuite, MustMatchers}
 
 import com.socrata.http.server.HttpRequest
 
-class VersionServiceTest
-    extends FunSuite
-    with MustMatchers
-    with MockitoSugar {
+class VersionServiceTest extends TestBase with MockitoSugar {
   test("Endpoint must return health = alive") {
     val req = mock[HttpRequest]
     val outputStream = new mocks.ByteArrayServletOutputStream
