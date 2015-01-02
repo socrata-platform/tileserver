@@ -13,8 +13,8 @@ import com.socrata.http.server.{HttpRequest, HttpResponse, HttpService}
 
 // $COVERAGE-OFF$ Disabled because this is basically configuration.
 class Router(versionService: HttpService,
-             imageQueryTypes : String => Boolean,
-             imageQueryService: (String,
+             tileTypes : String => Boolean,
+             tileService: (String,
                                  String,
                                  Int,
                                  Int,
@@ -30,8 +30,7 @@ class Router(versionService: HttpService,
   val routes = Routes(
     Route("/version", versionService),
     // domain/tiles/abcd-1234/pointColumn/z/x/y.pbf
-    Route("/tiles/{String}/{String}/{Int}/{Int}/{{Int!imageQueryTypes}}",
-          imageQueryService)
+    Route("/tiles/{String}/{String}/{Int}/{Int}/{{Int!tileTypes}}", tileService)
   )
 
   /** 404 error. */

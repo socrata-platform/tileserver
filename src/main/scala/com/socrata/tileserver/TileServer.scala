@@ -38,10 +38,10 @@ object TileServer extends App {
     val coreServerProvider = CuratorServerProvider(http, coreServerCurator, identity)
     val core = CoreServerClient(coreServerProvider, TileServerConfig)
 
-    val imageQueryService = TileService(core)
+    val tileService = TileService(core)
     val router = new Router(VersionService,
-                            imageQueryService.types,
-                            imageQueryService.service)
+                            tileService.types,
+                            tileService.service)
     val handler = router.route _
 
     val server = new SocrataServerJetty(

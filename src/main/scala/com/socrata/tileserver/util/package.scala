@@ -51,7 +51,7 @@ package object util {
       decoder.decode(bytes)
 
       val features = decoder.getFeatures("main").asScala map { f =>
-        s"geometry: ${f.getGeometry.toString}  \tattributes: ${f.getAttributes}"
+        s"geometry: ${f.getGeometry.toString} \t attributes: ${f.getAttributes}"
       }
       // $COVERAGE-ON$
 
