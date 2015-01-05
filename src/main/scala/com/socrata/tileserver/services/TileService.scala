@@ -29,7 +29,10 @@ import com.socrata.thirdparty.geojson.{GeoJson, FeatureCollectionJson, FeatureJs
 
 import TileService._
 import config.TileServerConfig
-import util._
+import util.{CoordinateMapper, ExcludedHeaders, QuadTile}
+import util.TileEncoder.Feature
+
+import util.{Extensions, Encoder, JsonP} // TODO: Remove these!
 
 /** Service that provides the actual tiles.
   *
@@ -123,8 +126,6 @@ case class TileService(client: CoreServerClient) extends SimpleResource {
 }
 
 object TileService {
-  type Feature = (Geometry, Map[String, JValue])
-
   private val logger: Logger = LoggerFactory.getLogger(getClass)
   private val defaultTileEncoder: VectorTileEncoder = new VectorTileEncoder()
   private val geomFactory = new GeometryFactory()
@@ -200,7 +201,7 @@ object TileService {
   private[services] def encoder(mapper: CoordinateMapper,
                                 tileEncoder: VectorTileEncoder =
                                   defaultTileEncoder): Encoder = resp => {
-    decode(resp.jValue(JsonP).toV2) collect {
+    decode(resp.jValue(Response.acceptGeoJson).toV2) collect {
       case FeatureCollectionJson(features, _) => {
         val rollups = rollup(mapper, features)
 

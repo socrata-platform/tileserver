@@ -7,7 +7,7 @@ import scala.collection.mutable.Buffer
 import com.vividsolutions.jts.geom.Geometry
 import no.ecc.vectortile.VectorTileEncoder
 
-import services.TileService
+import util.TileEncoder.Feature
 
 class StringEncoder extends VectorTileEncoder {
   private val underlying: Buffer[String] = Buffer()
@@ -25,7 +25,7 @@ class StringEncoder extends VectorTileEncoder {
 object StringEncoder {
   def apply(): StringEncoder = new StringEncoder()
 
-  def encFeatures(features: Set[TileService.Feature]): String = {
+  def encFeatures(features: Set[Feature]): String = {
     val enc = new StringEncoder()
 
     features foreach { case (pt, attrs) =>

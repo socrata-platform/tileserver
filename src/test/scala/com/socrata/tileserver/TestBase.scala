@@ -10,20 +10,22 @@ import com.vividsolutions.jts.geom.{Coordinate, GeometryFactory, Point}
 
 import com.socrata.thirdparty.geojson.FeatureJson
 
-import services.TileService
+import util.TileEncoder.Feature
 
 trait TestBase extends FunSuite with MustMatchers with PropertyChecks {
   val GeomFactory = new GeometryFactory()
 
   def fJson(pt: (Int, Int),
             attributes: Map[String, String] = Map.empty): FeatureJson = {
-    val attributesV2 = attributes map { case (k, v) => (k, toJValue(v).toV2) }
+    val attributesV2 = attributes map { case (k, v) => k -> toJValue(v).toV2 }
     FeatureJson(attributesV2, point(pt))
   }
 
   def feature(pt: (Int, Int),
               count: Int = 1,
-              attributes: Map[String, String] = Map.empty): TileService.Feature = {
+              attributes: Map[String, String] = Map.empty): Feature = {
+    val encoded = attributes map { case (k, v) => encode(k) -> encode(v) }
+
     (point(pt), Map("count" -> toJValue(count)) ++
        Map("properties" -> toJValue(attributes)))
   }
