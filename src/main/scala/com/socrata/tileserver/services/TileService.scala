@@ -131,7 +131,7 @@ object TileService {
 
   private[services] def proxyResponse(resp: Response): HttpResponse = {
     val body: JValue = JsonReader.fromString(IOUtils.toString(resp.inputStream()))
-    logger.warn(s"Proxying response: ${resp.resultCode}: $body")
+    logger.info(s"Proxying response: ${resp.resultCode}: $body")
 
     Status(resp.resultCode) ~>
       Header("Access-Control-Allow-Origin", "*") ~>
