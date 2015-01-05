@@ -15,6 +15,8 @@ import com.socrata.http.server.util.RequestId.{RequestId, ReqIdHeader}
 import com.vividsolutions.jts.geom.{Coordinate, GeometryFactory, Point}
 import org.mockito.Matchers.{anyInt, anyObject}
 import org.mockito.Mockito.{verify, when}
+import org.scalacheck.Arbitrary.arbString
+import org.scalacheck.Gen
 import org.scalatest.mock.MockitoSugar
 import org.scalatest.prop.PropertyChecks
 import org.scalatest.{FunSuite, MustMatchers}
@@ -40,6 +42,7 @@ class TileServiceTest
     override def tilePx(lon: Double, lat:Double): (Int, Int) =
       (lon.toInt, lat.toInt)
   }
+  val statusCode = Gen.choose(100, 599)
 
   def uniq(objs: AnyRef*): Boolean = Set(objs: _*).size == objs.size
 
@@ -142,32 +145,34 @@ class TileServiceTest
   }
 
   test("Handle request proxies when underlying returns anything but OK") {
-    forAll { (statusCode: Int, payload: String) =>
-      val client = new CoreServerClient(mock[ServerProvider], emptyConfig) {
-        override def execute[T](request: RequestBuilder => SimpleHttpRequest,
-                                callback: Response => T): T = {
-          val resp = mock[Response]
-          when(resp.resultCode).thenReturn(statusCode)
-          when(resp.inputStream(anyInt())).
-            thenReturn(mocks.StringInputStream(s"""{message: ${encode(payload)}}"""))
+    forAll(statusCode, arbString.arbitrary) { (sc: Int, payload: String) =>
+      whenever (sc != ScOk) {
+        val client = new CoreServerClient(mock[ServerProvider], emptyConfig) {
+          override def execute[T](request: RequestBuilder => SimpleHttpRequest,
+                                  callback: Response => T): T = {
+            val resp = mock[Response]
+            when(resp.resultCode).thenReturn(sc)
+            when(resp.inputStream(anyInt())).
+              thenReturn(mocks.StringInputStream(s"""{message: ${encode(payload)}}"""))
 
-          callback(resp)
+            callback(resp)
+          }
         }
+
+        val outputStream = new mocks.ByteArrayServletOutputStream
+        val resp = outputStream.responseFor
+
+        TileService(client).handleRequest(mocks.StaticRequest(),
+                                          "dataset id",
+                                          "point column",
+                                          QuadTile(0, 0, 0),
+                                          "json")(resp)
+
+        verify(resp).setStatus(sc)
+
+        outputStream.getLowStr must include ("underlying")
+        outputStream.getString must include (encode(payload))
       }
-
-      val outputStream = new mocks.ByteArrayServletOutputStream
-      val resp = outputStream.responseFor
-
-      TileService(client).handleRequest(mocks.StaticRequest(),
-                                        "dataset id",
-                                        "point column",
-                                        QuadTile(0, 0, 0),
-                                        "json")(resp)
-
-      verify(resp).setStatus(statusCode)
-
-      outputStream.getLowStr must include ("underlying")
-      outputStream.getString must include (encode(payload))
     }
   }
 
