@@ -3,8 +3,12 @@ package services
 
 import javax.servlet.http.HttpServletRequest
 import javax.servlet.http.HttpServletResponse.{SC_BAD_REQUEST => ScBadRequest}
+import javax.servlet.http.HttpServletResponse.{SC_BAD_REQUEST => ScBadRequest}
+import javax.servlet.http.HttpServletResponse.{SC_INTERNAL_SERVER_ERROR => ScInternalServerError}
+import javax.servlet.http.HttpServletResponse.{SC_NOT_MODIFIED => ScNotModified}
 import javax.servlet.http.HttpServletResponse.{SC_OK => ScOk}
 import scala.collection.JavaConverters._
+import scala.language.implicitConversions
 import scala.util.control.NoStackTrace
 
 import com.rojoma.json.v3.ast.JString
@@ -15,7 +19,7 @@ import com.socrata.http.server.util.RequestId.{RequestId, ReqIdHeader}
 import com.vividsolutions.jts.geom.{Coordinate, GeometryFactory, Point}
 import org.mockito.Matchers.{anyInt, anyObject}
 import org.mockito.Mockito.{verify, when}
-import org.scalacheck.Arbitrary.arbString
+import org.scalacheck.Arbitrary
 import org.scalacheck.Gen
 import org.scalatest.mock.MockitoSugar
 import org.scalatest.prop.PropertyChecks
@@ -31,6 +35,7 @@ import com.socrata.thirdparty.curator.ServerProvider
 import com.socrata.thirdparty.geojson.FeatureJson
 
 import util.QuadTile
+import mocks.StringClient.{EmptyConfig => emptyConfig}
 
 class TileServiceTest
     extends FunSuite
@@ -42,7 +47,34 @@ class TileServiceTest
     override def tilePx(lon: Double, lat:Double): (Int, Int) =
       (lon.toInt, lat.toInt)
   }
-  val statusCode = Gen.choose(100, 599)
+
+  object StatusCodes {
+    case class KnownStatusCode(val underlying: Int) {
+      override val toString: String = underlying.toString
+    }
+    implicit def knownStatusCodeToInt(k: KnownStatusCode): Int = k.underlying
+
+    case class UnknownStatusCode(val underlying: Int) {
+      override val toString: String = underlying.toString
+    }
+    implicit def unknownStatusCodeToInt(u: UnknownStatusCode): Int = u.underlying
+
+    // scalastyle:off magic.number
+    val knownStatusCodes = Set(400, 401, 403, 404, 408, 500, 501, 503)
+
+    val knownScGen = for {
+      statusCode <- Gen.oneOf(knownStatusCodes.toSeq)
+    } yield (KnownStatusCode(statusCode))
+
+    val unknownScGen = for {
+      statusCode <- Gen.choose(100, 599) suchThat { statusCode: Int =>
+        !knownStatusCodes(statusCode) && statusCode != ScOk && statusCode != ScNotModified
+      }
+    } yield (UnknownStatusCode(statusCode))
+    // scalastyle:on magic.number
+    implicit val knownSc = Arbitrary(knownScGen)
+    implicit val unknownSc = Arbitrary(unknownScGen)
+  }
 
   def uniq(objs: AnyRef*): Boolean = Set(objs: _*).size == objs.size
 
@@ -67,10 +99,7 @@ class TileServiceTest
        Map("properties" -> toJValue(attributes)))
   }
 
-  val emptyConfig = new CoreServerClientConfig {
-    def connectTimeoutSec: Int = 0
-    def maxRetries: Int = 0
-  }
+
 
   val nothingCallback: Response => HttpResponse = r => mock[HttpResponse]
 
@@ -144,35 +173,64 @@ class TileServiceTest
     }
   }
 
-  test("Handle request proxies when underlying returns anything but OK") {
-    forAll(statusCode, arbString.arbitrary) { (sc: Int, payload: String) =>
-      whenever (sc != ScOk) {
-        val client = new CoreServerClient(mock[ServerProvider], emptyConfig) {
-          override def execute[T](request: RequestBuilder => SimpleHttpRequest,
-                                  callback: Response => T): T = {
-            val resp = mock[Response]
-            when(resp.resultCode).thenReturn(sc)
-            when(resp.inputStream(anyInt())).
-              thenReturn(mocks.StringInputStream(s"""{message: ${encode(payload)}}"""))
+  test("Handle request returns 304 with no body when given 304.") {
+    val client = mocks.StringClient(ScNotModified, "")
+    val outputStream = new mocks.ByteArrayServletOutputStream
+    val resp = outputStream.responseFor
 
-            callback(resp)
-          }
-        }
+    TileService(client).handleRequest(mocks.StaticRequest(),
+                                      "dataset id",
+                                      "point column",
+                                      QuadTile(0, 0, 0),
+                                      "json")(resp)
 
-        val outputStream = new mocks.ByteArrayServletOutputStream
-        val resp = outputStream.responseFor
+    verify(resp).setStatus(ScNotModified)
 
-        TileService(client).handleRequest(mocks.StaticRequest(),
-                                          "dataset id",
-                                          "point column",
-                                          QuadTile(0, 0, 0),
-                                          "json")(resp)
+    outputStream.getString must have length (0)
+  }
 
-        verify(resp).setStatus(sc)
+  test("Handle request echos known codes") {
+    import StatusCodes._
 
-        outputStream.getLowStr must include ("underlying")
-        outputStream.getString must include (encode(payload))
-      }
+    forAll { (statusCode: KnownStatusCode, payload: String) =>
+      val client = mocks.StringClient(statusCode,
+                                      s"""{message: ${encode(payload)}}""")
+      val outputStream = new mocks.ByteArrayServletOutputStream
+      val resp = outputStream.responseFor
+
+      TileService(client).handleRequest(mocks.StaticRequest(),
+                                        "dataset id",
+                                        "point column",
+                                        QuadTile(0, 0, 0),
+                                        "json")(resp)
+
+      verify(resp).setStatus(statusCode)
+
+      outputStream.getLowStr must include ("underlying")
+      outputStream.getString must include (encode(payload))
+    }
+  }
+
+  test("Handle request returns 'internal server error' on unknown status") {
+    import StatusCodes._
+
+    forAll { (statusCode: UnknownStatusCode, payload: String) =>
+      val client = mocks.StringClient(statusCode,
+                                      s"""{message: ${encode(payload)}}""")
+      val outputStream = new mocks.ByteArrayServletOutputStream
+      val resp = outputStream.responseFor
+
+      TileService(client).handleRequest(mocks.StaticRequest(),
+                                        "dataset id",
+                                        "point column",
+                                        QuadTile(0, 0, 0),
+                                        "json")(resp)
+
+      verify(resp).setStatus(ScInternalServerError)
+
+      outputStream.getLowStr must include ("underlying")
+      outputStream.getString must include (encode(payload))
+      outputStream.getString must include (statusCode.toString)
     }
   }
 
@@ -252,14 +310,16 @@ class TileServiceTest
     outputStream.getLowStr must include ("invalid file type")
   }
 
-  test("Proxied response must include status code, content-type, and payload") {
-    forAll { (statusCode: Int, payload: String) =>
+  test("Proxied response must include known status code, content-type, and payload") {
+    import StatusCodes._
+
+    forAll { (statusCode: KnownStatusCode, payload: String) =>
       val outputStream = new mocks.ByteArrayServletOutputStream
       val resp = outputStream.responseFor
       val upstream = mocks.StringResponse(json"""{payload: $payload}""".toString,
                                           statusCode)
 
-      TileService.proxyResponse(upstream)(resp)
+      TileService.echoResponse(upstream)(resp)
 
       verify(resp).setStatus(statusCode)
       verify(resp).setContentType("application/json; charset=UTF-8")

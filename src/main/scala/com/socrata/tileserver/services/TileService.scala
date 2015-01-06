@@ -2,6 +2,8 @@ package com.socrata.tileserver
 package services
 
 import java.net.URLDecoder
+import javax.servlet.http.HttpServletResponse
+import javax.servlet.http.HttpServletResponse.{SC_NOT_MODIFIED => ScNotModified}
 import javax.servlet.http.HttpServletResponse.{SC_OK => ScOk}
 import scala.collection.JavaConverters._
 import scala.util.{Try, Success, Failure}
@@ -76,10 +78,13 @@ case class TileService(client: CoreServerClient) extends SimpleResource {
     val mapper = tile.mapper
     val withinBox = tile.withinBox(pointColumn)
 
-    val callback = { resp: Response =>
+    def processResponse(resp: Response) = {
       resp.resultCode match {
-        case ScOk => Extensions(ext)(encoder(mapper), resp)
-        case _ => proxyResponse(resp)
+        case ScOk =>
+          Extensions(ext)(encoder(mapper), resp)
+        case ScNotModified => NotModified ~>
+            Header("Access-Control-Allow-Origin", "*")
+        case _ => echoResponse(resp)
       }
     }
 
@@ -87,9 +92,9 @@ case class TileService(client: CoreServerClient) extends SimpleResource {
       val params = augmentParams(req, withinBox, pointColumn)
       val requestId = extractRequestId(req)
 
-      geoJsonQuery(requestId, req, identifier, params, callback)
+      geoJsonQuery(requestId, req, identifier, params, processResponse)
     } recover {
-      case e => badRequest("Unknown error", e)
+      case e => badRequest("Unknown error", e) // TODO: Internal server error.
     }
 
     resp.get
@@ -128,12 +133,23 @@ object TileService {
   private val logger: Logger = LoggerFactory.getLogger(getClass)
   private val defaultTileEncoder: VectorTileEncoder = new VectorTileEncoder()
   private val geomFactory = new GeometryFactory()
+  private val allowed = Set(HttpServletResponse.SC_BAD_REQUEST,
+                            HttpServletResponse.SC_UNAUTHORIZED,
+                            HttpServletResponse.SC_FORBIDDEN,
+                            HttpServletResponse.SC_NOT_FOUND,
+                            HttpServletResponse.SC_REQUEST_TIMEOUT,
+                            HttpServletResponse.SC_INTERNAL_SERVER_ERROR,
+                            HttpServletResponse.SC_NOT_IMPLEMENTED,
+                            HttpServletResponse.SC_SERVICE_UNAVAILABLE)
 
-  private[services] def proxyResponse(resp: Response): HttpResponse = {
+  private[services] def echoResponse(resp: Response): HttpResponse = {
     val body: JValue = JsonReader.fromString(IOUtils.toString(resp.inputStream()))
     logger.info(s"Proxying response: ${resp.resultCode}: $body")
 
-    Status(resp.resultCode) ~>
+    val code = resp.resultCode
+    val base = if (allowed(code)) Status(code) else InternalServerError
+
+    base ~>
       Header("Access-Control-Allow-Origin", "*") ~>
       Json(json"""{underlying: {resultCode:${resp.resultCode}, body: $body}}""")
   }
