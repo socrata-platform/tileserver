@@ -48,14 +48,7 @@ case class TileService(client: CoreServerClient) extends SimpleResource {
                                      id: String,
                                      params: Map[String, String],
                                      callback: Response => HttpResponse): HttpResponse = {
-    val headerNames = req.headerNames filterNot { s: String =>
-      ExcludedHeaders(s.toLowerCase)
-    }
-
-    val headers =
-      headerNames flatMap { name: String =>
-        req.headers(name) map { (name, _) }
-      } toIterable
+    val headers = HeaderFilter.headers(req)
 
     val jsonReq = { base: RequestBuilder =>
       val req = base.path(Seq("id", s"$id.geojson")).
