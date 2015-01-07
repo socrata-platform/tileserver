@@ -15,7 +15,7 @@ import com.socrata.http.server.HttpRequest
 import com.socrata.http.server.HttpRequest.AugmentedHttpServletRequest
 
 class StaticRequest(val params: Map[String, String],
-                    val headers: Map[String, String] = Map.empty) extends HttpRequest {
+                    val headers: Map[String, String]) extends HttpRequest {
   // Had to go all the way to HttpServletRequest to mock out queryParameters.
   private val underlyingReq = mock(classOf[HttpServletRequest])
   private val headerNames = headers.keys.toSeq
@@ -66,11 +66,14 @@ class StaticRequest(val params: Map[String, String],
 object StaticRequest {
   val httpServletRequest: HttpServletRequest = mock(classOf[HttpServletRequest])
 
-  def apply(): StaticRequest = new StaticRequest(Map.empty)
+  def apply(): StaticRequest = new StaticRequest(Map.empty, Map.empty)
 
-  def apply(params: (String, String)): StaticRequest =
-    new StaticRequest(Map(params))
+  def apply(param: (String, String)): StaticRequest =
+    new StaticRequest(Map(param), Map.empty)
 
-  def apply(params: (String, String), headers: (String, String)): StaticRequest =
-    new StaticRequest(Map(params), Map(headers))
+  def apply(param: (String, String), header: (String, String)): StaticRequest =
+    new StaticRequest(Map(param), Map(header))
+
+  def apply(param: (String, String), headers: Map[String, String]): StaticRequest =
+    new StaticRequest(Map(param), headers)
 }

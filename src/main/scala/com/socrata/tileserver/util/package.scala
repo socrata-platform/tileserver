@@ -20,13 +20,6 @@ package object util {
       t.getBaseType.startsWith("application/") && t.getBaseType.endsWith("json")
     } getOrElse false
 
-  val ExcludedHeaders = Set("Accept",
-                            "Accept-Language",
-                            "Cache-Control",
-                            "Connection",
-                            "Host",
-                            "User-Agent",
-                            "Accept-Encoding") map (_.toLowerCase)
 
   val InvalidJson = InternalServerError ~>
     Content("application/json", """{"message":"Invalid geo-json returned from underlying service."}""")
