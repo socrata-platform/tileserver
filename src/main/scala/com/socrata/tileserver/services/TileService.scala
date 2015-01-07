@@ -62,6 +62,25 @@ case class TileService(client: CoreServerClient) extends SimpleResource {
     client.execute(jsonReq, callback)
   }
 
+  private[services] def processResponse(mapper: CoordinateMapper,
+                                        ext: String): Response => HttpResponse = {
+    { resp =>
+      resp.resultCode match {
+        case ScOk =>
+          val headers = HeaderFilter.headers(resp) map { case (k, v) =>
+            Header(k, v)
+          }
+          val base = Extensions(ext)(encoder(mapper), resp)
+          headers.fold(base) { (a, b) =>
+            a ~> b
+          }
+        case ScNotModified => NotModified ~>
+            Header("Access-Control-Allow-Origin", "*")
+        case _ => echoResponse(resp)
+      }
+    }
+  }
+
   // Do the actual heavy lifting for the request handling.
   private[services] def handleRequest(req: HttpRequest,
                                       identifier: String,
@@ -71,21 +90,17 @@ case class TileService(client: CoreServerClient) extends SimpleResource {
     val mapper = tile.mapper
     val withinBox = tile.withinBox(pointColumn)
 
-    def processResponse(resp: Response) = {
-      resp.resultCode match {
-        case ScOk =>
-          Extensions(ext)(encoder(mapper), resp)
-        case ScNotModified => NotModified ~>
-            Header("Access-Control-Allow-Origin", "*")
-        case _ => echoResponse(resp)
-      }
-    }
+
 
     val resp = Try {
       val params = augmentParams(req, withinBox, pointColumn)
       val requestId = extractRequestId(req)
 
-      geoJsonQuery(requestId, req, identifier, params, processResponse)
+      geoJsonQuery(requestId,
+                   req,
+                   identifier,
+                   params,
+                   processResponse(mapper, ext))
     } recover {
       case e => badRequest("Unknown error", e) // TODO: Internal server error.
     }

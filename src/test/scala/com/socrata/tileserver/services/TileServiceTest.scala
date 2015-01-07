@@ -30,18 +30,21 @@ class TileServiceTest extends TestBase with UnusedSugar with MockitoSugar {
     svc.types must contain ("json")
   }
 
-  ignore("Headers and parameters are correct when making a geo-json query") {
+  test("Headers and parameters are correct when making a geo-json query") {
+    import implicits.Headers._
+
     forAll { (reqId: RequestId,
               id: String,
               param: (String, String),
-              header: (String, String)) =>
+              knownHeader: IncomingHeader,
+              unknownHeader: UnknownHeader) =>
       val base = RequestBuilder("mock.socrata.com")
-      val request = mocks.StaticRequest(param, header)
+      val request = mocks.StaticRequest(param, Map(knownHeader, unknownHeader))
 
       val expected = base.
         path(Seq("id", s"$id.geojson")).
         addHeader(ReqIdHeader -> reqId).
-        addHeader(header).
+        addHeader(knownHeader).
         query(Map(param)).
         get.builder
 
@@ -65,6 +68,23 @@ class TileServiceTest extends TestBase with UnusedSugar with MockitoSugar {
     }
   }
 
+  test("Correct returned headers are surfaced when processing response") {
+    import implicits.Headers._
+
+    forAll { (known: OutgoingHeader, unknown: UnknownHeader) =>
+      val (k, v): (String, String) = known
+      val upstream = mocks.HeaderResponse(Map(known, unknown))
+      val outputStream = new mocks.ByteArrayServletOutputStream
+      val resp = outputStream.responseFor
+
+      TileService(Unused).processResponse(Unused, "json")(upstream)(resp)
+
+      verify(resp).setStatus(ScOk)
+      verify(resp).setHeader("Access-Control-Allow-Origin", "*")
+      verify(resp).setHeader(k, v)
+    }
+  }
+
   test("Handle request returns OK when underlying succeeds") {
     forAll { pt: (Int, Int) =>
       val jsonResp = mocks.SeqResponse(Seq(fJson(pt)))
@@ -81,10 +101,10 @@ class TileServiceTest extends TestBase with UnusedSugar with MockitoSugar {
   }
 
   test("Handle request returns 304 with no body when given 304.") {
-    val static = mock[Response]
-    when(static.resultCode).thenReturn(ScNotModified)
+    val upstream = mock[Response]
+    when(upstream.resultCode).thenReturn(ScNotModified)
 
-    val client = mocks.StaticClient(static)
+    val client = mocks.StaticClient(upstream)
     val outputStream = new mocks.ByteArrayServletOutputStream
     val resp = outputStream.responseFor
 
@@ -100,11 +120,11 @@ class TileServiceTest extends TestBase with UnusedSugar with MockitoSugar {
 
     forAll { (statusCode: KnownStatusCode, payload: String) =>
       val message = s"""{message: ${encode(payload)}}"""
-      val static = mock[Response]
-      when(static.resultCode).thenReturn(statusCode)
-      when(static.inputStream(anyInt)).thenReturn(mocks.StringInputStream(message))
+      val upstream = mock[Response]
+      when(upstream.resultCode).thenReturn(statusCode)
+      when(upstream.inputStream(anyInt)).thenReturn(mocks.StringInputStream(message))
 
-      val client = mocks.StaticClient(static)
+      val client = mocks.StaticClient(upstream)
       val outputStream = new mocks.ByteArrayServletOutputStream
       val resp = outputStream.responseFor
 
@@ -120,15 +140,14 @@ class TileServiceTest extends TestBase with UnusedSugar with MockitoSugar {
   test("Handle request returns 'internal server error' on unknown status") {
     import implicits.StatusCodes._
 
-
     forAll { (statusCode: UnknownStatusCode, payload: String) =>
       val message = s"""{message: ${encode(payload)}}"""
-      val static = mock[Response]
-      when(static.resultCode).thenReturn(statusCode)
-      when(static.inputStream(anyInt)).
+      val upstream = mock[Response]
+      when(upstream.resultCode).thenReturn(statusCode)
+      when(upstream.inputStream(anyInt)).
         thenReturn(mocks.StringInputStream(message))
 
-      val client = mocks.StaticClient(static)
+      val client = mocks.StaticClient(upstream)
       val outputStream = new mocks.ByteArrayServletOutputStream
       val resp = outputStream.responseFor
 

@@ -1,5 +1,6 @@
 package com.socrata.tileserver.util
 
+import com.socrata.http.client.Response
 import com.socrata.http.server.HttpRequest
 
 object HeaderFilter {
@@ -24,6 +25,16 @@ object HeaderFilter {
 
     headerNames flatMap { name: String =>
       req.headers(name) map { (name, _) }
+    } toIterable
+  }
+
+  def headers(resp: Response): Iterable[(String, String)] = {
+    val headerNames = resp.headerNames filter { name: String =>
+      outgoing(name)
+    }
+
+    headerNames flatMap { name: String =>
+      resp.headers(name) map { (name, _) }
     } toIterable
   }
 }
