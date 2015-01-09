@@ -143,7 +143,6 @@ object TileService {
   private val logger: Logger = LoggerFactory.getLogger(getClass)
   private val geomFactory = new GeometryFactory()
   private val allowed = Set(HttpServletResponse.SC_BAD_REQUEST,
-                            HttpServletResponse.SC_UNAUTHORIZED,
                             HttpServletResponse.SC_FORBIDDEN,
                             HttpServletResponse.SC_NOT_FOUND,
                             HttpServletResponse.SC_REQUEST_TIMEOUT,

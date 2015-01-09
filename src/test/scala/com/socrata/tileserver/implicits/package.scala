@@ -21,7 +21,7 @@ package object implicits {
     implicit def unknownStatusCodeToInt(u: UnknownStatusCode): Int = u.underlying
 
     // scalastyle:off magic.number
-    private val knownStatusCodes = Set(400, 401, 403, 404, 408, 500, 501, 503)
+    private val knownStatusCodes = Set(400, 403, 404, 408, 500, 501, 503)
 
     private val knownScGen = for {
       statusCode <- Gen.oneOf(knownStatusCodes.toSeq)
