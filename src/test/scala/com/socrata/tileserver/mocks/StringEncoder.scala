@@ -3,6 +3,7 @@ package mocks
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable.Buffer
+import java.nio.charset.StandardCharsets.UTF_8
 
 import com.vividsolutions.jts.geom.Geometry
 import no.ecc.vectortile.VectorTileEncoder
@@ -17,7 +18,7 @@ class StringEncoder extends VectorTileEncoder {
                           geom: Geometry): Unit =
     underlying += (layer, attrs, geom).toString
 
-  override def encode(): Array[Byte] = toString.getBytes
+  override def encode(): Array[Byte] = toString.getBytes(UTF_8)
 
   override def toString: String = underlying.sorted.toString
 }

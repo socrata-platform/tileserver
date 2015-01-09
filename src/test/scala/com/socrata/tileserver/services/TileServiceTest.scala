@@ -1,6 +1,7 @@
 package com.socrata.tileserver
 package services
 
+import java.nio.charset.StandardCharsets.UTF_8
 import javax.servlet.http.HttpServletRequest
 import javax.servlet.http.HttpServletResponse.{SC_INTERNAL_SERVER_ERROR => ScInternalServerError}
 import javax.servlet.http.HttpServletResponse.{SC_NOT_MODIFIED => ScNotModified}
@@ -92,11 +93,9 @@ class TileServiceTest extends TestBase with UnusedSugar with MockitoSugar {
 
       TileService(client).handleRequest(Unused, Unused, Unused, Unused, "json")(resp)
 
-
+      verify(resp).setStatus(ScOk)
 
       outputStream.getString must include (jsonResp.toString)
-
-      verify(resp).setStatus(ScOk)
     }
   }
 
@@ -200,7 +199,7 @@ class TileServiceTest extends TestBase with UnusedSugar with MockitoSugar {
     }
   }
 
-  test("Proxied response must include known status code, content-type, and payload") {
+  test("Echoed response must include known status code, content-type, and payload") {
     import implicits.StatusCodes._
 
     forAll { (statusCode: KnownStatusCode, payload: String) =>
