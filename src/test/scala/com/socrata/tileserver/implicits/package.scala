@@ -21,13 +21,13 @@ package object implicits {
     implicit def unknownStatusCodeToInt(u: UnknownStatusCode): Int = u.underlying
 
     // scalastyle:off magic.number
-    private val knownStatusCodes: Set[Int] = Set(400, 401, 403, 404, 408, 500, 501, 503)
+    private val knownStatusCodes = Set(400, 401, 403, 404, 408, 500, 501, 503)
 
-    private val knownScGen: Gen[KnownStatusCode] = for {
+    private val knownScGen = for {
       statusCode <- Gen.oneOf(knownStatusCodes.toSeq)
     } yield (KnownStatusCode(statusCode))
 
-    private val unknownScGen: Gen[UnknownStatusCode] = for {
+    private val unknownScGen = for {
       statusCode <- Gen.choose(100, 599) suchThat { statusCode: Int =>
         !knownStatusCodes(statusCode) && statusCode != ScOk && statusCode != ScNotModified
       }
@@ -48,29 +48,29 @@ package object implicits {
     case class UnknownHeader(key: String, value: String) extends Header
     implicit def headerToTuple(h: Header): (String, String) = (h.key, h.value)
 
-    private val socrata: String = "X-Socrata-"
-    private val incoming: Set[String] = Set("Authorization",
-                                            "Cookie",
-                                            "If-Modified-Since",
-                                            socrata)
-    private val outgoing: Set[String] = Set("Cache-Control",
-                                            "Expires",
-                                            "Last-Modified",
-                                            socrata)
+    private val socrata = "X-Socrata-"
+    private val incoming = Set("Authorization",
+                               "Cookie",
+                               "If-Modified-Since",
+                               socrata)
+    private val outgoing = Set("Cache-Control",
+                               "Expires",
+                               "Last-Modified",
+                               socrata)
 
-    private val incomingGen: Gen[IncomingHeader] = for {
+    private val incomingGen = for {
       k <- Gen.oneOf(incoming.toSeq)
       k2 <- Arbitrary.arbString.arbitrary
       v <- Arbitrary.arbString.arbitrary
     } yield if (k == socrata) IncomingHeader(k + k2, v) else IncomingHeader(k, v)
 
-    private val outgoingGen: Gen[OutgoingHeader] = for {
+    private val outgoingGen = for {
       k <- Gen.oneOf(outgoing.toSeq)
       k2 <- Arbitrary.arbString.arbitrary
       v <- Arbitrary.arbString.arbitrary
     } yield if (k == socrata) OutgoingHeader(k + k2, v) else OutgoingHeader(k, v)
 
-    private val unknownGen: Gen[UnknownHeader] = for {
+    private val unknownGen = for {
       k <- Arbitrary.arbString.arbitrary suchThat { k =>
         !(k.startsWith(socrata) || incoming(k) || outgoing(k))
       }
@@ -80,5 +80,31 @@ package object implicits {
     implicit val incomingHeader: Arbitrary[IncomingHeader] = Arbitrary(incomingGen)
     implicit val outgoingHeader: Arbitrary[OutgoingHeader] = Arbitrary(outgoingGen)
     implicit val unknownHeader: Arbitrary[UnknownHeader] = Arbitrary(unknownGen)
+  }
+
+  object Points {
+    sealed trait Point {
+      def x: Int
+      def y: Int
+    }
+
+    case class ValidPoint(x: Int, y: Int) extends Point
+    case class InvalidPoint(x: Int, y: Int) extends Point
+
+    implicit def pointToTuple(pt: Point): (Int, Int) = (pt.x, pt.y)
+    // scalastyle:off magic.number
+    private val validGen = for {
+      x <- Gen.choose(0, 255)
+      y <- Gen.choose(0, 255)
+    } yield ValidPoint(x, y)
+
+    private val invalidGen = for {
+      x <- Gen.choose(-256, 512) suchThat { x => x < 0 || x > 255 }
+      y <- Gen.choose(-256, 512) suchThat { y => y < 0 || y > 255 }
+    } yield InvalidPoint(x, y)
+    // scalastyle:on magic.number
+
+    implicit val valid: Arbitrary[ValidPoint] = Arbitrary(validGen)
+    implicit val invalid: Arbitrary[InvalidPoint] = Arbitrary(invalidGen)
   }
 }

@@ -2,7 +2,6 @@ package com.socrata.tileserver
 package services
 
 import javax.servlet.http.HttpServletRequest
-import javax.servlet.http.HttpServletResponse.{SC_BAD_REQUEST => ScBadRequest}
 import javax.servlet.http.HttpServletResponse.{SC_INTERNAL_SERVER_ERROR => ScInternalServerError}
 import javax.servlet.http.HttpServletResponse.{SC_NOT_MODIFIED => ScNotModified}
 import javax.servlet.http.HttpServletResponse.{SC_OK => ScOk}
@@ -93,9 +92,11 @@ class TileServiceTest extends TestBase with UnusedSugar with MockitoSugar {
 
       TileService(client).handleRequest(Unused, Unused, Unused, Unused, "json")(resp)
 
-      verify(resp).setStatus(ScOk)
+
 
       outputStream.getString must include (jsonResp.toString)
+
+      verify(resp).setStatus(ScOk)
     }
   }
 
@@ -171,7 +172,7 @@ class TileServiceTest extends TestBase with UnusedSugar with MockitoSugar {
 
       TileService(client).handleRequest(Unused, Unused, Unused, Unused, "json")(resp)
 
-      verify(resp).setStatus(ScBadRequest)
+      verify(resp).setStatus(ScInternalServerError)
 
       outputStream.getLowStr must include ("unknown error")
       outputStream.getString must include (encode(message))
@@ -199,24 +200,6 @@ class TileServiceTest extends TestBase with UnusedSugar with MockitoSugar {
     }
   }
 
-  test("Get returns 'bad request' when given an invalid file extension") {
-    val client = mocks.StaticClient(mock[Response])
-    val outputStream = new mocks.ByteArrayServletOutputStream
-    val resp = outputStream.responseFor
-
-    TileService(client).
-      service(Unused,
-              Unused,
-              Unused,
-              Unused,
-              TypedPathComponent(Unused, "invalid extension")).
-      get(Unused)(resp)
-
-    verify(resp).setStatus(ScBadRequest)
-
-    outputStream.getLowStr must include ("invalid file type")
-  }
-
   test("Proxied response must include known status code, content-type, and payload") {
     import implicits.StatusCodes._
 
@@ -237,7 +220,7 @@ class TileServiceTest extends TestBase with UnusedSugar with MockitoSugar {
     }
   }
 
-  test("Bad request must include message and cause") {
+  test("Fatal errors must include message and cause") {
     forAll { (message: String, causeMessage: String) =>
       val outputStream = new mocks.ByteArrayServletOutputStream
       val resp = outputStream.responseFor
@@ -245,9 +228,9 @@ class TileServiceTest extends TestBase with UnusedSugar with MockitoSugar {
         override def getMessage: String = causeMessage
       }
 
-      TileService.badRequest(message, cause)(resp)
+      TileService.fatal(message, cause)(resp)
 
-      verify(resp).setStatus(ScBadRequest)
+      verify(resp).setStatus(ScInternalServerError)
       verify(resp).setContentType("application/json; charset=UTF-8")
 
       outputStream.getLowStr must include ("message")
@@ -256,24 +239,6 @@ class TileServiceTest extends TestBase with UnusedSugar with MockitoSugar {
       outputStream.getString must include (encode(causeMessage))
     }
   }
-
-  test("Bad request must include message and info") {
-    forAll { (message: String, info: String) =>
-      val outputStream = new mocks.ByteArrayServletOutputStream
-      val resp = outputStream.responseFor
-
-      TileService.badRequest(message, info)(resp)
-
-      verify(resp).setStatus(ScBadRequest)
-      verify(resp).setContentType("application/json; charset=UTF-8")
-
-      outputStream.getLowStr must include ("message")
-      outputStream.getString must include (encode(message))
-      outputStream.getLowStr must include ("info")
-      outputStream.getString must include (encode(info))
-    }
-  }
-
 
   test("Correct request id is extracted") {
     forAll { (reqId: String) =>
@@ -355,12 +320,13 @@ class TileServiceTest extends TestBase with UnusedSugar with MockitoSugar {
   }
 
   test("An empty list of coordinates rolls up correctly") {
-    TileService.rollup(Unused, Seq.empty) must be (Set.empty)
+    TileService.rollup(Unused, Some(Seq.empty)) must be (Some(Set.empty))
+    TileService.rollup(Unused, None) must be (None)
   }
 
   test("A single coordinate rolls up correctly") {
     forAll { pt: (Int, Int) =>
-      TileService.rollup(Unused, Seq(fJson(pt))) must equal (Set(feature(pt)))
+      TileService.rollup(Unused, Some(Seq(fJson(pt)))) must equal (Some(Set(feature(pt))))
     }
   }
 
@@ -370,10 +336,10 @@ class TileServiceTest extends TestBase with UnusedSugar with MockitoSugar {
         val coordinates = Seq(fJson(pt0),
                               fJson(pt1),
                               fJson(pt2))
-        val expected = Set(feature(pt0),
-                           feature(pt1),
-                           feature(pt2))
-        val actual = TileService.rollup(Unused, coordinates)
+        val expected = Some(Set(feature(pt0),
+                                feature(pt1),
+                                feature(pt2)))
+        val actual = TileService.rollup(Unused, Some(coordinates))
 
         actual must equal (expected)
       }
@@ -388,10 +354,10 @@ class TileServiceTest extends TestBase with UnusedSugar with MockitoSugar {
                               fJson(pt1),
                               fJson(pt2),
                               fJson(pt2))
-        val expected = Set(feature(pt0, count=1),
-                           feature(pt1, count=2),
-                           feature(pt2, count=2))
-        val actual = TileService.rollup(Unused, coordinates)
+        val expected = Some(Set(feature(pt0, count=1),
+                                feature(pt1, count=2),
+                                feature(pt2, count=2)))
+        val actual = TileService.rollup(Unused, Some(coordinates))
 
         actual must equal (expected)
       }
@@ -412,40 +378,14 @@ class TileServiceTest extends TestBase with UnusedSugar with MockitoSugar {
                               fJson(pt0, Map(prop1)),
                               fJson(pt1, Map(prop1)),
                               fJson(pt1, Map(prop1)))
-        val expected = Set(feature(pt0, 1, Map(prop0)),
-                           feature(pt0, 1, Map(prop0, prop1)),
-                           feature(pt0, 1, Map(prop1)),
-                           feature(pt1, 2, Map(prop1)))
+        val expected = Some(Set(feature(pt0, 1, Map(prop0)),
+                                feature(pt0, 1, Map(prop0, prop1)),
+                                feature(pt0, 1, Map(prop1)),
+                                feature(pt1, 2, Map(prop1))))
 
-        val actual = TileService.rollup(Unused, coordinates)
+        val actual = TileService.rollup(Unused, Some(coordinates))
 
         actual must equal (expected)
-      }
-    }
-  }
-
-  test("Encoder includes all features") {
-    forAll { (pt0: (Int, Int),
-              pt1: (Int, Int),
-              pt2: (Int, Int),
-              prop0: (String, String),
-              prop1: (String, String)) =>
-      val (k0, _) = prop0
-      val (k1, _) = prop1
-
-      whenever (uniq(pt0, pt1, pt2) && prop0 != prop1 && k0 != k1) {
-        val coordinates = Seq(fJson(pt0),
-                              fJson(pt1),
-                              fJson(pt2))
-        val expected = Set(feature(pt0),
-                           feature(pt1),
-                           feature(pt2))
-
-        val bytes = TileService.
-          encoder(Unused, mocks.StringEncoder())(mocks.SeqResponse(coordinates))
-        bytes must be ('defined)
-        bytes.get.length must be > 0
-        new String(bytes.get, "UTF-8") must equal (mocks.StringEncoder.encFeatures(expected))
       }
     }
   }

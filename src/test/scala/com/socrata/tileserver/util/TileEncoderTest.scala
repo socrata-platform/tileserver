@@ -2,10 +2,12 @@ package com.socrata.tileserver
 package util
 
 import scala.collection.JavaConverters._
-import scala.collection.immutable.ListSet
+import scala.language.implicitConversions
 
-import com.rojoma.json.v3.ast.JObject
+import com.rojoma.json.v3.io.JsonReader.fromString
+import com.vividsolutions.jts.geom.Geometry
 import no.ecc.vectortile.VectorTileDecoder
+import org.apache.commons.codec.binary.Base64
 import org.mockito.Matchers
 import org.mockito.Mockito.{verify, when}
 import org.scalatest.mock.MockitoSugar
@@ -15,44 +17,86 @@ import org.scalatest.{FunSuite, MustMatchers}
 import TileEncoder.Feature
 
 class TileEncoderTest extends TestBase with MockitoSugar {
-  def b2i(pt: (Byte, Byte)): (Int, Int) = {
-    val (x, y) = pt
-
-    (x.toInt, y.toInt)
+  implicit def byteToInt(pt: (Byte, Byte)): (Int, Int) = pt match {
+    case (x: Byte, y: Byte) => (x.toInt, y.toInt)
   }
 
-  test("bytes encodes features properly") (pending)
+  def convert(feature: VectorTileDecoder.Feature): Feature = {
+    val geom = feature.getGeometry
+    val attrs = feature.getAttributes.asScala.toMap mapValues { o: Object =>
+      fromString(o.toString)
+    }
 
-  {
-    forAll { (pt0: (Byte, Byte),
-              pt1: (Byte, Byte),
-              kv0: (String, String),
-              kv1: (String, String),
-              layer: String) =>
-      val features = ListSet(feature(b2i(pt0), 1, Map(kv0)),
-                             feature(b2i(pt1), 2, Map(kv1)))
+    (geom, attrs)
+  }
 
-      val bytes = TileEncoder(features).bytes
+  test("Features are encoded as bytes only if they are valid") {
+    import implicits.Points._
 
-      // decode, but assert 0 layers if no features with positive points.
+    forAll { (pt0: ValidPoint,
+              pt1: ValidPoint,
+              pt2: InvalidPoint,
+              attr0: (String, String),
+              attr1: (String, String)) =>
+      val decoder = new VectorTileDecoder
+      val valid = Set(feature(pt0, 1, Map(attr0)),
+                      feature(pt1, 2, Map(attr1)))
+      val invalid = Set(feature(pt2))
+
+      val bytes = TileEncoder(Some(invalid ++ valid)).bytes
+
+      decoder.decode(bytes)
+      decoder.getLayerNames must equal (Set("main").asJava)
+
+      val features = decoder.getFeatures("main").asScala.map(convert)
+
+      features must have size (2)
+      valid foreach { features must contain (_)}
     }
   }
 
-  test("base64 encodes features properly") (pending)
+  test("Features are encoded as base64 bytes only if they are valid") {
+    import implicits.Points._
 
-  test("toString includes all features") {
-    forAll { (pt0: (Int, Int),
-              pt1: (Int, Int),
-              pt2: (Int, Int),
-              kv0: (String, String),
-              kv1: (String, String)) =>
-      val (k0, v0) = kv0
-      val (k1, v1) = kv1
-      val features = Set(feature(pt0, 1, Map(kv0)),
-                         feature(pt1, 2, Map(kv1)),
+    forAll { (pt0: ValidPoint,
+              pt1: ValidPoint,
+              pt2: InvalidPoint,
+              attr0: (String, String),
+              attr1: (String, String)) =>
+      val decoder = new VectorTileDecoder
+      val valid = Set(feature(pt0, 1, Map(attr0)),
+                      feature(pt1, 2, Map(attr1)))
+      val invalid = Set(feature(pt2))
+
+      val base64 = TileEncoder(Some(invalid ++ valid)).base64
+      val bytes = Base64.decodeBase64(base64)
+
+      decoder.decode(bytes)
+      decoder.getLayerNames must equal (Set("main").asJava)
+
+      val features = decoder.getFeatures("main").asScala.map(convert)
+
+      features must have size (2)
+      valid foreach { features must contain (_)}
+    }
+  }
+
+  // Behavior is undefined for invalid features.
+  test("toString includes all valid features") {
+    import implicits.Points._
+
+    forAll { (pt0: ValidPoint,
+              pt1: ValidPoint,
+              pt2: ValidPoint,
+              attr0: (String, String),
+              attr1: (String, String)) =>
+      val (k0, v0) = attr0
+      val (k1, v1) = attr1
+      val features = Set(feature(pt0, 1, Map(attr0)),
+                         feature(pt1, 2, Map(attr1)),
                          feature(pt2, 1))
 
-      val str = TileEncoder(features).toString
+      val str = TileEncoder(Some(features)).toString
 
       features foreach { case (geom, _) =>
         str must include (geom.toString)

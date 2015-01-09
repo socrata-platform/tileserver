@@ -1,7 +1,9 @@
 package com.socrata.tileserver.util
 
 import com.socrata.http.client.Response
-import com.socrata.http.server.HttpRequest
+import com.socrata.http.server.implicits._
+import com.socrata.http.server.responses._
+import com.socrata.http.server.{HttpRequest, HttpResponse}
 
 object HeaderFilter {
   val inHeaders =
@@ -37,4 +39,7 @@ object HeaderFilter {
       resp.headers(name) map { (name, _) }
     } toIterable
   }
+
+  def extract(resp: Response): HttpResponse =
+    headers(resp).map({ case (k, v) => Header(k, v) }).fold(NoOp)(_ ~> _)
 }

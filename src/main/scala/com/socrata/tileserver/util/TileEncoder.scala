@@ -8,8 +8,13 @@ import com.vividsolutions.jts.geom.Geometry
 import no.ecc.vectortile.VectorTileEncoder
 import org.apache.commons.codec.binary.Base64
 
-/** Encodes `features` in a variety of formats. */
-case class TileEncoder(features: Set[TileEncoder.Feature]) {
+/** Encodes `maybeFeatures` in a variety of formats.
+  *
+  * Lazily calls `maybeFeatures.get` lazily when a field is evaluated.
+  */
+case class TileEncoder(maybeFeatures: Option[Set[TileEncoder.Feature]]) {
+  lazy val features: Set[TileEncoder.Feature] = maybeFeatures.get
+
   /** Create a vector tile encoded as a protocol-buffer. */
   lazy val bytes: Array[Byte] = {
     val underlying = new VectorTileEncoder()
@@ -22,7 +27,7 @@ case class TileEncoder(features: Set[TileEncoder.Feature]) {
   }
 
   /** Create a vector tile as a base64 encoded protocol-buffer. */
-  lazy val base64: String = ???
+  lazy val base64: String = Base64.encodeBase64String(bytes)
 
   /** String representation of `features`. */
   override lazy val toString: String = {

@@ -15,14 +15,11 @@ import com.socrata.http.client.Response
 class SeqResponse(seq: Seq[FeatureJson]) extends EmptyResponse {
   override val resultCode = ScOk
 
-  override def jValue(ct: Option[MimeType] => Boolean = EmptyResponse.AnyMimeType,
-                      max: Long = 0): JValue =
-    encode(FeatureCollectionJson(seq)).toV3
-
-  override def toString: String = jValue().toString.replaceAll("\\s*", "")
+  override def toString: String =
+    encode(FeatureCollectionJson(seq)).toV3.toString.replaceAll("\\s*", "")
 
   override def inputStream(maxBetween: Long): InputStream with Acknowledgeable =
-    new AckByteArrayInputStream(toString.getBytes)
+    StringInputStream(toString)
 }
 
 object SeqResponse {
