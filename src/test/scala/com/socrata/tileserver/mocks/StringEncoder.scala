@@ -17,7 +17,7 @@ class StringEncoder extends VectorTileEncoder {
                           geom: Geometry): Unit =
     underlying += (layer, attrs, geom).toString
 
-  override def encode(): Array[Byte] = toString.getBytes
+  override def encode(): Array[Byte] = toString.getBytes("UTF-8")
 
   override def toString: String = underlying.sorted.toString
 }

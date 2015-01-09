@@ -16,15 +16,9 @@ class EmptyResponse extends Response {
   val streamCreated: Boolean = true
   val headerNames: Set[String] = Set.empty
 
-  class AckByteArrayInputStream(bytes: Array[Byte])
-      extends ByteArrayInputStream(bytes)
-      with Acknowledgeable {
-    override def acknowledge(): Unit = {}
-  }
-
   def headers(name: String): Array[String] = Array.empty
   def inputStream(maxBetween: Long = 0): InputStream with Acknowledgeable =
-    new AckByteArrayInputStream(Array.empty)
+    StringInputStream("")
 
   override def jValue(ct: Option[MimeType] => Boolean = EmptyResponse.AnyMimeType,
                       max: Long = 0): JValue = EmptyResponse.EmptyJson

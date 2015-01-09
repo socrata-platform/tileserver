@@ -218,7 +218,7 @@ class TileServiceTest extends TestBase with UnusedSugar with MockitoSugar {
     outputStream.getLowStr must include ("invalid file type")
   }
 
-  test("Proxied response must include known status code, content-type, and payload") {
+  test("Echoed response must include known status code, content-type, and payload") {
     import implicits.StatusCodes._
 
     forAll { (statusCode: KnownStatusCode, payload: String) =>

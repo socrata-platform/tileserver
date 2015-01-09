@@ -22,7 +22,7 @@ class SeqResponse(seq: Seq[FeatureJson]) extends EmptyResponse {
   override def toString: String = jValue().toString.replaceAll("\\s*", "")
 
   override def inputStream(maxBetween: Long): InputStream with Acknowledgeable =
-    new AckByteArrayInputStream(toString.getBytes)
+    StringInputStream(toString)
 }
 
 object SeqResponse {

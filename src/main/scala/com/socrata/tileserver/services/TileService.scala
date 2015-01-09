@@ -150,7 +150,7 @@ object TileService {
                             HttpServletResponse.SC_SERVICE_UNAVAILABLE)
 
   private[services] def echoResponse(resp: Response): HttpResponse = {
-    val body: JValue = JsonReader.fromString(IOUtils.toString(resp.inputStream()))
+    val body: JValue = JsonReader.fromString(IOUtils.toString(resp.inputStream(), "UTF-8"))
     logger.info(s"Proxying response: ${resp.resultCode}: $body")
 
     val code = resp.resultCode
