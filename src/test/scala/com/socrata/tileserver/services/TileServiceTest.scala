@@ -1,6 +1,7 @@
 package com.socrata.tileserver
 package services
 
+import java.nio.charset.StandardCharsets.UTF_8
 import javax.servlet.http.HttpServletRequest
 import javax.servlet.http.HttpServletResponse.{SC_BAD_REQUEST => ScBadRequest}
 import javax.servlet.http.HttpServletResponse.{SC_INTERNAL_SERVER_ERROR => ScInternalServerError}
@@ -447,7 +448,7 @@ class TileServiceTest extends TestBase with UnusedSugar with MockitoSugar {
           encoder(Unused, mocks.StringEncoder())(mocks.SeqResponse(coordinates))
         bytes must be ('defined)
         bytes.get.length must be > 0
-        new String(bytes.get, "UTF-8") must equal (mocks.StringEncoder.encFeatures(expected))
+        new String(bytes.get, UTF_8) must equal (mocks.StringEncoder.encFeatures(expected))
       }
     }
   }

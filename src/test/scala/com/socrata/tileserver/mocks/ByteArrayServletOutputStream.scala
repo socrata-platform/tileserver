@@ -2,6 +2,7 @@ package com.socrata.tileserver.mocks
 
 import java.io.ByteArrayOutputStream
 import java.nio.charset.Charset
+import java.nio.charset.StandardCharsets.UTF_8
 import javax.servlet.ServletOutputStream
 import javax.servlet.http.HttpServletResponse
 
@@ -15,7 +16,7 @@ class ByteArrayServletOutputStream extends ServletOutputStream {
   def setWriteListener(x: javax.servlet.WriteListener): Unit = {}
 
   def getBytes: Array[Byte] = underlying.toByteArray
-  def getString: String = new String(getBytes, Charset.forName("UTF-8"))
+  def getString: String = new String(getBytes, UTF_8)
   // Shortened so it is the same length as "getString"
   def getLowStr: String = getString.toLowerCase
 

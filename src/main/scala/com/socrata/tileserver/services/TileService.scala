@@ -2,6 +2,7 @@ package com.socrata.tileserver
 package services
 
 import java.net.URLDecoder
+import java.nio.charset.StandardCharsets.UTF_8
 import javax.servlet.http.HttpServletResponse
 import javax.servlet.http.HttpServletResponse.{SC_NOT_MODIFIED => ScNotModified}
 import javax.servlet.http.HttpServletResponse.{SC_OK => ScOk}
@@ -55,7 +56,7 @@ case class TileService(client: CoreServerClient) extends SimpleResource {
         addHeaders(headers).
         addHeader(ReqIdHeader -> requestId).
         query(params).get
-      logger.info(URLDecoder.decode(req.toString, "UTF-8"))
+      logger.info(URLDecoder.decode(req.toString, UTF_8.name))
       req
     }
 
@@ -150,7 +151,7 @@ object TileService {
                             HttpServletResponse.SC_SERVICE_UNAVAILABLE)
 
   private[services] def echoResponse(resp: Response): HttpResponse = {
-    val body: JValue = JsonReader.fromString(IOUtils.toString(resp.inputStream(), "UTF-8"))
+    val body: JValue = JsonReader.fromString(IOUtils.toString(resp.inputStream(), UTF_8))
     logger.info(s"Proxying response: ${resp.resultCode}: $body")
 
     val code = resp.resultCode
