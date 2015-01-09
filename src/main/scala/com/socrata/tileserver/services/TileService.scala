@@ -142,7 +142,6 @@ object TileService {
   private val defaultTileEncoder: VectorTileEncoder = new VectorTileEncoder()
   private val geomFactory = new GeometryFactory()
   private val allowed = Set(HttpServletResponse.SC_BAD_REQUEST,
-                            HttpServletResponse.SC_UNAUTHORIZED,
                             HttpServletResponse.SC_FORBIDDEN,
                             HttpServletResponse.SC_NOT_FOUND,
                             HttpServletResponse.SC_REQUEST_TIMEOUT,
