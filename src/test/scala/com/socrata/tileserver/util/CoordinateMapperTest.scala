@@ -8,10 +8,7 @@ import org.scalatest.{FunSuite, MustMatchers}
 
 import CoordinateMapper.Size
 
-class CoordinateMapperTest
-    extends FunSuite
-    with MustMatchers
-    with PropertyChecks {
+class CoordinateMapperTest extends TestBase {
   test("lon maps x to longitude") {
     // scalastyle:off magic.number
     val mapper14 = CoordinateMapper(14)

@@ -10,20 +10,11 @@ import javax.servlet.http.HttpServletResponse.{SC_OK => ScOk}
 import com.rojoma.json.v3.io.JsonReader
 import org.apache.commons.codec.binary.Base64
 import org.mockito.Mockito.{verify, when}
-import org.mockito.invocation.InvocationOnMock
-import org.mockito.stubbing.Answer
 import org.scalatest.mock.MockitoSugar
-import org.scalatest.prop.PropertyChecks
-import org.scalatest.{FunSuite, MustMatchers}
 
 import com.socrata.http.client.Response
-import com.socrata.http.common.util.Acknowledgeable
 
-class UtilPackageTest
-    extends FunSuite
-    with MustMatchers
-    with PropertyChecks
-    with MockitoSugar {
+class UtilPackageTest extends TestBase with MockitoSugar {
   test("JsonP matches application/json and application/vnd.geo+json") {
     JsonP(Some(new MimeType("application/json"))) must be (true)
     JsonP(Some(new MimeType("application/vnd.geo+json"))) must be (true)
@@ -35,7 +26,7 @@ class UtilPackageTest
   }
 
   test("InvalidJson returns appropriate error message") {
-    val outputStream = new util.ByteArrayServletOutputStream
+    val outputStream = new mocks.ByteArrayServletOutputStream
     val resp = outputStream.responseFor
 
     InvalidJson(resp)
@@ -48,11 +39,11 @@ class UtilPackageTest
   }
 
   test("Extensions return error on encoder failure") {
-    val clientResp = EmptyResponse()
+    val clientResp = mocks.EmptyResponse()
     val noneEncoder: Encoder = _ => None
 
     Extensions.values filter (_ != JsonExt) foreach { ext: Extension =>
-      val outputStream = new util.ByteArrayServletOutputStream
+      val outputStream = new mocks.ByteArrayServletOutputStream
       val resp = outputStream.responseFor
 
       ext(noneEncoder, clientResp)(resp)
@@ -75,11 +66,11 @@ class UtilPackageTest
   }
 
   test("Extensions include CORS header on success") {
-    val clientResp = EmptyResponse()
+    val clientResp = mocks.EmptyResponse()
     val emptyEncoder: Encoder = _ => Some(Array.empty)
 
     Extensions.values foreach { ext: Extension =>
-      val outputStream = new util.ByteArrayServletOutputStream
+      val outputStream = new mocks.ByteArrayServletOutputStream
       val resp = outputStream.responseFor
 
       ext(emptyEncoder, clientResp)(resp)
@@ -93,7 +84,7 @@ class UtilPackageTest
     val clientResp = mock[Response]
 
     forAll { bytes: Array[Byte] =>
-      val outputStream = new util.ByteArrayServletOutputStream
+      val outputStream = new mocks.ByteArrayServletOutputStream
       val resp = outputStream.responseFor
       val encoder: Encoder = r => Some(bytes)
 
@@ -111,7 +102,7 @@ class UtilPackageTest
     val clientResp = mock[Response]
 
     forAll { bytes: Array[Byte] =>
-      val outputStream = new util.ByteArrayServletOutputStream
+      val outputStream = new mocks.ByteArrayServletOutputStream
       val resp = outputStream.responseFor
       val encoder: Encoder = r => Some(bytes)
 
@@ -151,7 +142,7 @@ class UtilPackageTest
       ]""")
 
     val ignored: Encoder = r => None
-    val outputStream = new util.ByteArrayServletOutputStream
+    val outputStream = new mocks.ByteArrayServletOutputStream
     val resp = outputStream.responseFor
     val clientResp = mock[Response]
     when(clientResp.jValue(JsonP)).thenReturn(someValidJson)

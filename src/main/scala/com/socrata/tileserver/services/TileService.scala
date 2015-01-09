@@ -2,6 +2,8 @@ package com.socrata.tileserver
 package services
 
 import java.net.URLDecoder
+import javax.servlet.http.HttpServletResponse
+import javax.servlet.http.HttpServletResponse.{SC_NOT_MODIFIED => ScNotModified}
 import javax.servlet.http.HttpServletResponse.{SC_OK => ScOk}
 import scala.collection.JavaConverters._
 import scala.util.{Try, Success, Failure}
@@ -46,14 +48,7 @@ case class TileService(client: CoreServerClient) extends SimpleResource {
                                      id: String,
                                      params: Map[String, String],
                                      callback: Response => HttpResponse): HttpResponse = {
-    val headerNames = req.headerNames filterNot { s: String =>
-      ExcludedHeaders(s.toLowerCase)
-    }
-
-    val headers =
-      headerNames flatMap { name: String =>
-        req.headers(name) map { (name, _) }
-      } toIterable
+    val headers = HeaderFilter.headers(req)
 
     val jsonReq = { base: RequestBuilder =>
       val req = base.path(Seq("id", s"$id.geojson")).
@@ -67,6 +62,25 @@ case class TileService(client: CoreServerClient) extends SimpleResource {
     client.execute(jsonReq, callback)
   }
 
+  private[services] def processResponse(mapper: CoordinateMapper,
+                                        ext: String): Response => HttpResponse = {
+    { resp =>
+      resp.resultCode match {
+        case ScOk =>
+          val headers = HeaderFilter.headers(resp) map { case (k, v) =>
+            Header(k, v)
+          }
+          val base = Extensions(ext)(encoder(mapper), resp)
+          headers.fold(base) { (a, b) =>
+            a ~> b
+          }
+        case ScNotModified => NotModified ~>
+            Header("Access-Control-Allow-Origin", "*")
+        case _ => echoResponse(resp)
+      }
+    }
+  }
+
   // Do the actual heavy lifting for the request handling.
   private[services] def handleRequest(req: HttpRequest,
                                       identifier: String,
@@ -76,20 +90,19 @@ case class TileService(client: CoreServerClient) extends SimpleResource {
     val mapper = tile.mapper
     val withinBox = tile.withinBox(pointColumn)
 
-    val callback = { resp: Response =>
-      resp.resultCode match {
-        case ScOk => Extensions(ext)(encoder(mapper), resp)
-        case _ => badRequest("Underlying request failed", resp)
-      }
-    }
+
 
     val resp = Try {
       val params = augmentParams(req, withinBox, pointColumn)
       val requestId = extractRequestId(req)
 
-      geoJsonQuery(requestId, req, identifier, params, callback)
+      geoJsonQuery(requestId,
+                   req,
+                   identifier,
+                   params,
+                   processResponse(mapper, ext))
     } recover {
-      case e => badRequest("Unknown error", e)
+      case e => badRequest("Unknown error", e) // TODO: Internal server error.
     }
 
     resp.get
@@ -128,6 +141,25 @@ object TileService {
   private val logger: Logger = LoggerFactory.getLogger(getClass)
   private val defaultTileEncoder: VectorTileEncoder = new VectorTileEncoder()
   private val geomFactory = new GeometryFactory()
+  private val allowed = Set(HttpServletResponse.SC_BAD_REQUEST,
+                            HttpServletResponse.SC_FORBIDDEN,
+                            HttpServletResponse.SC_NOT_FOUND,
+                            HttpServletResponse.SC_REQUEST_TIMEOUT,
+                            HttpServletResponse.SC_INTERNAL_SERVER_ERROR,
+                            HttpServletResponse.SC_NOT_IMPLEMENTED,
+                            HttpServletResponse.SC_SERVICE_UNAVAILABLE)
+
+  private[services] def echoResponse(resp: Response): HttpResponse = {
+    val body: JValue = JsonReader.fromString(IOUtils.toString(resp.inputStream()))
+    logger.info(s"Proxying response: ${resp.resultCode}: $body")
+
+    val code = resp.resultCode
+    val base = if (allowed(code)) Status(code) else InternalServerError
+
+    base ~>
+      Header("Access-Control-Allow-Origin", "*") ~>
+      Json(json"""{underlying: {resultCode:${resp.resultCode}, body: $body}}""")
+  }
 
   private[services] def badRequest(message: String, info: String): HttpResponse = {
     logger.warn(s"$message: $info")
@@ -143,15 +175,6 @@ object TileService {
     BadRequest ~>
       Header("Access-Control-Allow-Origin", "*") ~>
       Json(json"""{message: $message, cause: ${cause.getMessage}}""")
-  }
-
-  private[services] def badRequest(message: String, resp: Response): HttpResponse = {
-    val body: JValue = JsonReader.fromString(IOUtils.toString(resp.inputStream()))
-    logger.warn(s"$message: ${resp.resultCode}: $body")
-
-    BadRequest ~>
-      Header("Access-Control-Allow-Origin", "*") ~>
-      Json(json"""{message: $message, resultCode:${resp.resultCode}, body: $body}""")
   }
 
   private[services] def extractRequestId(req: HttpRequest): RequestId =

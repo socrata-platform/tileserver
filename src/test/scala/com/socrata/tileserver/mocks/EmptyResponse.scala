@@ -1,6 +1,6 @@
-package com.socrata.tileserver.util
+package com.socrata.tileserver.mocks
 
-import java.io.InputStream
+import java.io.{ByteArrayInputStream, InputStream}
 import java.nio.charset.{Charset, StandardCharsets}
 import javax.activation.MimeType
 
@@ -16,9 +16,15 @@ class EmptyResponse extends Response {
   val streamCreated: Boolean = true
   val headerNames: Set[String] = Set.empty
 
+  class AckByteArrayInputStream(bytes: Array[Byte])
+      extends ByteArrayInputStream(bytes)
+      with Acknowledgeable {
+    override def acknowledge(): Unit = {}
+  }
+
   def headers(name: String): Array[String] = Array.empty
   def inputStream(maxBetween: Long = 0): InputStream with Acknowledgeable =
-    EmptyResponse.EmptyInputStream
+    new AckByteArrayInputStream(Array.empty)
 
   override def jValue(ct: Option[MimeType] => Boolean = EmptyResponse.AnyMimeType,
                       max: Long = 0): JValue = EmptyResponse.EmptyJson
@@ -30,13 +36,6 @@ class EmptyResponse extends Response {
 object EmptyResponse {
   val AnyMimeType: Option[MimeType] => Boolean = { mt => true }
   val EmptyJson: JValue = json"{}"
-
-  val EmptyInputStream: InputStream with Acknowledgeable = {
-    new InputStream with Acknowledgeable {
-      override def acknowledge(): Unit = {}
-      override def read(): Int = -1
-    }
-  }
 
   def apply(): EmptyResponse = new EmptyResponse
 }

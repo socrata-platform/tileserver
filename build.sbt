@@ -11,7 +11,6 @@ resolvers ++= Seq(
 
 libraryDependencies ++= Seq(
   "ch.qos.logback"           % "logback-classic"          % "1.1.2",
-  "com.rojoma"              %% "rojoma-json-v3"           % "3.2.0",
   "com.rojoma"              %% "simple-arm-v2"            % "2.0.0",
   "com.socrata"             %% "socrata-http-client"      % "3.0.1",
   "com.socrata"             %% "socrata-http-jetty"       % "3.0.1",
@@ -86,7 +85,7 @@ buildInfoPackage := organization.value + "." + name.value
 ScoverageSbtPlugin.ScoverageKeys.coverageHighlighting := false
 
 // Warn on low coverage.
-// ScoverageKeys.minimumCoverage := 100
+ScoverageSbtPlugin.ScoverageKeys.coverageMinimum := 100
 
 // Fail on low coverage.
 // This only fails cloudbees, as jenkins.sea1 does not run scoverage.
