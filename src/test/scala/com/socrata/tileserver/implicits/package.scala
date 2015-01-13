@@ -107,4 +107,18 @@ package object implicits {
     implicit val valid: Arbitrary[ValidPoint] = Arbitrary(validGen)
     implicit val invalid: Arbitrary[InvalidPoint] = Arbitrary(invalidGen)
   }
+
+  object Extensions {
+    case class Extension(name: String)
+
+    val Json = Extension("json")
+    val Pbf = Extension("pbf")
+    val BPbf = Extension("bpbf")
+    val Txt = Extension("txt")
+
+    private val extensions = Seq(Json, Pbf, BPbf, Txt)
+
+    implicit def extensionToString(e: Extension): String = e.name
+    implicit val extension: Arbitrary[Extension] = Arbitrary(Gen.oneOf(extensions))
+  }
 }

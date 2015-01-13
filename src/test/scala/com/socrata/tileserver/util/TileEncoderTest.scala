@@ -43,7 +43,7 @@ class TileEncoderTest extends TestBase with MockitoSugar {
                       feature(pt1, 2, Map(attr1)))
       val invalid = Set(feature(pt2))
 
-      val bytes = TileEncoder(Some(invalid ++ valid)).bytes
+      val bytes = TileEncoder(invalid ++ valid).bytes
 
       decoder.decode(bytes)
       decoder.getLayerNames must equal (Set("main").asJava)
@@ -68,7 +68,7 @@ class TileEncoderTest extends TestBase with MockitoSugar {
                       feature(pt1, 2, Map(attr1)))
       val invalid = Set(feature(pt2))
 
-      val base64 = TileEncoder(Some(invalid ++ valid)).base64
+      val base64 = TileEncoder(invalid ++ valid).base64
       val bytes = Base64.decodeBase64(base64)
 
       decoder.decode(bytes)
@@ -96,7 +96,7 @@ class TileEncoderTest extends TestBase with MockitoSugar {
                          feature(pt1, 2, Map(attr1)),
                          feature(pt2, 1))
 
-      val str = TileEncoder(Some(features)).toString
+      val str = TileEncoder(features).toString
 
       features foreach { case (geom, _) =>
         str must include (geom.toString)

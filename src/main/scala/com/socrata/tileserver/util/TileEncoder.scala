@@ -8,13 +8,13 @@ import com.vividsolutions.jts.geom.Geometry
 import no.ecc.vectortile.VectorTileEncoder
 import org.apache.commons.codec.binary.Base64
 
+import TileEncoder._
+
 /** Encodes `maybeFeatures` in a variety of formats.
   *
   * Lazily calls `maybeFeatures.get` lazily when a field is evaluated.
   */
-case class TileEncoder(maybeFeatures: Option[Set[TileEncoder.Feature]]) {
-  lazy val features: Set[TileEncoder.Feature] = maybeFeatures.get
-
+case class TileEncoder(features: Set[TileEncoder.Feature]) {
   /** Create a vector tile encoded as a protocol-buffer. */
   lazy val bytes: Array[Byte] = {
     val underlying = new VectorTileEncoder()
@@ -41,4 +41,7 @@ case class TileEncoder(maybeFeatures: Option[Set[TileEncoder.Feature]]) {
 object TileEncoder {
   /** (geometry, attributes) */
   type Feature = (Geometry, Map[String, JValue])
+
+  case class InvalidGeoJsonException(jValue: JValue)
+      extends RuntimeException(jValue.toString)
 }

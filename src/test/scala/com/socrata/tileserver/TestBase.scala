@@ -1,7 +1,8 @@
 package com.socrata.tileserver
 
+import org.scalatest._
+import org.scalatest.matchers._
 import org.scalatest.prop.PropertyChecks
-import org.scalatest.{FunSuite, MustMatchers}
 
 import com.rojoma.json.v3.ast.JString
 import com.rojoma.json.v3.codec.JsonEncode.toJValue
@@ -12,7 +13,10 @@ import com.socrata.thirdparty.geojson.FeatureJson
 
 import util.TileEncoder.Feature
 
-trait TestBase extends FunSuite with MustMatchers with PropertyChecks {
+trait TestBase
+    extends FunSuite
+    with org.scalatest.MustMatchers
+    with PropertyChecks {
   val GeomFactory = new GeometryFactory()
 
   def fJson(pt: (Int, Int),
@@ -37,4 +41,15 @@ trait TestBase extends FunSuite with MustMatchers with PropertyChecks {
 
     GeomFactory.createPoint(new Coordinate(x, y))
   }
+
+  class ArraySliceIncludeMatcher[T](expected: Array[T]) extends Matcher[Array[T]] {
+    def apply(actual: Array[T]) = {
+      MatchResult(expected.containsSlice(actual),
+                  s"""Array "$actual" did not include "$expected" as a slice""",
+                  s"""Array "$actual" included "$expected" as a slice""")
+    }
+  }
+
+  // If need be rename to includeSlice.
+  def includeSlice[T](expected: Array[T]): Matcher[Array[T]] = new ArraySliceIncludeMatcher(expected)
 }
