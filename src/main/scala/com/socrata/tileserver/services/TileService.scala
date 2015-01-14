@@ -68,9 +68,18 @@ case class TileService(client: CoreServerClient) extends SimpleResource {
     client.execute(jsonReq, callback)
   }
 
+  private val handleErrors: PartialFunction[Throwable, HttpResponse] = {
+    case readerEx: JsonReaderException =>
+      fatal("Invalid JSON returned from underlying service", readerEx)
+    case geoJsonEx: InvalidGeoJsonException =>
+      fatal("Invalid Geo-JSON returned from underlying service", geoJsonEx)
+    case unknown =>
+      fatal("Unknown error", unknown)
+  }
+
   private[services] def processResponse(mapper: CoordinateMapper,
                                         ext: String): Callback = { resp =>
-    def createResponse(parsed: (JValue, Seq[FeatureJson])) = {
+    def createResponse(parsed: (JValue, Seq[FeatureJson])): HttpResponse = {
       val (jValue, features) = parsed
       val enc = TileEncoder(rollup(mapper, features))
       val payload = ext match {
@@ -84,20 +93,7 @@ case class TileService(client: CoreServerClient) extends SimpleResource {
     }
 
     val result = resp.resultCode match {
-      case ScOk =>
-        val parsed = for {
-          jValue <- Try(resp.jValue(Response.acceptGeoJson))
-          features <- features(jValue)
-        } yield (jValue, features)
-
-        parsed.map(createResponse) recover {
-          case readerEx: JsonReaderException =>
-            fatal("Invalid JSON returned from underlying service", readerEx)
-          case geoJsonEx: InvalidGeoJsonException =>
-            fatal("Invalid Geo-JSON returned from underlying service", geoJsonEx)
-          case unknown =>
-            fatal("Unknown error", unknown)
-        } get
+      case ScOk => features(resp).map(createResponse).recover(handleErrors).get
       case ScNotModified => NotModified
       case _ => echoResponse(resp)
     }
@@ -198,12 +194,18 @@ object TileService {
   private[services] def extractRequestId(req: HttpRequest): RequestId =
     getFromRequest(req.servletRequest)
 
-  private[services] def features(jValue: JValue): Try[Seq[FeatureJson]] = {
-    val geoJson = GeoJson.codec.decode(jValue.toV2) collect {
-      case FeatureCollectionJson(features, _) => features
-    }
+  private[services] def features(resp: Response): Try[(JValue, Seq[FeatureJson])] = {
+    Try(resp.jValue(Response.acceptGeoJson)) flatMap { jValue =>
+      val geoJson = GeoJson.codec.decode(jValue.toV2) collect {
+        case FeatureCollectionJson(features, _) => features
+      }
 
-    geoJson.map(Success(_)).getOrElse(Failure(InvalidGeoJsonException(jValue)))
+      geoJson map {
+        features: Seq[FeatureJson] => Success(jValue -> features)
+      } getOrElse {
+        Failure(InvalidGeoJsonException(jValue))
+      }
+    }
   }
 
   private[services] def augmentParams(req: HttpRequest,
