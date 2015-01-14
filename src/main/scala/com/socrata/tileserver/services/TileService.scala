@@ -80,7 +80,7 @@ case class TileService(client: CoreServerClient) extends SimpleResource {
         case "json" => Json(jValue)
       }
 
-      OK ~> payload ~> HeaderFilter.extract(resp)
+      OK ~> HeaderFilter.extract(resp) ~> payload
     }
 
     val result = resp.resultCode match {
@@ -232,7 +232,7 @@ object TileService {
       (geomFactory.createPoint(px), props)
     }
 
-    val ptCounts = points.toSeq map {
+    val ptCounts = points map {
       case (k, v) => (k, v.size)
     }
 
