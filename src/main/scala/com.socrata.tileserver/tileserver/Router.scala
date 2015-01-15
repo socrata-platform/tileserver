@@ -40,7 +40,7 @@ class Router(versionService: HttpService,
       Json(json"""{error:"not found"}""")
   }
 
-  def route(req: HttpRequest): HttpResponse =
+  val route: HttpRequest => HttpResponse = req =>
     logWrapper(routes(req.requestPath).getOrElse(notFound))(req)
 }
 // $COVERAGE-ON$

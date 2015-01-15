@@ -6,13 +6,11 @@ import javax.servlet.http.HttpServletRequest
 import com.rojoma.simplearm.v2.conversions._
 import com.rojoma.simplearm.v2.{Resource, managed}
 
-import com.socrata.backend.client.CoreServerClient
-import com.socrata.backend.util.ServiceProviderFromConfig
 import com.socrata.http.client.HttpClientHttpClient
 import com.socrata.http.server.implicits._
 import com.socrata.http.server.responses._
 import com.socrata.http.server.{HttpRequest, HttpResponse, HttpService, SocrataServerJetty}
-import com.socrata.thirdparty.curator.{CuratorFromConfig, CuratorServerProvider, DiscoveryFromConfig}
+import com.socrata.thirdparty.curator._
 
 import config.TileServerConfig
 import services.{TileService, VersionService}
@@ -29,26 +27,23 @@ object TileServer extends App {
     discovery <- DiscoveryFromConfig(classOf[Void],
                                      curator,
                                      TileServerConfig.discovery)
-    coreServerCurator <- ServiceProviderFromConfig[Void](discovery, "core")
     http <- managed(new HttpClientHttpClient(executor,
                                              HttpClientHttpClient.
                                                defaultOptions.
                                                withUserAgent("tileserver")))
+    coreServerCurator <- ServiceProviderFromName[Void](discovery, TileServerConfig.upstream.serviceName)
   } {
-    val coreServerProvider = CuratorServerProvider(http, coreServerCurator, identity)
-    val core = CoreServerClient(coreServerProvider, TileServerConfig)
+    val upstreamServerProvider = CuratorServerProvider(http, coreServerCurator, identity)
+    val upstream = CuratedServiceClient(upstreamServerProvider, TileServerConfig.upstream)
 
-    val tileService = TileService(core)
-    val router = new Router(VersionService,
-                            tileService.types,
-                            tileService.service)
-    val handler = router.route _
+    val tileService = TileService(upstream)
+    val router = new Router(VersionService, tileService.types, tileService.service)
 
     val server = new SocrataServerJetty(
-      handler,
-      SocrataServerJetty.defaultOptions.withPort(TileServerConfig.port))
+      handler = router.route,
+      options = SocrataServerJetty.defaultOptions.withPort(TileServerConfig.port))
 
     server.run()
   }
 }
-// $COVERAGE-ON$
+  // $COVERAGE-ON$

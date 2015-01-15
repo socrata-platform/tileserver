@@ -2,12 +2,11 @@ package com.socrata.tileserver.config
 
 import com.typesafe.config.ConfigFactory
 
-import com.socrata.thirdparty.curator.{CuratorConfig, DiscoveryConfig}
-import com.socrata.backend.config.CoreServerClientConfig
+import com.socrata.thirdparty.curator.{CuratedClientConfig, CuratorConfig, DiscoveryConfig}
 
 // $COVERAGE-OFF$ Disabled because this is configuration boilerplate.
 /** Container for global configuration. */
-object TileServerConfig extends CoreServerClientConfig {
+object TileServerConfig {
   private lazy val config = ConfigFactory.load().getConfig("com.socrata")
 
   /** Port to listen on. */
@@ -19,10 +18,7 @@ object TileServerConfig extends CoreServerClientConfig {
   /** Zookeeper configuration. */
   lazy val discovery = new DiscoveryConfig(config, "curator")
 
-  /** Max client retries. */
-  lazy val maxRetries = config.getInt("backend.max-retries")
-
-  /** Client timeout. */
-  lazy val connectTimeoutSec = config.getInt("backend.connect-timeout")
+  /** Geo-Json Service Config. */
+  lazy val upstream = new CuratedClientConfig(config, "upstream")
 }
 // $COVERAGE-ON$

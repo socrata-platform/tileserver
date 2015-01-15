@@ -1,5 +1,4 @@
-package com.socrata.backend
-package client
+package com.socrata.thirdparty.curator
 
 import scala.concurrent.duration.FiniteDuration
 import scala.util.{Failure, Success, Try}
@@ -9,11 +8,7 @@ import org.slf4j.LoggerFactory
 
 import com.socrata.http.client.{RequestBuilder, Response, SimpleHttpRequest}
 import com.socrata.http.server.HttpResponse
-import com.socrata.thirdparty.curator.ServerProvider
 import com.socrata.thirdparty.curator.ServerProvider.{Complete, Retry}
-
-import errors.ServiceDiscoveryException
-import config.CoreServerClientConfig
 
 // TODO: Pull this into its own project.
 /**
@@ -21,8 +16,8 @@ import config.CoreServerClientConfig
   * @param coreProvider Service discovery object
   * @param connectTimeout Timeout setting for connecting to the service
   */
-case class CoreServerClient(coreProvider: ServerProvider,
-                            config: CoreServerClientConfig) {
+case class CuratedServiceClient(coreProvider: ServerProvider,
+                                config: CuratedClientConfig) {
   private val logger = LoggerFactory.getLogger(getClass)
   private val connectTimeoutMs = config.connectTimeout.toMillis
   private val maxRetries = config.maxRetries
