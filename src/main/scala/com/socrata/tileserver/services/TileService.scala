@@ -92,13 +92,13 @@ case class TileService(client: CoreServerClient) extends SimpleResource {
       OK ~> HeaderFilter.extract(resp) ~> payload
     }
 
-    val result = resp.resultCode match {
+    lazy val result = resp.resultCode match {
       case ScOk => features(resp).map(createResponse).recover(handleErrors).get
       case ScNotModified => NotModified
       case _ => echoResponse(resp)
     }
 
-    result ~> Header("Access-Control-Allow-Origin", "*")
+    Header("Access-Control-Allow-Origin", "*") ~> result
   }
 
   // Do the actual heavy lifting for the request handling.
