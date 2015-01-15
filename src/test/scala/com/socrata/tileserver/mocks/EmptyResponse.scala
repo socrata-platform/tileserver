@@ -16,7 +16,7 @@ class EmptyResponse(ct: String = "application/vnd.geo+json") extends Response {
   val resultCode = 0
   val charset = StandardCharsets.UTF_8
   val streamCreated = true
-  val headerNames = Set.empty
+  val headerNames = Set.empty[String]
 
   def headers(name: String): Array[String] = Array.empty
   def inputStream(maxBetween: Long = 0): InputStream with Acknowledgeable =
