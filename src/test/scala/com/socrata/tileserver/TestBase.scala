@@ -43,7 +43,7 @@ trait TestBase
   }
 
   class ArraySliceIncludeMatcher[T](expected: Array[T]) extends Matcher[Array[T]] {
-    def apply(actual: Array[T]) = {
+    def apply(actual: Array[T]): MatchResult = {
       MatchResult(expected.containsSlice(actual),
                   s"""Array "$actual" did not include "$expected" as a slice""",
                   s"""Array "$actual" included "$expected" as a slice""")

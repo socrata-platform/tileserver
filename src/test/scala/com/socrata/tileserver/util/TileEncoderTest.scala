@@ -50,7 +50,7 @@ class TileEncoderTest extends TestBase with MockitoSugar {
 
       val features = decoder.getFeatures("main").asScala.map(convert)
 
-      features must have size (2)
+      features must have size (valid.size)
       valid foreach { features must contain (_)}
     }
   }
@@ -76,7 +76,7 @@ class TileEncoderTest extends TestBase with MockitoSugar {
 
       val features = decoder.getFeatures("main").asScala.map(convert)
 
-      features must have size (2)
+      features must have size (valid.size)
       valid foreach { features must contain (_)}
     }
   }

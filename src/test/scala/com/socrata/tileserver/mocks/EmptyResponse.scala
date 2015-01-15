@@ -13,10 +13,10 @@ import com.socrata.http.common.util.Acknowledgeable
 import EmptyResponse._
 
 class EmptyResponse(ct: String = "application/vnd.geo+json") extends Response {
-  val resultCode: Int = 0
-  val charset: Charset = StandardCharsets.UTF_8
-  val streamCreated: Boolean = true
-  val headerNames: Set[String] = Set.empty
+  val resultCode = 0
+  val charset = StandardCharsets.UTF_8
+  val streamCreated = true
+  val headerNames = Set.empty
 
   def headers(name: String): Array[String] = Array.empty
   def inputStream(maxBetween: Long = 0): InputStream with Acknowledgeable =

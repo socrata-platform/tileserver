@@ -1,9 +1,7 @@
 package com.socrata.tileserver
 
 import scala.language.implicitConversions
-
-import javax.servlet.http.HttpServletResponse.{SC_NOT_MODIFIED => ScNotModified}
-import javax.servlet.http.HttpServletResponse.{SC_OK => ScOk}
+import javax.servlet.http.HttpServletResponse._
 
 import org.scalacheck.Arbitrary
 import org.scalacheck.Gen
@@ -20,16 +18,23 @@ package object implicits {
     }
     implicit def unknownStatusCodeToInt(u: UnknownStatusCode): Int = u.underlying
 
-    // scalastyle:off magic.number
-    private val knownStatusCodes = Set(400, 403, 404, 408, 500, 501, 503)
+    private val knownStatusCodes = Set(SC_BAD_REQUEST,
+                                       SC_FORBIDDEN,
+                                       SC_NOT_FOUND,
+                                       SC_REQUEST_TIMEOUT,
+                                       SC_INTERNAL_SERVER_ERROR,
+                                       SC_NOT_IMPLEMENTED,
+                                       SC_SERVICE_UNAVAILABLE)
 
     private val knownScGen = for {
       statusCode <- Gen.oneOf(knownStatusCodes.toSeq)
     } yield (KnownStatusCode(statusCode))
 
+    // scalastyle:off magic.number
     private val unknownScGen = for {
       statusCode <- Gen.choose(100, 599) suchThat { statusCode: Int =>
-        !knownStatusCodes(statusCode) && statusCode != ScOk && statusCode != ScNotModified
+        !knownStatusCodes(statusCode) &&
+          statusCode != SC_OK && statusCode != SC_NOT_MODIFIED
       }
     } yield (UnknownStatusCode(statusCode))
     // scalastyle:on magic.number

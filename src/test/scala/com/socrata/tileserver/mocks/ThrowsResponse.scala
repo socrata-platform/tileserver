@@ -10,6 +10,6 @@ case class ThrowsResponse(message: String, override val resultCode: Int = ScOk)
     extends EmptyResponse {
   override def inputStream(ignored: Long = 0): InputStream with Acknowledgeable =
     throw new NoStackTrace {
-      override def getMessage = message
+      override def getMessage: String = message
     }
 }
