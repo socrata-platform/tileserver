@@ -4,7 +4,7 @@ import scala.language.implicitConversions
 
 import org.mockito.Mockito.mock
 
-import com.socrata.backend.client.CoreServerClient
+import com.socrata.thirdparty.curator.CuratedServiceClient
 import com.socrata.http.client.Response
 import com.socrata.http.server.{HttpRequest, HttpResponse}
 
@@ -17,8 +17,8 @@ trait UnusedSugar {
     mocks.StaticRequest()
   implicit def unusedToQuadTile(u: UnusedValue): util.QuadTile =
     util.QuadTile(0, 0, 0)
-  implicit def unusedToClient(u: UnusedValue): CoreServerClient =
-    mock(classOf[CoreServerClient])
+  implicit def unusedToClient(u: UnusedValue): CuratedServiceClient =
+    mock(classOf[CuratedServiceClient])
   implicit def unusedToCoordinateMapper(u: UnusedValue): util.CoordinateMapper =
     new util.CoordinateMapper(0) {
       override def tilePx(lon: Double, lat:Double): (Int, Int) =

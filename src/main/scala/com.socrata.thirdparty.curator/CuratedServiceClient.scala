@@ -16,7 +16,7 @@ import com.socrata.thirdparty.curator.ServerProvider.{Complete, Retry}
   * @param coreProvider Service discovery object
   * @param connectTimeout Timeout setting for connecting to the service
   */
-case class CuratedServiceClient(coreProvider: ServerProvider,
+case class CuratedServiceClient(provider: ServerProvider,
                                 config: CuratedClientConfig) {
   private val logger = LoggerFactory.getLogger(getClass)
   private val connectTimeoutMs = config.connectTimeout.toMillis
@@ -29,11 +29,13 @@ case class CuratedServiceClient(coreProvider: ServerProvider,
     */
   def execute[T](request: RequestBuilder => SimpleHttpRequest,
                  callback: Response => T): T = {
-    coreProvider.withRetries(maxRetries,
-                             request,
-                             ServerProvider.RetryOnAllExceptionsDuringInitialRequest) {
-      case Some(response) => Complete(callback(response))
-      case None => throw ServiceDiscoveryException("Failed to discover core server.")
+    provider.withRetries(maxRetries,
+                         request,
+                         ServerProvider.RetryOnAllExceptionsDuringInitialRequest) {
+      case Some(response) =>
+        Complete(callback(response))
+      case None =>
+        throw ServiceDiscoveryException(s"Failed to discover service: ${config.serviceName}")
     }
   }
 }

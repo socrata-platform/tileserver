@@ -2,7 +2,7 @@ package com.socrata.tileserver.config
 
 import com.typesafe.config.ConfigFactory
 
-import com.socrata.thirdparty.curator.{CuratedClientConfig, CuratorConfig, DiscoveryConfig}
+import com.socrata.thirdparty.curator.{CuratedClientConfig, DiscoveryBrokerConfig}
 
 // $COVERAGE-OFF$ Disabled because this is configuration boilerplate.
 /** Container for global configuration. */
@@ -13,10 +13,7 @@ object TileServerConfig {
   lazy val port = config.getInt("tileserver.port")
 
   /** Zookeeper configuration. */
-  lazy val curator = new CuratorConfig(config, "curator")
-
-  /** Zookeeper configuration. */
-  lazy val discovery = new DiscoveryConfig(config, "curator")
+  lazy val broker = new DiscoveryBrokerConfig(config, "curator")
 
   /** Geo-Json Service Config. */
   lazy val upstream = new CuratedClientConfig(config, "upstream")
