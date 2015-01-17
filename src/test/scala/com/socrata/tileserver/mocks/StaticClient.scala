@@ -13,9 +13,9 @@ import StaticClient._
 
 class StaticClient(resp: Request => Response) extends MockitoSugar {
   val EmptyConfig = new CuratedClientConfig(mock[Config], "") {
-    override val serviceName: String = ""
-    override val connectTimeoutSec: Int = 0
-    override val maxRetries: Int = 0
+    override val serviceName = ""
+    override val connectTimeout = 0
+    override val maxRetries = 0
   }
 
   val client = new CuratedServiceClient(mock[ServerProvider], EmptyConfig) {

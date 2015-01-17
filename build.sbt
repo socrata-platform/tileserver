@@ -14,7 +14,7 @@ libraryDependencies ++= Seq(
   "com.rojoma"              %% "simple-arm-v2"            % "2.0.0",
   "com.socrata"             %% "socrata-http-client"      % "3.0.1",
   "com.socrata"             %% "socrata-http-jetty"       % "3.0.1",
-  "com.socrata"             %% "socrata-thirdparty-utils" % "2.6.2",
+  "com.socrata"             %% "socrata-thirdparty-utils" % "2.6.3",
   "com.typesafe"             % "config"                   % "1.2.1",
   "commons-codec"            % "commons-codec"            % "1.10",
   "commons-io"               % "commons-io"               % "2.4",
@@ -89,4 +89,4 @@ ScoverageSbtPlugin.ScoverageKeys.coverageMinimum := 100
 
 // Fail on low coverage.
 // This only fails cloudbees, as jenkins.sea1 does not run scoverage.
-// ScoverageKeys.failOnMinimumCoverage := true
+ScoverageSbtPlugin.ScoverageKeys.coverageFailOnMinimum := true
