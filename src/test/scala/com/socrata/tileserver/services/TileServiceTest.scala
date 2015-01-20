@@ -14,7 +14,6 @@ import org.mockito.Matchers.anyInt
 import org.mockito.Mockito.{verify, when}
 import org.scalatest.mock.MockitoSugar
 
-import com.socrata.backend.client.CoreServerClient
 import com.socrata.http.client.{RequestBuilder, Response}
 import com.socrata.http.server.HttpRequest.AugmentedHttpServletRequest
 import com.socrata.http.server.routing.TypedPathComponent
@@ -24,7 +23,7 @@ import util.TileEncoder
 
 class TileServiceTest extends TestBase with UnusedSugar with MockitoSugar {
   test("Service supports at least .pbf, .bpbf and .json") {
-    val svc = TileService(mock[CoreServerClient])
+    val svc = TileService(Unused)
 
     svc.types must contain ("pbf")
     svc.types must contain ("bpbf")

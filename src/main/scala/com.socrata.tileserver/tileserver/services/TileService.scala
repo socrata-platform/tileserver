@@ -21,7 +21,7 @@ import com.vividsolutions.jts.geom.GeometryFactory
 import org.apache.commons.io.IOUtils
 import org.slf4j.{Logger, LoggerFactory, MDC}
 
-import com.socrata.backend.client.CoreServerClient
+import com.socrata.thirdparty.curator.CuratedServiceClient
 import com.socrata.http.client.{HttpClient, RequestBuilder, Response}
 import com.socrata.http.server.implicits._
 import com.socrata.http.server.responses._
@@ -41,7 +41,7 @@ import util.{CoordinateMapper, HeaderFilter, QuadTile, TileEncoder}
   * @constructor This should only be called once, by the main application.
   * @param client The client to talk to the upstream geo-json service.
   */
-case class TileService(client: CoreServerClient) extends SimpleResource {
+case class TileService(client: CuratedServiceClient) extends SimpleResource {
   /** Type of callback we will be passing to `client`. */
   type Callback = Response => HttpResponse
 
