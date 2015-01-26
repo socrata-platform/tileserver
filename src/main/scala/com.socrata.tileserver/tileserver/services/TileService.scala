@@ -78,9 +78,12 @@ case class TileService(client: CuratedServiceClient) extends SimpleResource {
   }
 
   private[services] def processResponse(mapper: CoordinateMapper,
-                                        ext: String): Callback = { resp =>
+                                        ext: String): Callback =
+  { resp: Response =>
     def createResponse(parsed: (JValue, Seq[FeatureJson])): HttpResponse = {
       val (jValue, features) = parsed
+      logger.debug("Underlying json", jValue)
+
       val enc = TileEncoder(rollup(mapper, features))
       val payload = ext match {
         case "pbf" => ContentType("application/octet-stream") ~> ContentBytes(enc.bytes)
