@@ -2,7 +2,7 @@
 
 PROJ_NAME='tileserver'
 PORT=2048
-DEV_ROOT="${HOME}/Developer/Socrata/"
+DEV_ROOT="${HOME}/Developer/Socrata"
 ENVFILE="/tmp/tileserver-env"     # This is the boot2docker vm path.
 
 ping -c 2 jenkins.sea1.socrata.com >/dev/null 2>/dev/null \
@@ -17,7 +17,7 @@ if [ ! -e "${DEV_ROOT}/${PROJ_NAME}-docker/.git" ]; then
 fi
 
 VBoxManage sharedfolder add 'boot2docker-vm' \
-    --name '${PROJ_NAME}-docker' \
+    --name "${PROJ_NAME}-docker" \
     --hostpath "${DEV_ROOT}/${PROJ_NAME}-docker" \
     --automount 2>/dev/null
 
@@ -35,6 +35,8 @@ if ! [ "${ENSEMBLE}" ]; then
 
     ENSEMBLE=$(echo ${ENSEMBLE} | sed 's/ /, /g')
 fi
+
+echo "About to ssh into docker container!"
 
 boot2docker ssh <<EOF
     mkdir ${PROJ_NAME}-docker
