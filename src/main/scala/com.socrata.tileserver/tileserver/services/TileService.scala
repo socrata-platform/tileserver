@@ -83,7 +83,7 @@ case class TileService(client: CuratedServiceClient) extends SimpleResource {
       val (jValue, features) = parsed
       val enc = TileEncoder(rollup(mapper, features))
       val payload = ext match {
-        case "pbf" => ContentBytes(enc.bytes)
+        case "pbf" => ContentType("application/octet-stream") ~> ContentBytes(enc.bytes)
         case "bpbf" => Content("text/plain", enc.base64)
         case "txt" => Content("text/plain", enc.toString)
         case "json" => Json(jValue)
