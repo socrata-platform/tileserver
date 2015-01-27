@@ -7,7 +7,7 @@ import com.socrata.http.server.{HttpRequest, HttpResponse}
 
 object HeaderFilter {
   val inHeaders =
-    Set("Authorization", "Cookie", "If-Modified-Since").map(_.toLowerCase)
+    Set("Authorization", "Cookie", "If-Modified-Since", "X-App-Token").map(_.toLowerCase)
   val outHeaders =
     Set("Cache-Control", "Expires", "Last-Modified").map(_.toLowerCase)
 
