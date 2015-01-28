@@ -43,7 +43,11 @@ fi
 TAG_EXISTS=$(boot2docker ssh "docker images| egrep '${REGISTRY}/internal/${PROJ_NAME}[[:space:]]+${PROJ_VER}${BUILD}[[:space:]]'")
 
 if [ "${TAG_EXISTS}" ]; then
-    echo "Tag already exists."
+    if [ "${BUILD}" ]; then
+        echo "Tag ${PROJ_VER}${BUILD} already exists, please provide a higher build number."
+    else
+        echo "Tag ${PROJ_VER} already exists, please provide a build number."
+    fi
     exit 1
 fi
 
