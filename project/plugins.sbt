@@ -1,6 +1,6 @@
 addSbtPlugin("io.spray" % "sbt-revolver" % "0.7.2")
 
-addSbtPlugin("com.socrata" % "socrata-cloudbees-sbt" % "1.3.2")
+addSbtPlugin("com.socrata" % "socrata-cloudbees-sbt" % "1.3.3")
 
 addSbtPlugin("org.scoverage" % "sbt-scoverage" % "1.0.1")
 
