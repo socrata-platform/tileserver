@@ -31,7 +31,7 @@ class TileServiceTest extends TestBase with UnusedSugar with MockitoSugar {
   }
 
   test("Headers and parameters are correct when making a geo-json query") {
-    import implicits.Headers._
+    import gen.Headers._
 
     forAll { (reqId: RequestId,
               id: String,
@@ -69,8 +69,8 @@ class TileServiceTest extends TestBase with UnusedSugar with MockitoSugar {
   }
 
   test("Correct returned headers are surfaced when processing response") {
-    import implicits.Extensions._
-    import implicits.Headers._
+    import gen.Extensions._
+    import gen.Headers._
 
     forAll { (known: OutgoingHeader,
               unknown: UnknownHeader,
@@ -88,8 +88,8 @@ class TileServiceTest extends TestBase with UnusedSugar with MockitoSugar {
   }
 
   test("Features are encoded according to extension when processing response") {
-    import implicits.Extensions._
-    import implicits.Points._
+    import gen.Extensions._
+    import gen.Points._
 
     forAll { (pt: ValidPoint, ext: Extension) =>
       val upstream = mocks.SeqResponse(Seq(fJson(pt)))
@@ -115,7 +115,7 @@ class TileServiceTest extends TestBase with UnusedSugar with MockitoSugar {
   }
 
   test("Invalid json returns 'internal server error' when processing response") {
-    import implicits.Extensions._
+    import gen.Extensions._
 
     forAll { (message: String, ext: Extension) =>
       val upstream = mocks.StringResponse("{")
@@ -134,7 +134,7 @@ class TileServiceTest extends TestBase with UnusedSugar with MockitoSugar {
   }
 
   test("Invalid geo-json returns 'internal server error' when processing response") {
-    import implicits.Extensions._
+    import gen.Extensions._
 
     forAll { (message: String, ext: Extension) =>
       val upstream = mocks.StringResponse(json"""{"invalidKey": $message}""")
@@ -154,7 +154,7 @@ class TileServiceTest extends TestBase with UnusedSugar with MockitoSugar {
   }
 
   test("Unknown errors are handled when processing response") {
-    import implicits.Extensions._
+    import gen.Extensions._
 
     forAll { (message: String, ext: Extension) =>
       val upstream = mocks.ThrowsResponse(message)
@@ -172,8 +172,8 @@ class TileServiceTest extends TestBase with UnusedSugar with MockitoSugar {
   }
 
   test("Handle request returns OK when underlying succeeds") {
-    import implicits.Extensions._
-    import implicits.Points._
+    import gen.Extensions._
+    import gen.Points._
 
     forAll { (pt: ValidPoint, ext: Extension) =>
       val upstream = mocks.SeqResponse(Seq(fJson(pt)))
@@ -207,7 +207,7 @@ class TileServiceTest extends TestBase with UnusedSugar with MockitoSugar {
   }
 
   test("Handle request echos known codes") {
-    import implicits.StatusCodes._
+    import gen.StatusCodes._
 
     forAll { (statusCode: KnownStatusCode, payload: String) =>
       val message = s"""{message: ${encode(payload)}}"""
@@ -229,7 +229,7 @@ class TileServiceTest extends TestBase with UnusedSugar with MockitoSugar {
   }
 
   test("Handle request returns 'internal server error' on unknown status") {
-    import implicits.StatusCodes._
+    import gen.StatusCodes._
 
     forAll { (statusCode: UnknownStatusCode, payload: String) =>
       val message = s"""{message: ${encode(payload)}}"""
@@ -253,7 +253,7 @@ class TileServiceTest extends TestBase with UnusedSugar with MockitoSugar {
   }
 
   test("Handle request returns 'internal server error' if processing throws") {
-    import implicits.Extensions._
+    import gen.Extensions._
 
     forAll { (message: String, ext: Extension) =>
       val client = mocks.StaticClient {
@@ -273,8 +273,8 @@ class TileServiceTest extends TestBase with UnusedSugar with MockitoSugar {
   }
 
   test("Get returns success when underlying succeeds") {
-    import implicits.Extensions._
-    import implicits.Points._
+    import gen.Extensions._
+    import gen.Points._
 
     forAll { (pt: ValidPoint, ext: Extension) =>
       val upstream = mocks.SeqResponse(Seq(fJson(pt)))
@@ -299,7 +299,7 @@ class TileServiceTest extends TestBase with UnusedSugar with MockitoSugar {
   }
 
   test("Echoed response must include known status code, content-type, and payload") {
-    import implicits.StatusCodes._
+    import gen.StatusCodes._
 
     forAll { (statusCode: KnownStatusCode, payload: String) =>
       val outputStream = new mocks.ByteArrayServletOutputStream
@@ -319,7 +319,7 @@ class TileServiceTest extends TestBase with UnusedSugar with MockitoSugar {
   }
 
   test("Echoing response succeeds when upstream throws") {
-    import implicits.StatusCodes._
+    import gen.StatusCodes._
 
     forAll { (statusCode: KnownStatusCode, message: String) =>
       val upstream = mocks.ThrowsResponse(message, statusCode)

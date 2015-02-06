@@ -16,14 +16,12 @@ trait UnusedSugar {
   implicit def unusedToHttpRequest(u: UnusedValue): HttpRequest =
     mocks.StaticRequest()
   implicit def unusedToQuadTile(u: UnusedValue): util.QuadTile =
-    util.QuadTile(0, 0, 0)
+    new util.QuadTile(0, 0, 0) {
+      override def px(lon: Double, lat: Double): Option[(Int, Int)] =
+        Some((lon.toInt, lat.toInt))
+    }
   implicit def unusedToClient(u: UnusedValue): CuratedServiceClient =
     mock(classOf[CuratedServiceClient])
-  implicit def unusedToCoordinateMapper(u: UnusedValue): util.CoordinateMapper =
-    new util.CoordinateMapper(0) {
-      override def tilePx(lon: Double, lat:Double): (Int, Int) =
-        (lon.toInt, lat.toInt)
-    }
   implicit def unusedToRespToHttpResponse(u: UnusedValue): Response => HttpResponse =
     r => mock(classOf[HttpResponse])
   // Can't be Map[K, V] because then it matches K => V.

@@ -6,7 +6,9 @@ import javax.servlet.http.HttpServletResponse._
 import org.scalacheck.Arbitrary
 import org.scalacheck.Gen
 
-package object implicits {
+import util.CoordinateMapper.Size
+
+package object gen {
   object StatusCodes {
     case class KnownStatusCode(val underlying: Int) {
       override val toString: String = underlying.toString
@@ -88,15 +90,24 @@ package object implicits {
   }
 
   object Points {
-    sealed trait Point {
+    sealed trait PointLike {
       def x: Int
       def y: Int
+
+      /* Returns (lon, lat) */
+      def onto(tile: util.QuadTile): (Double, Double) = {
+        val mapper = tile.mapper
+        val tx = tile.x * Size + x
+        val ty = tile.y * Size + (Size - y)
+        (mapper.lon(tx), mapper.lat(ty))
+      }
     }
 
-    case class ValidPoint(x: Int, y: Int) extends Point
-    case class InvalidPoint(x: Int, y: Int) extends Point
+    case class Point(x: Int, y: Int) extends PointLike
+    case class ValidPoint(x: Int, y: Int) extends PointLike
+    case class InvalidPoint(x: Int, y: Int) extends PointLike
 
-    implicit def pointToTuple(pt: Point): (Int, Int) = (pt.x, pt.y)
+    implicit def pointToTuple(pt: PointLike): (Int, Int) = (pt.x, pt.y)
     // scalastyle:off magic.number
     private val validGen = for {
       x <- Gen.choose(0, 255)
@@ -125,5 +136,20 @@ package object implicits {
 
     implicit def extensionToString(e: Extension): String = e.name
     implicit val extension: Arbitrary[Extension] = Arbitrary(Gen.oneOf(extensions))
+  }
+
+  object QuadTiles {
+    import util.QuadTile
+
+    // scalastyle:off magic.number
+    private val tileGen = for {
+      zoom <- Gen.choose(1, 20)
+      max = 1 << zoom - 1
+      x <- Gen.choose(0, max)
+      y <- Gen.choose(0, max)
+    } yield QuadTile(x, y, zoom)
+    // scalastyle:on magic.number
+
+    implicit val quadTile: Arbitrary[QuadTile] = Arbitrary(tileGen)
   }
 }
