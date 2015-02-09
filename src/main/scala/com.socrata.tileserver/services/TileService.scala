@@ -224,8 +224,6 @@ object TileService {
 
   private[services] def rollup(tile: QuadTile,
                                features: => Seq[FeatureJson]): Set[Feature] = {
-    import com.vividsolutions.jts.geom.Coordinate
-
     val coords = features map { f =>
       (f.geometry.getCoordinate, f.properties.mapValues(_.toV3))
     }

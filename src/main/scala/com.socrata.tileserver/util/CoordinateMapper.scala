@@ -18,10 +18,10 @@ case class CoordinateMapper(val zoom: Int) {
   private val ZoomFactor: Float = (1 << zoom) * 1.0f
 
   private val d2r = Pi / 180.0
+  private val r2d = 180 / Pi
   private val bc = SizeZoomed / 360.0
   private val cc = SizeZoomed / (2.0 * Pi)
   private val d  = SizeZoomed / 2.0
-  private val r2d = 180 / Pi
 
   /** (x, y) in TMS coordinates.
     *
