@@ -3,8 +3,6 @@ package util
 
 import scala.math.{Pi, atan, exp, log, min, max, sin, round}
 
-import com.vividsolutions.jts.geom.Coordinate
-
 import CoordinateMapper._
 
 /** Map coordinates between lat/lon and pixels.
@@ -19,6 +17,11 @@ case class CoordinateMapper(val zoom: Int) {
   private val SizeZoomed: Int = Size * (1 << zoom)
   private val ZoomFactor: Float = (1 << zoom) * 1.0f
 
+  private val d2r = Pi / 180.0
+  private val r2d = 180 / Pi
+  private val bc = SizeZoomed / 360.0
+  private val cc = SizeZoomed / (2.0 * Pi)
+  private val d  = SizeZoomed / 2.0
 
   /** (x, y) in TMS coordinates.
     *
@@ -39,36 +42,18 @@ case class CoordinateMapper(val zoom: Int) {
     */
   def lat(y: Int): Double = {
     val g = (Pi * (2 * -y + SizeZoomed)) / SizeZoomed
-    val r2d = 180 / Pi
 
     -1 * r2d * (2 * atan(exp(g)) - 0.5 * Pi)
   }
 
   /** The pixel (x, y) corresponding to "lon" and "lat" */
   private[util] def px(lon: Double, lat: Double): (Int, Int) = {
-    val d2r = Pi / 180.0
-    val bc = SizeZoomed / 360.0
-    val cc = SizeZoomed / (2.0 * Pi)
-    val d  = SizeZoomed / 2.0
-
     val f = min(max(sin(d2r * lat), -0.9999), 0.9999)
+
     val x = (d + lon * bc).round.toInt
     val y = (d + 0.5 * log((1.0 + f) / (1.0 - f)) * (-cc)).round.toInt
 
     (x, y)
-  }
-
-  /** The pixel (x, y) corresponding * to "lon" and "lat" in 256x256 space. */
-  def tilePx(lon: Double, lat:Double): (Int, Int) = {
-    val (x, y) = px(lon, lat)
-
-    (x % Size, y % Size)
-  }
-
-  /** Map a (lon, lat) coordinate into (x, y) in 256x256 space. */
-  def tilePx(c: Coordinate): Coordinate = {
-    val (x, y) = tilePx(c.x, c.y)
-    new Coordinate(x, y)
   }
 }
 

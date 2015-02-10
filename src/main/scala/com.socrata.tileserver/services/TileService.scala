@@ -77,11 +77,14 @@ case class TileService(client: CuratedServiceClient) extends SimpleResource {
       fatal("Unknown error", unknown)
   }
 
-  private[services] def processResponse(mapper: CoordinateMapper,
-                                        ext: String): Callback = { resp =>
+  private[services] def processResponse(tile: QuadTile,
+                                        ext: String): Callback =
+  { resp: Response =>
     def createResponse(parsed: (JValue, Seq[FeatureJson])): HttpResponse = {
       val (jValue, features) = parsed
-      val enc = TileEncoder(rollup(mapper, features))
+      logger.debug(s"Underlying json: ${jValue.toString}")
+
+      val enc = TileEncoder(rollup(tile, features))
       val payload = ext match {
         case "pbf" => ContentType("application/octet-stream") ~> ContentBytes(enc.bytes)
         case "bpbf" => Content("text/plain", enc.base64)
@@ -107,7 +110,6 @@ case class TileService(client: CuratedServiceClient) extends SimpleResource {
                                       pointColumn: String,
                                       tile: QuadTile,
                                       ext: String) : HttpResponse = {
-    val mapper = tile.mapper
     val withinBox = tile.withinBox(pointColumn)
 
     Try {
@@ -118,7 +120,7 @@ case class TileService(client: CuratedServiceClient) extends SimpleResource {
                    req,
                    identifier,
                    params,
-                   processResponse(mapper, ext))
+                   processResponse(tile, ext))
     } recover {
       case e => fatal("Unknown error", e)
     } get
@@ -220,14 +222,18 @@ object TileService {
     params + ("$where" -> whereParam) + ("$select" -> selectParam)
   }
 
-  private[services] def rollup(mapper: CoordinateMapper,
+  private[services] def rollup(tile: QuadTile,
                                features: => Seq[FeatureJson]): Set[Feature] = {
     val coords = features map { f =>
       (f.geometry.getCoordinate, f.properties.mapValues(_.toV3))
     }
 
-    val pixels = coords map { case (coord, props) =>
-      (mapper.tilePx(coord), props)
+    val maybePixels = coords map { case (coord, props) =>
+      (tile.px(coord), props)
+    }
+
+    val pixels = maybePixels collect { case (Some(px), props) =>
+        (px, props)
     }
 
     val points = pixels groupBy { case (px, props) =>
