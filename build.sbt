@@ -1,7 +1,5 @@
 name := "tileserver"
-
 organization := "com.socrata"
-
 scalaVersion := "2.10.4"
 
 resolvers ++= Seq(
@@ -49,20 +47,15 @@ scalacOptions ++= Seq("-optimize",
 // Setup revolver.
 Revolver.settings
 
-// Make "assembly" depend on "scalastyle".
+// Make "package" and "assembly" depend on "scalastyle".
 lazy val styleTask = taskKey[Unit]("a task that wraps 'scalastyle' with no input parameters.")
-
 styleTask := { val _ = (scalastyle in Compile).toTask("").value }
-
 (Keys.`package` in Compile) <<= (Keys.`package` in Compile) dependsOn styleTask
-
 AssemblyKeys.assembly <<= AssemblyKeys.assembly dependsOn styleTask
 
 // Make "test:test" depend on "test:scalastyle"
 lazy val testStyleTask = taskKey[Unit]("a task that wraps 'test:scalastyle' with no input parameters.")
-
 testStyleTask := { val _ = (scalastyle in Test).toTask("").value }
-
 (test in Test) <<= (test in Test) dependsOn (testStyleTask)
 
 // Make test:scalastyle use scalastyle-test-config.xml
@@ -70,9 +63,7 @@ testStyleTask := { val _ = (scalastyle in Test).toTask("").value }
 
 // Generate com.socrata.tileserver.BuildInfo
 buildInfoSettings
-
 sourceGenerators in Compile <+= buildInfo
-
 buildInfoKeys := Seq[BuildInfoKey](name,
                                    version,
                                    scalaVersion,
@@ -81,7 +72,7 @@ buildInfoKeys := Seq[BuildInfoKey](name,
 
 buildInfoPackage := organization.value + "." + name.value
 
-// Disable highlighting
+// Disable scoverage highlighting required for scala version below 2.11.1
 ScoverageSbtPlugin.ScoverageKeys.coverageHighlighting := false
 
 // Warn on low coverage.
