@@ -1,0 +1,15 @@
+#!/bin/sh
+
+set -ev
+
+TILESERVER_JAR="$TILESERVER_ROOT/$TILESERVER_ARTIFACT"
+
+/bin/env_parse /etc/tileserver.conf.j2
+/bin/env_parse /etc/tileserver-logback.xml.j2
+
+exec /usr/bin/java \
+    -Xmx${TILESERVER_MAXMEM} \
+    -Xms${TILESERVER_MAXMEM} \
+    -Dconfig.file=${TILESERVER_CONFIG} \
+    -Dlogback.configurationFile=${TILESERVER_LOGBACK_CONFIG} \
+    -jar "$TILESERVER_JAR"

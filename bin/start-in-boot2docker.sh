@@ -2,7 +2,6 @@
 
 PROJ_NAME='tileserver'
 PORT=2048
-DEV_ROOT="${HOME}/Developer/Socrata"
 ENVFILE="/tmp/tileserver-env"     # This is the boot2docker vm path.
 
 ping -c 2 jenkins.sea1.socrata.com >/dev/null 2>/dev/null \
@@ -11,14 +10,9 @@ ping -c 2 jenkins.sea1.socrata.com >/dev/null 2>/dev/null \
 boot2docker init
 boot2docker down
 
-if [ ! -e "${DEV_ROOT}/${PROJ_NAME}-docker/.git" ]; then
-    cd "${DEV_ROOT}"
-    git clone --recursive git@git.socrata.com:${PROJ_NAME}-docker.git
-fi
-
 VBoxManage sharedfolder add 'boot2docker-vm' \
     --name "${PROJ_NAME}-docker" \
-    --hostpath "${DEV_ROOT}/${PROJ_NAME}-docker" \
+    --hostpath "$PWD/docker" \
     --automount 2>/dev/null
 
 echo "Starting VM..."
