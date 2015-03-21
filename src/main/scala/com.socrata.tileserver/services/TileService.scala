@@ -6,23 +6,19 @@ import java.nio.charset.StandardCharsets.UTF_8
 import javax.servlet.http.HttpServletResponse
 import javax.servlet.http.HttpServletResponse.{SC_NOT_MODIFIED => ScNotModified}
 import javax.servlet.http.HttpServletResponse.{SC_OK => ScOk}
-import scala.collection.JavaConverters._
 import scala.util.{Try, Success, Failure}
 
 import com.rojoma.json.v3.ast.JValue
-import com.rojoma.json.v3.codec.JsonDecode.fromJValue
 import com.rojoma.json.v3.codec.JsonEncode.toJValue
-import com.rojoma.json.v3.conversions._
 import com.rojoma.json.v3.interpolation._
 import com.rojoma.json.v3.io.JsonReader
 import com.rojoma.json.v3.io.JsonReaderException
-import com.socrata.http.client.exceptions.ContentTypeException
 import com.vividsolutions.jts.geom.GeometryFactory
 import org.apache.commons.io.IOUtils
 import org.slf4j.{Logger, LoggerFactory, MDC}
 
 import com.socrata.thirdparty.curator.CuratedServiceClient
-import com.socrata.http.client.{HttpClient, RequestBuilder, Response}
+import com.socrata.http.client.{RequestBuilder, Response}
 import com.socrata.http.server.implicits._
 import com.socrata.http.server.responses._
 import com.socrata.http.server.routing.{SimpleResource, TypedPathComponent}
@@ -31,10 +27,9 @@ import com.socrata.http.server.{HttpRequest, HttpResponse, HttpService}
 import com.socrata.thirdparty.geojson.{GeoJson, FeatureCollectionJson, FeatureJson}
 
 import TileService._
-import config.TileServerConfig
 import exceptions.InvalidGeoJsonException
 import util.TileEncoder.Feature
-import util.{CoordinateMapper, HeaderFilter, QuadTile, TileEncoder}
+import util.{HeaderFilter, QuadTile, TileEncoder}
 
 /** Service that provides the actual tiles.
   *
@@ -182,8 +177,8 @@ object TileService {
     logger.warn(message, cause)
 
     val payload = cause match {
-      case InvalidGeoJsonException(invalidJson) =>
-        json"""{message: $message, invalidJson: ${invalidJson}}"""
+      case e: InvalidGeoJsonException =>
+        json"""{message: $message, cause: ${e.error}, invalidJson: ${e.jValue}}"""
       case e =>
         json"""{message: $message, cause: ${e.getMessage}}"""
     }
@@ -198,14 +193,10 @@ object TileService {
 
   private[services] def features(resp: Response): Try[(JValue, Seq[FeatureJson])] = {
     Try(resp.jValue(Response.acceptGeoJson)) flatMap { jValue =>
-      val geoJson = GeoJson.codec.decode(jValue.toV2) collect {
-        case FeatureCollectionJson(features, _) => features
-      }
-
-      geoJson map {
-        features: Seq[FeatureJson] => Success(jValue -> features)
-      } getOrElse {
-        Failure(InvalidGeoJsonException(jValue))
+      GeoJson.codec.decode(jValue) match {
+        case Left(error) => Failure(InvalidGeoJsonException(jValue, error))
+        case Right(FeatureCollectionJson(features, _)) => Success(jValue -> features)
+        case Right(feature: FeatureJson) => Success(jValue -> Seq(feature))
       }
     }
   }
@@ -225,7 +216,7 @@ object TileService {
   private[services] def rollup(tile: QuadTile,
                                features: => Seq[FeatureJson]): Set[Feature] = {
     val coords = features map { f =>
-      (f.geometry.getCoordinate, f.properties.mapValues(_.toV3))
+      (f.geometry.getCoordinate, f.properties)
     }
 
     val maybePixels = coords map { case (coord, props) =>
