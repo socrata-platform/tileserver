@@ -191,6 +191,28 @@ class TileServiceTest extends TestBase with UnusedSugar with MockitoSugar {
     }
   }
 
+  test("Handle request returns OK when underlying succeeds for single FeatureJson") {
+    import gen.Extensions._
+    import gen.Points._
+    import com.socrata.thirdparty.geojson.GeoJson
+
+    forAll { (pt: ValidPoint, ext: Extension) =>
+      val s = GeoJson.codec.encode(fJson(pt)).toString.replaceAll("\\s*", "")
+      val upstream = mocks.StringResponse(s)
+      val client = mocks.StaticClient(upstream)
+      val outputStream = new mocks.ByteArrayServletOutputStream
+      val resp = outputStream.responseFor
+
+      TileService(client).handleRequest(Unused, Unused, Unused, Unused, ext)(resp)
+
+      verify(resp).setStatus(ScOk)
+
+      if (ext == Json) {
+        outputStream.getString must include (s.toString)
+      }
+    }
+  }
+
   test("Handle request returns 304 with no body when given 304.") {
     val upstream = mock[Response]
     when(upstream.resultCode).thenReturn(ScNotModified)
