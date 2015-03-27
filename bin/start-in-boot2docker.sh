@@ -2,7 +2,7 @@
 
 PROJ_NAME='tileserver'
 PORT=2048
-ENVFILE="/tmp/tileserver-env"     # This is the boot2docker vm path.
+ENVFILE="/tmp/${PROJ_NAME}-env"     # This is the boot2docker vm path.
 
 ping -c 2 jenkins.sea1.socrata.com >/dev/null 2>/dev/null \
     || { echo "VPN connection required to download artifact(s)." ; exit ; }
