@@ -2,14 +2,14 @@
 
 set -ev
 
-TILESERVER_JAR="$TILESERVER_ROOT/$TILESERVER_ARTIFACT"
+SERVER_JAR="$SERVER_ROOT/$SERVER_ARTIFACT"
 
-/bin/env_parse /etc/tileserver.conf.j2
-/bin/env_parse /etc/tileserver-logback.xml.j2
+/bin/env_parse /etc/${SERVER_CONFIG}.j2
+/bin/env_parse /etc/${LOGBACK_CONFIG}.j2
 
-exec /usr/bin/java \
-    -Xmx${TILESERVER_MAXMEM} \
-    -Xms${TILESERVER_MAXMEM} \
-    -Dconfig.file=${TILESERVER_CONFIG} \
-    -Dlogback.configurationFile=${TILESERVER_LOGBACK_CONFIG} \
-    -jar "$TILESERVER_JAR"
+exec su socrata -c "exec /usr/bin/java \
+    -Xmx${JAVA_XMX} \
+    -Xms${JAVA_XMX} \
+    -Dconfig.file=/etc/${SERVER_CONFIG} \
+    -Dlogback.configurationFile=/etc/${LOGBACK_CONFIG} \
+    -jar $SERVER_JAR"
