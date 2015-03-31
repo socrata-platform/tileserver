@@ -6,7 +6,6 @@ import org.scalatest.prop.PropertyChecks
 
 import com.rojoma.json.v3.ast.JString
 import com.rojoma.json.v3.codec.JsonEncode.toJValue
-import com.rojoma.json.v3.conversions._
 import com.vividsolutions.jts.geom.{Coordinate, GeometryFactory, Point}
 
 import com.socrata.thirdparty.geojson.FeatureJson
@@ -21,8 +20,8 @@ trait TestBase
 
   def fJson(pt: (Int, Int),
             attributes: Map[String, String] = Map.empty): FeatureJson = {
-    val attributesV2 = attributes map { case (k, v) => (k, toJValue(v).toV2) }
-    FeatureJson(attributesV2, point(pt))
+    val attributesAsJvalues = attributes map { case (k, v) => (k, toJValue(v)) }
+    FeatureJson(attributesAsJvalues, point(pt))
   }
 
   def feature(pt: (Int, Int),
