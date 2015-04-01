@@ -13,10 +13,9 @@ import com.rojoma.json.v3.codec.JsonEncode.toJValue
 import com.rojoma.json.v3.interpolation._
 import com.rojoma.json.v3.io.JsonReader
 import com.rojoma.json.v3.io.JsonReaderException
-import com.typesafe.scalalogging.LazyLogging
 import com.vividsolutions.jts.geom.GeometryFactory
 import org.apache.commons.io.IOUtils
-import org.slf4j.{LoggerFactory, MDC}
+import org.slf4j.{Logger, LoggerFactory, MDC}
 
 import com.socrata.thirdparty.curator.CuratedServiceClient
 import com.socrata.http.client.{RequestBuilder, Response}
@@ -37,7 +36,7 @@ import util.{HeaderFilter, QuadTile, TileEncoder}
   * @constructor This should only be called once, by the main application.
   * @param client The client to talk to the upstream geo-json service.
   */
-case class TileService(client: CuratedServiceClient) extends SimpleResource with LazyLogging {
+case class TileService(client: CuratedServiceClient) extends SimpleResource {
   /** Type of callback we will be passing to `client`. */
   type Callback = Response => HttpResponse
 
@@ -148,6 +147,7 @@ case class TileService(client: CuratedServiceClient) extends SimpleResource with
 }
 
 object TileService {
+  private val logger: Logger = LoggerFactory.getLogger(getClass)
   private val geomFactory = new GeometryFactory()
   private val allowed = Set(HttpServletResponse.SC_BAD_REQUEST,
                             HttpServletResponse.SC_FORBIDDEN,
