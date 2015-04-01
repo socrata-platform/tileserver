@@ -77,7 +77,9 @@ case class TileService(client: CuratedServiceClient) extends SimpleResource {
   { resp: Response =>
     def createResponse(parsed: (JValue, Seq[FeatureJson])): HttpResponse = {
       val (jValue, features) = parsed
-      logger.debug(s"Underlying json: ${jValue.toString}")
+      if (logger.isDebugEnabled) {
+        logger.debug(s"Underlying json: ${jValue.toString}")
+      }
 
       val enc = TileEncoder(rollup(tile, features))
       val payload = ext match {
