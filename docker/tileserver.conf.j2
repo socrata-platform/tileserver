@@ -1,0 +1,9 @@
+include "application"
+
+com.socrata {
+  common-zk-ensemble = {{ ZOOKEEPER_ENSEMBLE }}
+
+  curator {
+    ensemble = {{ ZOOKEEPER_ENSEMBLE }}
+  }
+}
