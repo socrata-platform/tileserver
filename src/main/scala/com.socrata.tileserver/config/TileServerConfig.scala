@@ -12,6 +12,9 @@ object TileServerConfig {
   /** Port to listen on. */
   lazy val port = config.getInt("tileserver.port")
 
+  /** Thread pool settings. */
+  lazy val threadpool = config.getConfig("tileserver.threadpool")
+
   /** Zookeeper configuration. */
   lazy val broker = new DiscoveryBrokerConfig(config, "curator")
 
