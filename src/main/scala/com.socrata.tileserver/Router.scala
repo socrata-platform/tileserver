@@ -34,7 +34,7 @@ class Router(versionService: HttpService,
 
   /** 404 error. */
   val notFound: HttpService = req => {
-    logger.warn(s"path not found: ${req.requestPathStr}")
+    logger.warn("path not found: {}", req.requestPathStr)
     NotFound ~>
       Json(json"""{error:"not found"}""")
   }
