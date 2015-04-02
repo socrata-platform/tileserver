@@ -26,7 +26,9 @@ object TileServer extends App {
 
     val server = new SocrataServerJetty(
       handler = router.route,
-      options = SocrataServerJetty.defaultOptions.withPort(TileServerConfig.port))
+      options = SocrataServerJetty.defaultOptions.
+        withPort(TileServerConfig.port).
+        withPoolOptions(SocrataServerJetty.Pool(TileServerConfig.threadpool)))
 
     server.run()
   }
