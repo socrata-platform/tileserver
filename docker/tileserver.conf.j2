@@ -1,6 +1,12 @@
 include "application"
 
 com.socrata {
+  tileserver {
+    threadpool {
+      min-threads = {{ MIN_THREADS }}
+      max-threads = {{ MAX_THREADS }}
+    }
+  }
   common-zk-ensemble = {{ ZOOKEEPER_ENSEMBLE }}
 
   curator {

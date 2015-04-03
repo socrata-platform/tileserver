@@ -1,15 +1,16 @@
-Tile Server Docker
-==================
-
+# TileServer Docker Config #
 To build the image, run:
+    `docker build -t spandex-http .`
 
-    docker build --rm -t tileserver .
+Or, if you want to replace old versions:
+    `docker build --rm -t spandex-http .`
 
-Optional environment variables:
+## Required Environment Variables ##
+* `ZOOKEEPER_ENSEMBLE` - A list of hostnames and ports of zookeeper instances. eg: ["10.0.0.1:2181", "10.0.0.2:2818"]
 
-Tileserver requires the environment variable ZOOKEEPER_ENSEMBLE to be
-set with the syntax:
+## Optional Runtime Variables ##
+See the [DockerFile](Dockerfile) for defaults.
 
-["10.0.0.1:2181", "10.0.0.2:2818"]
-
-TILESERVER_MAXMEM     (default 2048m)  
+* `JAVA_XMX`                - Sets the JVM heap size.
+* `MIN_THREADS`             - Sets the minimum number of server threads.
+* `MAX_THREADS`             - Sets the maximum number of server threads.

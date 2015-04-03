@@ -12,6 +12,8 @@ ENV SERVER_ARTIFACT  ${SERVER_NAME}-assembly.jar
 # Environment Settings.
 EXPOSE 2048
 ENV JAVA_XMX 512m
+ENV MIN_THREADS 3
+ENV MAX_THREADS 5
 
 # Log Settings.
 ENV LOG_LEVEL info
