@@ -13,7 +13,7 @@ ENV SERVER_ARTIFACT  ${SERVER_NAME}-assembly.jar
 EXPOSE 2048
 ENV JAVA_XMX 512m
 ENV MIN_THREADS 3
-ENV MAX_THREADS 5
+ENV MAX_THREADS 5               # Threads currently use about 100m each.
 
 # Log Settings.
 ENV LOG_LEVEL info
