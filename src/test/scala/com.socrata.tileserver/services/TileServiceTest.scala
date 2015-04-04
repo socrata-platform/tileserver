@@ -60,11 +60,12 @@ class TileServiceTest extends TestBase with UnusedSugar with MockitoSugar {
         mock[Response]
       }
 
-      TileService(client).geoJsonQuery(reqId,
-                                       request,
-                                       id,
-                                       Map(param),
-                                       Unused): Unit
+      TileService(client).pointQuery(reqId,
+                                     request,
+                                     id,
+                                     Map(param),
+                                     false,
+                                     Unused): Unit
     }
   }
 

@@ -1,6 +1,7 @@
 package com.socrata.tileserver
 package services
 
+import java.io.DataInputStream
 import java.net.URLDecoder
 import java.nio.charset.StandardCharsets.UTF_8
 import javax.servlet.http.HttpServletResponse
@@ -8,14 +9,17 @@ import javax.servlet.http.HttpServletResponse.{SC_NOT_MODIFIED => ScNotModified}
 import javax.servlet.http.HttpServletResponse.{SC_OK => ScOk}
 import scala.util.{Try, Success, Failure}
 
-import com.rojoma.json.v3.ast.JValue
+import com.rojoma.json.v3.ast.{JValue, JNull}
 import com.rojoma.json.v3.codec.JsonEncode.toJValue
 import com.rojoma.json.v3.interpolation._
 import com.rojoma.json.v3.io.JsonReader
 import com.rojoma.json.v3.io.JsonReaderException
 import com.vividsolutions.jts.geom.GeometryFactory
+import com.vividsolutions.jts.io.WKBReader
 import org.apache.commons.io.IOUtils
 import org.slf4j.{Logger, LoggerFactory, MDC}
+import org.velvia.MsgPack
+import org.velvia.MsgPackUtils._
 
 import com.socrata.thirdparty.curator.CuratedServiceClient
 import com.socrata.http.client.{RequestBuilder, Response}
@@ -27,7 +31,7 @@ import com.socrata.http.server.{HttpRequest, HttpResponse, HttpService}
 import com.socrata.thirdparty.geojson.{GeoJson, FeatureCollectionJson, FeatureJson}
 
 import TileService._
-import exceptions.InvalidGeoJsonException
+import exceptions._
 import util.TileEncoder.Feature
 import util.{HeaderFilter, QuadTile, TileEncoder}
 
@@ -43,16 +47,21 @@ case class TileService(client: CuratedServiceClient) extends SimpleResource {
   /** The types (file extensions) supported by this endpoint. */
   val types: Set[String] = Set("pbf", "bpbf", "json", "txt")
 
-  // Call to the underlying service.
-  private[services] def geoJsonQuery(requestId: RequestId,
-                                     req: HttpRequest,
-                                     id: String,
-                                     params: Map[String, String],
-                                     callback: Response => HttpResponse): HttpResponse = {
+  // Call to the underlying service (Core)
+  // Note: this can either pull the points as .geojson or .soqlpack
+  // SoQLPack is binary protocol, much faster and more efficient than GeoJSON
+  // in terms of both performance (~3x) and memory usage (1/10th, or so)
+  private[services] def pointQuery(requestId: RequestId,
+                                   req: HttpRequest,
+                                   id: String,
+                                   params: Map[String, String],
+                                   binaryQuery: Boolean = false,
+                                   callback: Response => HttpResponse): HttpResponse = {
     val headers = HeaderFilter.headers(req)
+    val queryType = if (binaryQuery) "soqlpack" else "geojson"
 
     val jsonReq = { base: RequestBuilder =>
-      val req = base.path(Seq("id", s"$id.geojson")).
+      val req = base.path(Seq("id", s"$id.$queryType")).
         addHeaders(headers).
         addHeader(ReqIdHeader -> requestId).
         query(params).get
@@ -91,6 +100,9 @@ case class TileService(client: CuratedServiceClient) extends SimpleResource {
       OK ~> HeaderFilter.extract(resp) ~> payload
     }
 
+    val isGeoJsonResponse = Response.acceptGeoJson(resp.contentType)
+    val features = if (isGeoJsonResponse) geoJsonFeatures _ else soqlPackFeatures _
+
     lazy val result = resp.resultCode match {
       case ScOk => features(resp).map(createResponse).recover(handleErrors).get
       case ScNotModified => NotModified
@@ -112,11 +124,13 @@ case class TileService(client: CuratedServiceClient) extends SimpleResource {
       val params = augmentParams(req, withinBox, pointColumn)
       val requestId = extractRequestId(req)
 
-      geoJsonQuery(requestId,
-                   req,
-                   identifier,
-                   params,
-                   processResponse(tile, ext))
+      pointQuery(requestId,
+                 req,
+                 identifier,
+                 params,
+                 // Right now soqlpack queries won't work on non-geom columns
+                 !req.queryParameters.contains("$select"),
+                 processResponse(tile, ext))
     } recover {
       case e => fatal("Unknown error", e)
     } get
@@ -192,13 +206,37 @@ object TileService {
   private[services] def extractRequestId(req: HttpRequest): RequestId =
     getFromRequest(req.servletRequest)
 
-  private[services] def features(resp: Response): Try[(JValue, Iterator[FeatureJson])] = {
+  private[services] def geoJsonFeatures(resp: Response): Try[(JValue, Iterator[FeatureJson])] = {
     Try(resp.jValue(Response.acceptGeoJson)) flatMap { jValue =>
       GeoJson.codec.decode(jValue) match {
         case Left(error) => Failure(InvalidGeoJsonException(jValue, error))
         case Right(FeatureCollectionJson(features, _)) => Success(jValue -> features.toIterator)
         case Right(feature: FeatureJson) => Success(jValue -> Iterator.single(feature))
       }
+    }
+  }
+
+  private[services] def soqlPackFeatures(resp: Response): Try[(JValue, Iterator[FeatureJson])] = {
+    val reader = new WKBReader
+    val dis = new DataInputStream(resp.inputStream(Long.MaxValue))
+    try {
+      val headers = MsgPack.unpack(dis, MsgPack.UNPACK_RAW_AS_STRING).asInstanceOf[Map[String, Any]]
+      headers.asInt("geometry_index") match {
+        case geomIndex if geomIndex < 0 => Failure(InvalidSoqlPackException(headers))
+        case geomIndex =>
+          val featureJsonIt = new Iterator[FeatureJson] {
+            def hasNext: Boolean = dis.available > 0
+            def next: FeatureJson = {
+              val row = MsgPack.unpack(dis, 0).asInstanceOf[Seq[Any]]
+              val geom = reader.read(row(geomIndex).asInstanceOf[Array[Byte]])
+              // TODO: parse other columns as properties.  For now just skip it
+              FeatureJson(Map(), geom)
+            }
+          }
+          Success(JNull -> featureJsonIt)
+      }
+    } finally {
+      dis.close()
     }
   }
 
