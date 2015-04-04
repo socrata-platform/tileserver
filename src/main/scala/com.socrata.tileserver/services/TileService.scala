@@ -75,7 +75,7 @@ case class TileService(client: CuratedServiceClient) extends SimpleResource {
   private[services] def processResponse(tile: QuadTile,
                                         ext: String): Callback =
   { resp: Response =>
-    def createResponse(parsed: (JValue, Seq[FeatureJson])): HttpResponse = {
+    def createResponse(parsed: (JValue, Iterator[FeatureJson])): HttpResponse = {
       val (jValue, features) = parsed
 
       logger.debug(s"Underlying json: {}", jValue)
@@ -192,12 +192,12 @@ object TileService {
   private[services] def extractRequestId(req: HttpRequest): RequestId =
     getFromRequest(req.servletRequest)
 
-  private[services] def features(resp: Response): Try[(JValue, Seq[FeatureJson])] = {
+  private[services] def features(resp: Response): Try[(JValue, Iterator[FeatureJson])] = {
     Try(resp.jValue(Response.acceptGeoJson)) flatMap { jValue =>
       GeoJson.codec.decode(jValue) match {
         case Left(error) => Failure(InvalidGeoJsonException(jValue, error))
-        case Right(FeatureCollectionJson(features, _)) => Success(jValue -> features)
-        case Right(feature: FeatureJson) => Success(jValue -> Seq(feature))
+        case Right(FeatureCollectionJson(features, _)) => Success(jValue -> features.toIterator)
+        case Right(feature: FeatureJson) => Success(jValue -> Iterator.single(feature))
       }
     }
   }
@@ -215,7 +215,7 @@ object TileService {
   }
 
   private[services] def rollup(tile: QuadTile,
-                               features: => Seq[FeatureJson]): Set[Feature] = {
+                               features: => Iterator[FeatureJson]): Set[Feature] = {
     val coords = features map { f =>
       (f.geometry.getCoordinate, f.properties)
     }
@@ -228,7 +228,7 @@ object TileService {
       (px, props)
     }
 
-    val points = pixels groupBy { case (px, props) =>
+    val points = pixels.toSeq groupBy { case (px, props) =>
       (geomFactory.createPoint(px), props)
     }
 

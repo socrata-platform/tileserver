@@ -460,12 +460,12 @@ class TileServiceTest extends TestBase with UnusedSugar with MockitoSugar {
   }
 
   test("An empty list of coordinates rolls up correctly") {
-    TileService.rollup(Unused, Seq.empty) must be (Set.empty)
+    TileService.rollup(Unused, Iterator.empty) must be (Set.empty)
   }
 
   test("A single coordinate rolls up correctly") {
     forAll { pt: (Int, Int) =>
-      TileService.rollup(Unused, Seq(fJson(pt))) must equal (Set(feature(pt)))
+      TileService.rollup(Unused, Iterator.single(fJson(pt))) must equal (Set(feature(pt)))
     }
   }
 
@@ -478,7 +478,7 @@ class TileServiceTest extends TestBase with UnusedSugar with MockitoSugar {
         val expected = Set(feature(pt0),
                            feature(pt1),
                            feature(pt2))
-        val actual = TileService.rollup(Unused, coordinates)
+        val actual = TileService.rollup(Unused, coordinates.toIterator)
 
         actual must equal (expected)
       }
@@ -496,7 +496,7 @@ class TileServiceTest extends TestBase with UnusedSugar with MockitoSugar {
         val expected = Set(feature(pt0, count=1),
                            feature(pt1, count=2),
                            feature(pt2, count=2))
-        val actual = TileService.rollup(Unused, coordinates)
+        val actual = TileService.rollup(Unused, coordinates.toIterator)
 
         actual must equal (expected)
       }
@@ -522,7 +522,7 @@ class TileServiceTest extends TestBase with UnusedSugar with MockitoSugar {
                            feature(pt0, 1, Map(prop1)),
                            feature(pt1, 2, Map(prop1)))
 
-        val actual = TileService.rollup(Unused, coordinates)
+        val actual = TileService.rollup(Unused, coordinates.toIterator)
 
         actual must equal (expected)
       }
