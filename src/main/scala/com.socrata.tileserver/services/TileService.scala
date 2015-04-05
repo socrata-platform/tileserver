@@ -100,11 +100,11 @@ case class TileService(client: CuratedServiceClient) extends SimpleResource {
       OK ~> HeaderFilter.extract(resp) ~> payload
     }
 
-    val isGeoJsonResponse = Response.acceptGeoJson(resp.contentType)
-    val features = if (isGeoJsonResponse) geoJsonFeatures _ else soqlPackFeatures _
-
     lazy val result = resp.resultCode match {
-      case ScOk => features(resp).map(createResponse).recover(handleErrors).get
+      case ScOk =>
+        val isGeoJsonResponse = Response.acceptGeoJson(resp.contentType)
+        val features = if (isGeoJsonResponse) geoJsonFeatures _ else soqlPackFeatures _
+        features(resp).map(createResponse).recover(handleErrors).get
       case ScNotModified => NotModified
       case _ => echoResponse(resp)
     }
