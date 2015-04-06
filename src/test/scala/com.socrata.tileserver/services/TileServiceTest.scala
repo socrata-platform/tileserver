@@ -154,6 +154,23 @@ class TileServiceTest extends TestBase with UnusedSugar with MockitoSugar {
     }
   }
 
+  test("Invalid SoQLPack returns 'internal server error' when processing response") {
+    import gen.Extensions._
+
+    forAll { (message: String, ext: Extension) =>
+      val upstream = mocks.BinaryResponse(message.getBytes)
+      val outputStream = new mocks.ByteArrayServletOutputStream
+      val resp = outputStream.responseFor
+
+      TileService(Unused).processResponse(Unused, ext)(upstream)(resp)
+
+      verify(resp).setStatus(ScInternalServerError)
+
+      outputStream.getLowStr must include ("unable to parse binary stream")
+    }
+
+  }
+
   test("Unknown errors are handled when processing response") {
     import gen.Extensions._
 

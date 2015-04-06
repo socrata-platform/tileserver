@@ -18,7 +18,7 @@ import com.vividsolutions.jts.geom.GeometryFactory
 import com.vividsolutions.jts.io.WKBReader
 import org.apache.commons.io.IOUtils
 import org.slf4j.{Logger, LoggerFactory, MDC}
-import org.velvia.MsgPack
+import org.velvia.{MsgPack, InvalidMsgPackDataException}
 import org.velvia.MsgPackUtils._
 
 import com.socrata.thirdparty.curator.CuratedServiceClient
@@ -219,6 +219,7 @@ object TileService {
   private[services] def soqlPackFeatures(resp: Response): Try[(JValue, Iterator[FeatureJson])] = {
     val reader = new WKBReader
     val dis = new DataInputStream(resp.inputStream(Long.MaxValue))
+    // TODO: use rjmac simple-arm, Try to make code prettier?
     try {
       val headers = MsgPack.unpack(dis, MsgPack.UNPACK_RAW_AS_STRING).asInstanceOf[Map[String, Any]]
       headers.asInt("geometry_index") match {
@@ -235,6 +236,9 @@ object TileService {
           }
           Success(JNull -> featureJsonIt)
       }
+    } catch {
+      case e: InvalidMsgPackDataException => Failure(InvalidSoqlPackException(Map.empty))
+      case e: ClassCastException =>          Failure(InvalidSoqlPackException(Map.empty))
     } finally {
       dis.close()
     }
