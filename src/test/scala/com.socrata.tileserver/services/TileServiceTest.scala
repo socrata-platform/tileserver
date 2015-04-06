@@ -7,17 +7,21 @@ import javax.servlet.http.HttpServletResponse.{SC_INTERNAL_SERVER_ERROR => ScInt
 import javax.servlet.http.HttpServletResponse.{SC_NOT_MODIFIED => ScNotModified}
 import javax.servlet.http.HttpServletResponse.{SC_OK => ScOk}
 import scala.util.control.NoStackTrace
+import scala.util.{Failure, Success}
 
+import com.rojoma.json.v3.ast.{JValue, JNull}
 import com.rojoma.json.v3.interpolation._
 import com.socrata.http.server.util.RequestId.{RequestId, ReqIdHeader}
+import com.vividsolutions.jts.io.WKBWriter
 import org.mockito.Matchers.anyInt
 import org.mockito.Mockito.{verify, when}
 import org.scalatest.mock.MockitoSugar
 
 import com.socrata.http.client.{RequestBuilder, Response}
+import com.socrata.http.server.HttpRequest
 import com.socrata.http.server.HttpRequest.AugmentedHttpServletRequest
 import com.socrata.http.server.routing.TypedPathComponent
-import com.socrata.http.server.HttpRequest
+import com.socrata.thirdparty.geojson.FeatureJson
 
 import util.TileEncoder
 
@@ -152,23 +156,6 @@ class TileServiceTest extends TestBase with UnusedSugar with MockitoSugar {
       outputStream.getLowStr must include ("underlying")
       outputStream.getString must include (encode(message))
     }
-  }
-
-  test("Invalid SoQLPack returns 'internal server error' when processing response") {
-    import gen.Extensions._
-
-    forAll { (message: String, ext: Extension) =>
-      val upstream = mocks.BinaryResponse(message.getBytes)
-      val outputStream = new mocks.ByteArrayServletOutputStream
-      val resp = outputStream.responseFor
-
-      TileService(Unused).processResponse(Unused, ext)(upstream)(resp)
-
-      verify(resp).setStatus(ScInternalServerError)
-
-      outputStream.getLowStr must include ("unable to parse binary stream")
-    }
-
   }
 
   test("Unknown errors are handled when processing response") {
@@ -543,6 +530,110 @@ class TileServiceTest extends TestBase with UnusedSugar with MockitoSugar {
         val actual = TileService.rollup(Unused, coordinates.toIterator)
 
         actual must equal (expected)
+      }
+    }
+  }
+
+
+
+  test("An empty message is successfully unpacked") {
+    import gen.Extensions._
+
+    forAll { (ext: Extension) =>
+      val upstream = mocks.BinaryResponse(Map("geometry_index" -> 0), Seq.empty)
+      val outputStream = new mocks.ByteArrayServletOutputStream
+      val resp = outputStream.responseFor
+
+      val expected = Success(JNull -> Iterator.empty)
+
+      TileService(Unused).processResponse(Unused, ext)(upstream)(resp)
+
+      // TODO: Figure out asserts.
+    }
+  }
+
+  test("A single feature is successfully unpacked") {
+    import gen.Extensions._
+    import gen.Points._
+
+    val writer = new WKBWriter()
+
+    forAll { pt: ValidPoint =>
+      val (geom, props) = feature(pt)
+      val geomIdx = 0
+
+      val rows = Seq(Seq(writer.write(geom)))
+      val upstream = mocks.BinaryResponse(Map("geometry_index" -> geomIdx), rows)
+
+      val maybeResult = TileService.soqlUnpackFeatures(upstream)
+      maybeResult must be a ('success)
+
+      val (jVal, iter) = maybeResult.get
+      val features = iter.toSeq
+
+      jVal must equal (JNull)
+      features must have length 1
+      features(geomIdx) must equal (fJson(pt))
+    }
+  }
+
+  test("Multiple features are successfully unpacked") (pending)
+  test("Valid header but no features") (pending)
+
+  test("TODO: features are unpacked with properties") (pending)
+
+  test("Invalid headers are rejected when unpacking") {
+    import gen.Extensions._
+
+    forAll { (payload: Array[Byte], ext: Extension) =>
+      val upstream = mocks.BinaryResponse(payload)
+      val outputStream = new mocks.ByteArrayServletOutputStream
+      val resp = outputStream.responseFor
+
+      TileService(Unused).processResponse(Unused, ext)(upstream)(resp)
+
+      verify(resp).setStatus(ScInternalServerError)
+
+      outputStream.getLowStr must include ("unable to parse binary stream")
+    }
+  }
+
+  test("Message pack null is rejected when unpacking") {
+    import gen.Extensions._
+
+    // scalastyle:off magic.number
+    val msgNull: Array[Byte] = Array(-64)
+    // scalastyle:on magic.number
+
+    forAll { ext: Extension =>
+      val upstream = mocks.BinaryResponse(msgNull)
+      val outputStream = new mocks.ByteArrayServletOutputStream
+      val resp = outputStream.responseFor
+
+      TileService(Unused).processResponse(Unused, ext)(upstream)(resp)
+
+      verify(resp).setStatus(ScInternalServerError)
+
+      outputStream.getLowStr must include ("unable to parse binary stream")
+    }
+  }
+
+  test("Invalid `geometry_index`s are rejected when unpacking") {
+    import gen.Extensions._
+
+    forAll { (idx: Int, ext: Extension) =>
+      whenever (idx < 0) {
+        val upstream = mocks.BinaryResponse(Map("geometry_index" -> -1), Seq.empty)
+        val outputStream = new mocks.ByteArrayServletOutputStream
+        val resp = outputStream.responseFor
+
+        val expected = Success(JNull -> Iterator.empty)
+
+        TileService(Unused).processResponse(Unused, ext)(upstream)(resp)
+
+        verify(resp).setStatus(ScInternalServerError)
+
+        outputStream.getLowStr must include ("header error")
       }
     }
   }

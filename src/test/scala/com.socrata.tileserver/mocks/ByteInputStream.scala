@@ -4,9 +4,9 @@ import java.io.{ByteArrayInputStream, InputStream}
 
 import com.socrata.http.common.util.Acknowledgeable
 
-case class ByteInputStream(bytes: Array[Byte]) extends InputStream with Acknowledgeable {
-  val underlying = new ByteArrayInputStream(bytes)
-
-  override def acknowledge(): Unit = ()
-  override def read(): Int = underlying.read
+object ByteInputStream {
+  def apply(bytes: Array[Byte]): InputStream with Acknowledgeable =
+    new ByteArrayInputStream(bytes) with Acknowledgeable {
+      override def acknowledge(): Unit = ()
+    }
 }

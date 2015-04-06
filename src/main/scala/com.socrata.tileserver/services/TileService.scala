@@ -103,7 +103,7 @@ case class TileService(client: CuratedServiceClient) extends SimpleResource {
     lazy val result = resp.resultCode match {
       case ScOk =>
         val isGeoJsonResponse = Response.acceptGeoJson(resp.contentType)
-        val features = if (isGeoJsonResponse) geoJsonFeatures _ else soqlPackFeatures _
+        val features = if (isGeoJsonResponse) geoJsonFeatures _ else soqlUnpackFeatures _
         features(resp).map(createResponse).recover(handleErrors).get
       case ScNotModified => NotModified
       case _ => echoResponse(resp)
@@ -216,7 +216,7 @@ object TileService {
     }
   }
 
-  private[services] def soqlPackFeatures(resp: Response): Try[(JValue, Iterator[FeatureJson])] = {
+  private[services] def soqlUnpackFeatures(resp: Response): Try[(JValue, Iterator[FeatureJson])] = {
     val reader = new WKBReader
     val dis = new DataInputStream(resp.inputStream(Long.MaxValue))
     // TODO: use rjmac simple-arm, Try to make code prettier?
@@ -227,18 +227,21 @@ object TileService {
         case geomIndex =>
           val featureJsonIt = new Iterator[FeatureJson] {
             def hasNext: Boolean = dis.available > 0
-            def next: FeatureJson = {
+            def next(): FeatureJson = {
               val row = MsgPack.unpack(dis, 0).asInstanceOf[Seq[Any]]
               val geom = reader.read(row(geomIndex).asInstanceOf[Array[Byte]])
               // TODO: parse other columns as properties.  For now just skip it
               FeatureJson(Map(), geom)
             }
           }
+
           Success(JNull -> featureJsonIt)
       }
     } catch {
-      case e: InvalidMsgPackDataException => Failure(InvalidSoqlPackException(Map.empty))
-      case e: ClassCastException =>          Failure(InvalidSoqlPackException(Map.empty))
+      case _: InvalidMsgPackDataException => Failure(InvalidSoqlPackException(Map.empty))
+      case _: ClassCastException =>          Failure(InvalidSoqlPackException(Map.empty))
+      case _: NoSuchElementException =>      Failure(InvalidSoqlPackException(Map.empty))
+      case _: NullPointerException =>        Failure(InvalidSoqlPackException(Map.empty))
     } finally {
       dis.close()
     }
