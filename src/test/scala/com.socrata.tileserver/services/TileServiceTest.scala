@@ -469,48 +469,49 @@ class TileServiceTest extends TestBase with UnusedSugar with MockitoSugar {
   }
 
   test("A single coordinate rolls up correctly") {
-    forAll { pt: (Int, Int) =>
+    import gen.Points._
+
+    forAll { pt: ValidPoint =>
       TileService.rollup(Unused, Iterator.single(fJson(pt))) must equal (Set(feature(pt)))
     }
   }
 
   test("Unique coordinates are included when rolled up") {
-    forAll { (pt0: (Int, Int), pt1: (Int, Int), pt2: (Int, Int)) =>
-      whenever (uniq(pt0, pt1, pt2)) {
-        val coordinates = Seq(fJson(pt0),
-                              fJson(pt1),
-                              fJson(pt2))
-        val expected = Set(feature(pt0),
-                           feature(pt1),
-                           feature(pt2))
-        val actual = TileService.rollup(Unused, coordinates.toIterator)
+    import gen.Points._
 
-        actual must equal (expected)
-      }
+    forAll { pts: Set[ValidPoint] =>
+      val coordinates = pts.map(fJson(_))
+      val expected = pts.map(feature(_))
+      val actual = TileService.rollup(Unused, coordinates.toIterator)
+
+      actual must equal (expected)
     }
   }
 
   test("Coordinates have correct counts when rolled up") {
-    forAll { (pt0: (Int, Int), pt1: (Int, Int), pt2: (Int, Int)) =>
-      whenever (uniq(pt0, pt1, pt2)) {
-        val coordinates = Seq(fJson(pt0),
-                              fJson(pt1),
-                              fJson(pt1),
-                              fJson(pt2),
-                              fJson(pt2))
-        val expected = Set(feature(pt0, count=1),
-                           feature(pt1, count=2),
-                           feature(pt2, count=2))
-        val actual = TileService.rollup(Unused, coordinates.toIterator)
+    import gen.Points._
 
-        actual must equal (expected)
-      }
+    forAll { uniquePts: Set[ValidPoint] =>
+      val pts = uniquePts.toSeq
+      val dupes = pts ++
+        (if (pts.isEmpty) pts else pts(0) +: Seq(pts(pts.length - 1)))
+
+      val coordinates = dupes.map(fJson(_))
+      val expected = dupes.
+        groupBy(identity).
+        mapValues(_.size).map(feature(_)).toSet
+
+      val actual = TileService.rollup(Unused, coordinates.toIterator)
+
+      actual must equal (expected)
     }
   }
 
   test("Coordinates with unique properties are not rolled up") {
-    forAll { (pt0: (Int, Int),
-              pt1: (Int, Int),
+    import gen.Points._
+
+    forAll { (pt0: ValidPoint,
+              pt1: ValidPoint,
               prop0: (String, String),
               prop1: (String, String)) =>
       val (k0, _) = prop0
