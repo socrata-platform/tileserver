@@ -552,18 +552,19 @@ class TileServiceTest extends TestBase with UnusedSugar with MockitoSugar {
     }
   }
 
-  test("A single feature is successfully unpacked") {
+  test("Features are successfully unpacked") {
     import gen.Extensions._
     import gen.Points._
 
     val writer = new WKBWriter()
 
-    forAll { pt: ValidPoint =>
-      val (geom, props) = feature(pt)
-      val geomIdx = 0
+    forAll { pts: Seq[ValidPoint] =>
+      val rows = pts.map { pt =>
+        val (geom, props) = feature(pt)
+        Seq(writer.write(geom))
+      }
 
-      val rows = Seq(Seq(writer.write(geom)))
-      val upstream = mocks.BinaryResponse(Map("geometry_index" -> geomIdx), rows)
+      val upstream = mocks.BinaryResponse(Map("geometry_index" -> 0), rows)
 
       val maybeResult = TileService.soqlUnpackFeatures(upstream)
       maybeResult must be a ('success)
@@ -572,13 +573,10 @@ class TileServiceTest extends TestBase with UnusedSugar with MockitoSugar {
       val features = iter.toSeq
 
       jVal must equal (JNull)
-      features must have length 1
-      features(geomIdx) must equal (fJson(pt))
+      features must have length (pts.size)
+      features must equal (pts.map(fJson(_)))
     }
   }
-
-  test("Multiple features are successfully unpacked") (pending)
-  test("Valid header but no features") (pending)
 
   test("TODO: features are unpacked with properties") (pending)
 
