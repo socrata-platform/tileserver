@@ -7,21 +7,17 @@ import javax.servlet.http.HttpServletResponse.{SC_INTERNAL_SERVER_ERROR => ScInt
 import javax.servlet.http.HttpServletResponse.{SC_NOT_MODIFIED => ScNotModified}
 import javax.servlet.http.HttpServletResponse.{SC_OK => ScOk}
 import scala.util.control.NoStackTrace
-import scala.util.{Failure, Success}
 
-import com.rojoma.json.v3.ast.{JValue, JNull}
 import com.rojoma.json.v3.interpolation._
 import com.socrata.http.server.util.RequestId.{RequestId, ReqIdHeader}
-import com.vividsolutions.jts.io.WKBWriter
 import org.mockito.Matchers.anyInt
 import org.mockito.Mockito.{verify, when}
 import org.scalatest.mock.MockitoSugar
 
 import com.socrata.http.client.{RequestBuilder, Response}
-import com.socrata.http.server.HttpRequest
 import com.socrata.http.server.HttpRequest.AugmentedHttpServletRequest
 import com.socrata.http.server.routing.TypedPathComponent
-import com.socrata.thirdparty.geojson.FeatureJson
+import com.socrata.http.server.HttpRequest
 
 import util.TileEncoder
 
@@ -64,12 +60,11 @@ class TileServiceTest extends TestBase with UnusedSugar with MockitoSugar {
         mock[Response]
       }
 
-      TileService(client).pointQuery(reqId,
-                                     request,
-                                     id,
-                                     Map(param),
-                                     false,
-                                     Unused): Unit
+      TileService(client).geoJsonQuery(reqId,
+                                       request,
+                                       id,
+                                       Map(param),
+                                       Unused): Unit
     }
   }
 
@@ -465,53 +460,52 @@ class TileServiceTest extends TestBase with UnusedSugar with MockitoSugar {
   }
 
   test("An empty list of coordinates rolls up correctly") {
-    TileService.rollup(Unused, Iterator.empty) must be (Set.empty)
+    TileService.rollup(Unused, Seq.empty) must be (Set.empty)
   }
 
   test("A single coordinate rolls up correctly") {
-    import gen.Points._
-
-    forAll { pt: ValidPoint =>
-      TileService.rollup(Unused, Iterator.single(fJson(pt))) must equal (Set(feature(pt)))
+    forAll { pt: (Int, Int) =>
+      TileService.rollup(Unused, Seq(fJson(pt))) must equal (Set(feature(pt)))
     }
   }
 
   test("Unique coordinates are included when rolled up") {
-    import gen.Points._
+    forAll { (pt0: (Int, Int), pt1: (Int, Int), pt2: (Int, Int)) =>
+      whenever (uniq(pt0, pt1, pt2)) {
+        val coordinates = Seq(fJson(pt0),
+                              fJson(pt1),
+                              fJson(pt2))
+        val expected = Set(feature(pt0),
+                           feature(pt1),
+                           feature(pt2))
+        val actual = TileService.rollup(Unused, coordinates)
 
-    forAll { pts: Set[ValidPoint] =>
-      val coordinates = pts.map(fJson(_))
-      val expected = pts.map(feature(_))
-      val actual = TileService.rollup(Unused, coordinates.toIterator)
-
-      actual must equal (expected)
+        actual must equal (expected)
+      }
     }
   }
 
   test("Coordinates have correct counts when rolled up") {
-    import gen.Points._
+    forAll { (pt0: (Int, Int), pt1: (Int, Int), pt2: (Int, Int)) =>
+      whenever (uniq(pt0, pt1, pt2)) {
+        val coordinates = Seq(fJson(pt0),
+                              fJson(pt1),
+                              fJson(pt1),
+                              fJson(pt2),
+                              fJson(pt2))
+        val expected = Set(feature(pt0, count=1),
+                           feature(pt1, count=2),
+                           feature(pt2, count=2))
+        val actual = TileService.rollup(Unused, coordinates)
 
-    forAll { uniquePts: Set[ValidPoint] =>
-      val pts = uniquePts.toSeq
-      val dupes = pts ++
-        (if (pts.isEmpty) pts else pts(0) +: Seq(pts(pts.length - 1)))
-
-      val coordinates = dupes.map(fJson(_))
-      val expected = dupes.
-        groupBy(identity).
-        mapValues(_.size).map(feature(_)).toSet
-
-      val actual = TileService.rollup(Unused, coordinates.toIterator)
-
-      actual must equal (expected)
+        actual must equal (expected)
+      }
     }
   }
 
   test("Coordinates with unique properties are not rolled up") {
-    import gen.Points._
-
-    forAll { (pt0: ValidPoint,
-              pt1: ValidPoint,
+    forAll { (pt0: (Int, Int),
+              pt1: (Int, Int),
               prop0: (String, String),
               prop1: (String, String)) =>
       val (k0, _) = prop0
@@ -528,111 +522,9 @@ class TileServiceTest extends TestBase with UnusedSugar with MockitoSugar {
                            feature(pt0, 1, Map(prop1)),
                            feature(pt1, 2, Map(prop1)))
 
-        val actual = TileService.rollup(Unused, coordinates.toIterator)
+        val actual = TileService.rollup(Unused, coordinates)
 
         actual must equal (expected)
-      }
-    }
-  }
-
-
-
-  test("An empty message is successfully unpacked") {
-    import gen.Extensions._
-
-    forAll { (ext: Extension) =>
-      val upstream = mocks.BinaryResponse(Map("geometry_index" -> 0), Seq.empty)
-      val outputStream = new mocks.ByteArrayServletOutputStream
-      val resp = outputStream.responseFor
-
-      val expected = Success(JNull -> Iterator.empty)
-
-      TileService(Unused).processResponse(Unused, ext)(upstream)(resp)
-
-      // TODO: Figure out asserts.
-    }
-  }
-
-  test("Features are successfully unpacked") {
-    import gen.Extensions._
-    import gen.Points._
-
-    val writer = new WKBWriter()
-
-    forAll { pts: Seq[ValidPoint] =>
-      val rows = pts.map { pt =>
-        val (geom, props) = feature(pt)
-        Seq(writer.write(geom))
-      }
-
-      val upstream = mocks.BinaryResponse(Map("geometry_index" -> 0), rows)
-
-      val maybeResult = TileService.soqlUnpackFeatures(upstream)
-      maybeResult must be a ('success)
-
-      val (jVal, iter) = maybeResult.get
-      val features = iter.toSeq
-
-      jVal must equal (JNull)
-      features must have length (pts.size)
-      features must equal (pts.map(fJson(_)))
-    }
-  }
-
-  test("TODO: features are unpacked with properties") (pending)
-
-  test("Invalid headers are rejected when unpacking") {
-    import gen.Extensions._
-
-    forAll { (payload: Array[Byte], ext: Extension) =>
-      val upstream = mocks.BinaryResponse(payload)
-      val outputStream = new mocks.ByteArrayServletOutputStream
-      val resp = outputStream.responseFor
-
-      TileService(Unused).processResponse(Unused, ext)(upstream)(resp)
-
-      verify(resp).setStatus(ScInternalServerError)
-
-      outputStream.getLowStr must include ("unable to parse binary stream")
-    }
-  }
-
-  test("Message pack null is rejected when unpacking") {
-    import gen.Extensions._
-
-    // scalastyle:off magic.number
-    val msgNull: Array[Byte] = Array(-64)
-    // scalastyle:on magic.number
-
-    forAll { ext: Extension =>
-      val upstream = mocks.BinaryResponse(msgNull)
-      val outputStream = new mocks.ByteArrayServletOutputStream
-      val resp = outputStream.responseFor
-
-      TileService(Unused).processResponse(Unused, ext)(upstream)(resp)
-
-      verify(resp).setStatus(ScInternalServerError)
-
-      outputStream.getLowStr must include ("unable to parse binary stream")
-    }
-  }
-
-  test("Invalid `geometry_index`s are rejected when unpacking") {
-    import gen.Extensions._
-
-    forAll { (idx: Int, ext: Extension) =>
-      whenever (idx < 0) {
-        val upstream = mocks.BinaryResponse(Map("geometry_index" -> -1), Seq.empty)
-        val outputStream = new mocks.ByteArrayServletOutputStream
-        val resp = outputStream.responseFor
-
-        val expected = Success(JNull -> Iterator.empty)
-
-        TileService(Unused).processResponse(Unused, ext)(upstream)(resp)
-
-        verify(resp).setStatus(ScInternalServerError)
-
-        outputStream.getLowStr must include ("header error")
       }
     }
   }

@@ -4,8 +4,7 @@ scalaVersion := "2.10.4"
 
 resolvers ++= Seq(
   "socrata maven" at "https://repository-socrata-oss.forge.cloudbees.com/release",
-  "ecc" at "https://github.com/ElectronicChartCentre/ecc-mvn-repo/raw/master/releases",
-  "velvia maven" at "http://dl.bintray.com/velvia/maven"
+  "ecc" at "https://github.com/ElectronicChartCentre/ecc-mvn-repo/raw/master/releases"
 )
 
 libraryDependencies ++= Seq(
@@ -18,7 +17,6 @@ libraryDependencies ++= Seq(
   "commons-codec"            % "commons-codec"            % "1.10",
   "commons-io"               % "commons-io"               % "2.4",
   "no.ecc.vectortile"        % "java-vector-tile"         % "1.0.1",
-  "org.velvia"              %% "msgpack4s"                % "0.4.2",
   "org.apache.curator"       % "curator-x-discovery"      % "2.7.0"
 )
 

@@ -24,13 +24,6 @@ trait TestBase
     FeatureJson(attributesAsJvalues, point(pt))
   }
 
-  def feature(ptct: (gen.Points.ValidPoint, Int)): Feature = {
-    import gen.Points._
-
-    val (pt, ct) = ptct
-    feature(pt, count=ct)
-  }
-
   def feature(pt: (Int, Int),
               count: Int = 1,
               attributes: Map[String, String] = Map.empty): Feature = {
@@ -39,6 +32,8 @@ trait TestBase
   }
 
   def encode(s: String): String = JString(s).toString
+
+  def uniq(objs: AnyRef*): Boolean = Set(objs: _*).size == objs.size
 
   def point(pt: (Int, Int)): Point = {
     val (x, y) = pt
