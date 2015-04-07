@@ -14,12 +14,13 @@ import com.rojoma.json.v3.codec.JsonEncode.toJValue
 import com.rojoma.json.v3.interpolation._
 import com.rojoma.json.v3.io.JsonReader
 import com.rojoma.json.v3.io.JsonReaderException
+import com.rojoma.simplearm.v2.using
 import com.vividsolutions.jts.geom.GeometryFactory
 import com.vividsolutions.jts.io.WKBReader
 import org.apache.commons.io.IOUtils
 import org.slf4j.{Logger, LoggerFactory, MDC}
-import org.velvia.{MsgPack, InvalidMsgPackDataException}
 import org.velvia.MsgPackUtils._
+import org.velvia.{MsgPack, InvalidMsgPackDataException}
 
 import com.socrata.thirdparty.curator.CuratedServiceClient
 import com.socrata.http.client.{RequestBuilder, Response}
@@ -218,21 +219,19 @@ object TileService {
   }
 
   private[services] def soqlUnpackFeatures(resp: Response): Try[(JValue, Iterator[FeatureJson])] = {
-    val dis = new DataInputStream(resp.inputStream(Long.MaxValue))
-    // TODO: use rjmac simple-arm, Try to make code prettier?
-    try {
-      val headers = MsgPack.unpack(dis, MsgPack.UNPACK_RAW_AS_STRING).asInstanceOf[Map[String, Any]]
-      headers.asInt("geometry_index") match {
-        case geomIndex if geomIndex < 0 => Failure(InvalidSoqlPackException(headers))
-        case geomIndex => Success(JNull -> new FeatureJsonIterator(reader, dis, geomIndex))
+    using(new DataInputStream(resp.inputStream(Long.MaxValue))) { dis =>
+      try {
+        val headers = MsgPack.unpack(dis, MsgPack.UNPACK_RAW_AS_STRING).asInstanceOf[Map[String, Any]]
+        headers.asInt("geometry_index") match {
+          case geomIndex if geomIndex < 0 => Failure(InvalidSoqlPackException(headers))
+          case geomIndex => Success(JNull -> new FeatureJsonIterator(reader, dis, geomIndex))
+        }
+      } catch {
+        case _: InvalidMsgPackDataException => Failure(InvalidSoqlPackException(Map.empty))
+        case _: ClassCastException =>          Failure(InvalidSoqlPackException(Map.empty))
+        case _: NoSuchElementException =>      Failure(InvalidSoqlPackException(Map.empty))
+        case _: NullPointerException =>        Failure(InvalidSoqlPackException(Map.empty))
       }
-    } catch {
-      case _: InvalidMsgPackDataException => Failure(InvalidSoqlPackException(Map.empty))
-      case _: ClassCastException =>          Failure(InvalidSoqlPackException(Map.empty))
-      case _: NoSuchElementException =>      Failure(InvalidSoqlPackException(Map.empty))
-      case _: NullPointerException =>        Failure(InvalidSoqlPackException(Map.empty))
-    } finally {
-      dis.close()
     }
   }
 
