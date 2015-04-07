@@ -33,7 +33,7 @@ import com.socrata.thirdparty.geojson.{GeoJson, FeatureCollectionJson, FeatureJs
 import TileService._
 import exceptions._
 import util.TileEncoder.Feature
-import util.{HeaderFilter, QuadTile, TileEncoder}
+import util.{HeaderFilter, FeatureJsonIterator, QuadTile, TileEncoder}
 
 /** Service that provides the actual tiles.
   *
@@ -171,6 +171,7 @@ object TileService {
                             HttpServletResponse.SC_INTERNAL_SERVER_ERROR,
                             HttpServletResponse.SC_NOT_IMPLEMENTED,
                             HttpServletResponse.SC_SERVICE_UNAVAILABLE)
+  private val reader = new WKBReader
 
   private[services] def echoResponse(resp: Response): HttpResponse = {
     val jValue =
@@ -217,25 +218,13 @@ object TileService {
   }
 
   private[services] def soqlUnpackFeatures(resp: Response): Try[(JValue, Iterator[FeatureJson])] = {
-    val reader = new WKBReader
     val dis = new DataInputStream(resp.inputStream(Long.MaxValue))
     // TODO: use rjmac simple-arm, Try to make code prettier?
     try {
       val headers = MsgPack.unpack(dis, MsgPack.UNPACK_RAW_AS_STRING).asInstanceOf[Map[String, Any]]
       headers.asInt("geometry_index") match {
         case geomIndex if geomIndex < 0 => Failure(InvalidSoqlPackException(headers))
-        case geomIndex =>
-          val featureJsonIt = new Iterator[FeatureJson] {
-            def hasNext: Boolean = dis.available > 0
-            def next(): FeatureJson = {
-              val row = MsgPack.unpack(dis, 0).asInstanceOf[Seq[Any]]
-              val geom = reader.read(row(geomIndex).asInstanceOf[Array[Byte]])
-              // TODO: parse other columns as properties.  For now just skip it
-              FeatureJson(Map(), geom)
-            }
-          }
-
-          Success(JNull -> featureJsonIt)
+        case geomIndex => Success(JNull -> new FeatureJsonIterator(reader, dis, geomIndex))
       }
     } catch {
       case _: InvalidMsgPackDataException => Failure(InvalidSoqlPackException(Map.empty))
