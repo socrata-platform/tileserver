@@ -14,7 +14,7 @@ import com.rojoma.json.v3.codec.JsonEncode.toJValue
 import com.rojoma.json.v3.interpolation._
 import com.rojoma.json.v3.io.JsonReader
 import com.rojoma.json.v3.io.JsonReaderException
-import com.rojoma.simplearm.v2.using
+import com.rojoma.simplearm.v2.{using, ResourceScope}
 import com.vividsolutions.jts.geom.GeometryFactory
 import com.vividsolutions.jts.io.WKBReader
 import org.apache.commons.io.IOUtils
@@ -83,7 +83,8 @@ case class TileService(client: CuratedServiceClient) extends SimpleResource {
   }
 
   private[services] def processResponse(tile: QuadTile,
-                                        ext: String): Callback =
+                                        ext: String,
+                                        rs: ResourceScope): Callback =
   { resp: Response =>
     def createResponse(parsed: (JValue, Iterator[FeatureJson])): HttpResponse = {
       val (jValue, features) = parsed
@@ -104,7 +105,7 @@ case class TileService(client: CuratedServiceClient) extends SimpleResource {
     lazy val result = resp.resultCode match {
       case ScOk =>
         val isGeoJsonResponse = Response.acceptGeoJson(resp.contentType)
-        val features = if (isGeoJsonResponse) geoJsonFeatures _ else soqlUnpackFeatures _
+        val features = if (isGeoJsonResponse) geoJsonFeatures _ else soqlUnpackFeatures(rs)
         features(resp).map(createResponse).recover(handleErrors).get
       case ScNotModified => NotModified
       case _ => echoResponse(resp)
@@ -131,7 +132,7 @@ case class TileService(client: CuratedServiceClient) extends SimpleResource {
                  params,
                  // Right now soqlpack queries won't work on non-geom columns
                  !req.queryParameters.contains("$select"),
-                 processResponse(tile, ext))
+                 processResponse(tile, ext, req.resourceScope))
     } recover {
       case e => fatal("Unknown error", e)
     } get
@@ -218,20 +219,21 @@ object TileService {
     }
   }
 
-  private[services] def soqlUnpackFeatures(resp: Response): Try[(JValue, Iterator[FeatureJson])] = {
-    using(new DataInputStream(resp.inputStream(Long.MaxValue))) { dis =>
-      try {
-        val headers = MsgPack.unpack(dis, MsgPack.UNPACK_RAW_AS_STRING).asInstanceOf[Map[String, Any]]
-        headers.asInt("geometry_index") match {
-          case geomIndex if geomIndex < 0 => Failure(InvalidSoqlPackException(headers))
-          case geomIndex => Success(JNull -> new FeatureJsonIterator(reader, dis, geomIndex))
-        }
-      } catch {
-        case _: InvalidMsgPackDataException => Failure(InvalidSoqlPackException(Map.empty))
-        case _: ClassCastException =>          Failure(InvalidSoqlPackException(Map.empty))
-        case _: NoSuchElementException =>      Failure(InvalidSoqlPackException(Map.empty))
-        case _: NullPointerException =>        Failure(InvalidSoqlPackException(Map.empty))
+  private[services] def soqlUnpackFeatures(rs: ResourceScope):
+      Response => Try[(JValue, Iterator[FeatureJson])] = { resp: Response =>
+    val dis = rs.open(new DataInputStream(resp.inputStream(Long.MaxValue)))
+
+    try {
+      val headers = MsgPack.unpack(dis, MsgPack.UNPACK_RAW_AS_STRING).asInstanceOf[Map[String, Any]]
+      headers.asInt("geometry_index") match {
+        case geomIndex if geomIndex < 0 => Failure(InvalidSoqlPackException(headers))
+        case geomIndex => Success(JNull -> new FeatureJsonIterator(reader, dis, geomIndex))
       }
+    } catch {
+      case _: InvalidMsgPackDataException => Failure(InvalidSoqlPackException(Map.empty))
+      case _: ClassCastException =>          Failure(InvalidSoqlPackException(Map.empty))
+      case _: NoSuchElementException =>      Failure(InvalidSoqlPackException(Map.empty))
+      case _: NullPointerException =>        Failure(InvalidSoqlPackException(Map.empty))
     }
   }
 
