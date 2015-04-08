@@ -9,7 +9,7 @@ import javax.servlet.http.HttpServletResponse.{SC_OK => ScOk}
 import scala.util.control.NoStackTrace
 import scala.util.{Failure, Success}
 
-import com.rojoma.json.v3.ast.{JValue, JNull}
+import com.rojoma.json.v3.ast.{JValue, JObject, JString, JNull}
 import com.rojoma.json.v3.interpolation._
 import com.rojoma.simplearm.v2.{using, ResourceScope}
 import com.socrata.http.server.util.RequestId.{RequestId, ReqIdHeader}
@@ -559,6 +559,8 @@ class TileServiceTest extends TestBase with UnusedSugar with MockitoSugar {
     import gen.Points._
 
     val writer = new WKBWriter()
+    val geoIndexKey = "geometry_index"
+    val expectedJson = JObject(Map(geoIndexKey -> JString("0")))
 
     forAll { pts: Seq[ValidPoint] =>
       val rows = pts.map { pt =>
@@ -566,7 +568,7 @@ class TileServiceTest extends TestBase with UnusedSugar with MockitoSugar {
         Seq(writer.write(geom))
       }
 
-      val upstream = mocks.BinaryResponse(Map("geometry_index" -> 0), rows)
+      val upstream = mocks.BinaryResponse(Map(geoIndexKey -> 0), rows)
 
       using(new ResourceScope()) { rs =>
         val maybeResult = TileService.soqlUnpackFeatures(rs)(upstream)
@@ -575,7 +577,7 @@ class TileServiceTest extends TestBase with UnusedSugar with MockitoSugar {
         val (jVal, iter) = maybeResult.get
         val features = iter.toSeq
 
-        jVal must equal (JNull)
+        jVal must equal (expectedJson)
         features must have length (pts.size)
         features must equal (pts.map(fJson(_)))
       }

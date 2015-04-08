@@ -9,7 +9,7 @@ import javax.servlet.http.HttpServletResponse.{SC_NOT_MODIFIED => ScNotModified}
 import javax.servlet.http.HttpServletResponse.{SC_OK => ScOk}
 import scala.util.{Try, Success, Failure}
 
-import com.rojoma.json.v3.ast.{JValue, JNull}
+import com.rojoma.json.v3.ast._
 import com.rojoma.json.v3.codec.JsonEncode.toJValue
 import com.rojoma.json.v3.interpolation._
 import com.rojoma.json.v3.io.JsonReader
@@ -225,9 +225,10 @@ object TileService {
 
     try {
       val headers = MsgPack.unpack(dis, MsgPack.UNPACK_RAW_AS_STRING).asInstanceOf[Map[String, Any]]
+      val jsonHeaders = JObject(headers.mapValues(v => JString(v.toString)))
       headers.asInt("geometry_index") match {
         case geomIndex if geomIndex < 0 => Failure(InvalidSoqlPackException(headers))
-        case geomIndex => Success(JNull -> new FeatureJsonIterator(reader, dis, geomIndex))
+        case geomIndex => Success(jsonHeaders -> new FeatureJsonIterator(reader, dis, geomIndex))
       }
     } catch {
       case _: InvalidMsgPackDataException => Failure(InvalidSoqlPackException(Map.empty))
