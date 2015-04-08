@@ -28,5 +28,10 @@ trait UnusedSugar {
   // Can't be Map[K, V] because then it matches K => V.
   implicit def unusedToMap[T](u: UnusedValue): Map[String, T] = Map.empty
   implicit def unusedToSet[T](u: UnusedValue): Set[T] = Set.empty
-  implicit def unusedToResourceScope(u: UnusedValue): ResourceScope = new ResourceScope()
+
+  implicit def unusedToResourceScope(u: UnusedValue): ResourceScope = UnusedSugar.rs
+}
+
+object UnusedSugar {
+  val rs = new ResourceScope()
 }

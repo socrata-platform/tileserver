@@ -15,7 +15,8 @@ import util.TileEncoder.Feature
 trait TestBase
     extends FunSuite
     with org.scalatest.MustMatchers
-    with PropertyChecks {
+    with PropertyChecks
+    with BeforeAndAfterAll {
   val GeomFactory = new GeometryFactory()
 
   def fJson(pt: (Int, Int),
@@ -56,4 +57,6 @@ trait TestBase
 
   // If need be rename to includeSlice.
   def includeSlice[T](expected: Array[T]): Matcher[Array[T]] = new ArraySliceIncludeMatcher(expected)
+
+  override def afterAll = UnusedSugar.rs.close()
 }
