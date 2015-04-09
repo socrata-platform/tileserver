@@ -18,7 +18,7 @@ libraryDependencies ++= Seq(
   "commons-codec"            % "commons-codec"            % "1.10",
   "commons-io"               % "commons-io"               % "2.4",
   "no.ecc.vectortile"        % "java-vector-tile"         % "1.0.1",
-  "org.velvia"              %% "msgpack4s"                % "0.4.2",
+  "org.velvia"              %% "msgpack4s"                % "0.4.3",
   "org.apache.curator"       % "curator-x-discovery"      % "2.7.0"
 )
 
