@@ -16,7 +16,6 @@ import com.rojoma.json.v3.io.JsonReader
 import com.rojoma.json.v3.io.JsonReaderException
 import com.rojoma.simplearm.v2.{using, ResourceScope}
 import com.vividsolutions.jts.geom.GeometryFactory
-import com.vividsolutions.jts.io.WKBReader
 import org.apache.commons.io.IOUtils
 import org.slf4j.{Logger, LoggerFactory, MDC}
 import org.velvia.MsgPackUtils._
@@ -173,8 +172,6 @@ object TileService {
                             HttpServletResponse.SC_INTERNAL_SERVER_ERROR,
                             HttpServletResponse.SC_NOT_IMPLEMENTED,
                             HttpServletResponse.SC_SERVICE_UNAVAILABLE)
-  private val reader = new WKBReader
-
   private[services] def echoResponse(resp: Response): HttpResponse = {
     val jValue =
       Try(JsonReader.fromString(IOUtils.toString(resp.inputStream(), UTF_8)))
@@ -228,7 +225,7 @@ object TileService {
       val jsonHeaders = JObject(headers.mapValues(v => JString(v.toString)))
       headers.asInt("geometry_index") match {
         case geomIndex if geomIndex < 0 => Failure(InvalidSoqlPackException(headers))
-        case geomIndex => Success(jsonHeaders -> new FeatureJsonIterator(reader, dis, geomIndex))
+        case geomIndex => Success(jsonHeaders -> new FeatureJsonIterator(dis, geomIndex))
       }
     } catch {
       case _: InvalidMsgPackDataException => Failure(InvalidSoqlPackException(Map.empty))

@@ -15,10 +15,10 @@ import org.velvia.MsgPackUtils._
  * Note that there is no good way to detect the end of a stream, other than to try reading from
  * it in hasNext and cache the results.....
  */
-class FeatureJsonIterator(reader: WKBReader,
-                          dis: DataInputStream,
+class FeatureJsonIterator(dis: DataInputStream,
                           geomIndex: Int) extends Iterator[FeatureJson] {
   private val logger = LoggerFactory.getLogger(getClass)
+  private val reader = new WKBReader
 
   var nextRow: Option[Seq[Any]] = None
   var rowNum = 0
