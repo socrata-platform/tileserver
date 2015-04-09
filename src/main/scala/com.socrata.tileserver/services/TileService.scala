@@ -249,24 +249,20 @@ object TileService {
 
   private[services] def rollup(tile: QuadTile,
                                features: => Iterator[FeatureJson]): Set[Feature] = {
-    val coords = features map { f =>
-      (f.geometry.getCoordinate, f.properties)
-    }
-
-    val maybePixels = coords map { case (coord, props) =>
-      (tile.px(coord), props)
+    val maybePixels = features map { f =>
+      (tile.px(f.geometry.getCoordinate), f.properties)
     }
 
     val pixels = maybePixels collect { case (Some(px), props) =>
       (px, props)
     }
 
-    val points = pixels.toSeq groupBy { case (px, props) =>
-      (geomFactory.createPoint(px), props)
-    }
-
-    val ptCounts = points map {
-      case (k, v) => (k, v.size)
+    // So far, pixels is still an Iterator. pixels foreach is a streaming way to
+    // do a grouping count without materializing all the pixels/geometries and producing
+    // multiple intermediate objects, so we can save on memory use.
+    val ptCounts = new collection.mutable.HashMap[Feature, Int].withDefaultValue(0)
+    pixels foreach { case (px, props) =>
+      ptCounts((geomFactory.createPoint(px), props)) += 1
     }
 
     ptCounts.map { case ((pt, props), count) =>
