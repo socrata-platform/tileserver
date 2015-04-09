@@ -58,5 +58,5 @@ trait TestBase
   // If need be rename to includeSlice.
   def includeSlice[T](expected: Array[T]): Matcher[Array[T]] = new ArraySliceIncludeMatcher(expected)
 
-  override def afterAll = UnusedSugar.rs.close()
+  override def afterAll: Unit = UnusedSugar.rs.close()
 }

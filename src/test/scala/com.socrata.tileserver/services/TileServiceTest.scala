@@ -584,6 +584,33 @@ class TileServiceTest extends TestBase with UnusedSugar with MockitoSugar {
     }
   }
 
+  test("Invalid WKB is handled correctly as parsing error") {
+    import gen.Extensions._
+    import gen.Points._
+
+    val writer = new WKBWriter()
+    val geoIndexKey = "geometry_index"
+    val expectedJson = JObject(Map(geoIndexKey -> JString("0")))
+    val invalidWKB = Array[Byte](3, 2, 1, 0)
+
+    forAll { pts: Seq[ValidPoint] =>
+      val rows = pts.map { pt =>
+        val (geom, props) = feature(pt)
+        Seq(writer.write(geom))
+      }
+
+      val upstream = mocks.BinaryResponse(Map(geoIndexKey -> 0), rows, Some(invalidWKB))
+      val outputStream = new mocks.ByteArrayServletOutputStream
+      val resp = outputStream.responseFor
+
+      TileService(Unused).processResponse(Unused, "pbf", Unused)(upstream)(resp)
+
+      verify(resp).setStatus(ScInternalServerError)
+
+      outputStream.getLowStr must include ("invalid wkb geometry")
+    }
+  }
+
   test("TODO: features are unpacked with properties") (pending)
 
   test("Invalid headers are rejected when unpacking") {
@@ -598,6 +625,7 @@ class TileServiceTest extends TestBase with UnusedSugar with MockitoSugar {
 
       verify(resp).setStatus(ScInternalServerError)
 
+      outputStream.getLowStr must include ("soqlpack")
       outputStream.getLowStr must include ("unable to parse binary stream")
     }
   }

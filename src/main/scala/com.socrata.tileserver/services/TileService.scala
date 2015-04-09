@@ -16,6 +16,7 @@ import com.rojoma.json.v3.io.JsonReader
 import com.rojoma.json.v3.io.JsonReaderException
 import com.rojoma.simplearm.v2.{using, ResourceScope}
 import com.vividsolutions.jts.geom.GeometryFactory
+import com.vividsolutions.jts.io.ParseException
 import org.apache.commons.io.IOUtils
 import org.slf4j.{Logger, LoggerFactory, MDC}
 import org.velvia.MsgPackUtils._
@@ -77,6 +78,10 @@ case class TileService(client: CuratedServiceClient) extends SimpleResource {
       fatal("Invalid JSON returned from underlying service", readerEx)
     case geoJsonEx: InvalidGeoJsonException =>
       fatal("Invalid Geo-JSON returned from underlying service", geoJsonEx)
+    case soqlPackEx: InvalidSoqlPackException =>
+      fatal("Invalid SoQLPack returned from underlying service", soqlPackEx)
+    case jtsEx: ParseException =>
+      fatal("Invalid WKB geometry returned from underlying service", jtsEx)
     case unknown =>
       fatal("Unknown error", unknown)
   }
