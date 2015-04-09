@@ -15,13 +15,21 @@ import util.TileEncoder.Feature
 trait TestBase
     extends FunSuite
     with org.scalatest.MustMatchers
-    with PropertyChecks {
+    with PropertyChecks
+    with BeforeAndAfterAll {
   val GeomFactory = new GeometryFactory()
 
   def fJson(pt: (Int, Int),
             attributes: Map[String, String] = Map.empty): FeatureJson = {
     val attributesAsJvalues = attributes map { case (k, v) => (k, toJValue(v)) }
     FeatureJson(attributesAsJvalues, point(pt))
+  }
+
+  def feature(ptct: (gen.Points.ValidPoint, Int)): Feature = {
+    import gen.Points._
+
+    val (pt, ct) = ptct
+    feature(pt, count=ct)
   }
 
   def feature(pt: (Int, Int),
@@ -32,8 +40,6 @@ trait TestBase
   }
 
   def encode(s: String): String = JString(s).toString
-
-  def uniq(objs: AnyRef*): Boolean = Set(objs: _*).size == objs.size
 
   def point(pt: (Int, Int)): Point = {
     val (x, y) = pt
@@ -51,4 +57,6 @@ trait TestBase
 
   // If need be rename to includeSlice.
   def includeSlice[T](expected: Array[T]): Matcher[Array[T]] = new ArraySliceIncludeMatcher(expected)
+
+  override def afterAll: Unit = UnusedSugar.rs.close()
 }

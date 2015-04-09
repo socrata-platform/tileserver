@@ -2,11 +2,12 @@ package com.socrata.tileserver
 
 import scala.language.implicitConversions
 
+import com.rojoma.simplearm.v2.ResourceScope
 import org.mockito.Mockito.mock
 
-import com.socrata.thirdparty.curator.CuratedServiceClient
 import com.socrata.http.client.Response
 import com.socrata.http.server.{HttpRequest, HttpResponse}
+import com.socrata.thirdparty.curator.CuratedServiceClient
 
 trait UnusedSugar {
   trait UnusedValue
@@ -27,4 +28,10 @@ trait UnusedSugar {
   // Can't be Map[K, V] because then it matches K => V.
   implicit def unusedToMap[T](u: UnusedValue): Map[String, T] = Map.empty
   implicit def unusedToSet[T](u: UnusedValue): Set[T] = Set.empty
+
+  implicit def unusedToResourceScope(u: UnusedValue): ResourceScope = UnusedSugar.rs
+}
+
+object UnusedSugar {
+  val rs = new ResourceScope()
 }
