@@ -10,6 +10,7 @@ import scala.util.control.NoStackTrace
 import scala.util.{Failure, Success}
 
 import com.rojoma.json.v3.ast.{JValue, JObject, JString, JNull}
+import com.rojoma.json.v3.codec.JsonEncode
 import com.rojoma.json.v3.interpolation._
 import com.rojoma.simplearm.v2.{using, ResourceScope}
 import com.socrata.http.server.util.RequestId.{RequestId, ReqIdHeader}
@@ -536,13 +537,12 @@ class TileServiceTest extends TestBase with UnusedSugar with MockitoSugar {
     }
   }
 
-
-
   test("An empty message is successfully unpacked") {
     import gen.Extensions._
 
     forAll { (ext: Extension) =>
-      val upstream = mocks.BinaryResponse(Map("geometry_index" -> 0), Seq.empty)
+      val header: Map[String, Int] = Map("geometry_index" -> Unused)
+      val upstream = mocks.BinaryResponse(header, Seq.empty)
       val outputStream = new mocks.ByteArrayServletOutputStream
       val resp = outputStream.responseFor
 
@@ -550,12 +550,15 @@ class TileServiceTest extends TestBase with UnusedSugar with MockitoSugar {
 
       TileService(Unused).processResponse(Unused, ext, Unused)(upstream)(resp)
 
-      // TODO: Figure out asserts.
+      verify(resp).setStatus(ScOk)
+
+      if (ext != Json) {
+        outputStream.getString must be ('empty)
+      }
     }
   }
 
   test("Features are successfully unpacked") {
-    import gen.Extensions._
     import gen.Points._
 
     val writer = new WKBWriter()
@@ -585,7 +588,6 @@ class TileServiceTest extends TestBase with UnusedSugar with MockitoSugar {
   }
 
   test("Invalid WKB is handled correctly as parsing error") {
-    import gen.Extensions._
     import gen.Points._
 
     val writer = new WKBWriter()

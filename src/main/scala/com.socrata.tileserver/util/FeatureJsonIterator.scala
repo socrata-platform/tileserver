@@ -29,7 +29,9 @@ class FeatureJsonIterator(dis: DataInputStream,
   // NOTE: if IOException is raised during this, make sure the stream hasn't been closed prior
   // to reading from it.
   def hasNext: Boolean = {
-    if (!nextRow.isDefined) {
+    // $COVERAGE-OFF$ For some reason scoverage can't handle this line.
+    if (nextRow.isEmpty) {
+      // $COVERAGE-ON$
       try {
         logger.trace("Unpacking row {}", rowNum)
         nextRow = Some(MsgPack.unpack(dis, 0).asInstanceOf[Seq[Any]])
@@ -38,9 +40,12 @@ class FeatureJsonIterator(dis: DataInputStream,
         case e: InvalidMsgPackDataException =>
           logger.debug("Probably reached end of data at rowNum {}, got {}", rowNum, e.getMessage)
           nextRow = None
+        // $COVERAGE-OFF$
+        // This case should ideally never happen, and is caught at a higher level.
         case e: Exception =>
           logger.error("Unexpected exception at rowNum {}", rowNum, e)
           throw e
+          // $COVERAGE-ON$
       }
     }
     nextRow.isDefined
