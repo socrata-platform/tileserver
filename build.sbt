@@ -10,16 +10,23 @@ resolvers ++= Seq(
 
 libraryDependencies ++= Seq(
   "ch.qos.logback"           % "logback-classic"          % "1.1.2",
+  "com.rojoma"              %% "rojoma-json-v3"           % "3.3.0",
+  "com.rojoma"              %% "rojoma-json-v3-jackson"   % "1.0.0" excludeAll(
+    ExclusionRule(organization = "com.rojoma")),
   "com.rojoma"              %% "simple-arm-v2"            % "2.1.0",
-  "com.socrata"             %% "socrata-http-client"      % "3.3.0",
-  "com.socrata"             %% "socrata-http-jetty"       % "3.3.0",
+  "com.socrata"             %% "socrata-http-client"      % "3.3.0" excludeAll(
+    ExclusionRule(organization = "com.rojoma"),
+    ExclusionRule(organization = "com.socrata", name = "socrata-thirdparty-utils_2.10")),
+  "com.socrata"             %% "socrata-http-jetty"       % "3.3.0" excludeAll(
+    ExclusionRule(organization = "com.rojoma"),
+    ExclusionRule(organization = "com.socrata", name = "socrata-thirdparty-utils_2.10")),
   "com.socrata"             %% "socrata-thirdparty-utils" % "3.0.0",
   "com.typesafe"             % "config"                   % "1.2.1",
   "commons-codec"            % "commons-codec"            % "1.10",
   "commons-io"               % "commons-io"               % "2.4",
   "no.ecc.vectortile"        % "java-vector-tile"         % "1.0.1",
-  "org.velvia"              %% "msgpack4s"                % "0.4.3",
-  "org.apache.curator"       % "curator-x-discovery"      % "2.7.0"
+  "org.apache.curator"       % "curator-x-discovery"      % "2.7.0",
+  "org.velvia"              %% "msgpack4s"                % "0.4.3"
 )
 
 libraryDependencies ++= Seq(
@@ -52,13 +59,13 @@ Revolver.settings
 // Make "package" and "assembly" depend on "scalastyle".
 lazy val styleTask = taskKey[Unit]("a task that wraps 'scalastyle' with no input parameters.")
 styleTask := { val _ = (scalastyle in Compile).toTask("").value }
-(Keys.`package` in Compile) <<= (Keys.`package` in Compile) dependsOn styleTask
+  (Keys.`package` in Compile) <<= (Keys.`package` in Compile) dependsOn styleTask
 AssemblyKeys.assembly <<= AssemblyKeys.assembly dependsOn styleTask
 
 // Make "test:test" depend on "test:scalastyle"
 lazy val testStyleTask = taskKey[Unit]("a task that wraps 'test:scalastyle' with no input parameters.")
 testStyleTask := { val _ = (scalastyle in Test).toTask("").value }
-(test in Test) <<= (test in Test) dependsOn (testStyleTask)
+  (test in Test) <<= (test in Test) dependsOn (testStyleTask)
 
 // Make test:scalastyle use scalastyle-test-config.xml
 (scalastyleConfig in Test) := baseDirectory.value / "scalastyle-test-config.xml"
