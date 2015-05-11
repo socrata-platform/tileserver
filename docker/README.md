@@ -1,9 +1,9 @@
 # TileServer Docker Config #
 To build the image, run:
-    `docker build -t spandex-http .`
+    `docker build -t tileserver .`
 
 Or, if you want to replace old versions:
-    `docker build --rm -t spandex-http .`
+    `docker build --rm -t tileserver .`
 
 ## Required Environment Variables ##
 * `ZOOKEEPER_ENSEMBLE` - A list of hostnames and ports of zookeeper instances. eg: ["10.0.0.1:2181", "10.0.0.2:2818"]
