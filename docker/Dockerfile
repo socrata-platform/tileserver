@@ -14,6 +14,8 @@ EXPOSE 2048
 ENV JAVA_XMX 512m
 ENV MIN_THREADS 3
 ENV MAX_THREADS 5               # Threads currently use about 100m each.
+ENV JMX_PORT 2049
+EXPOSE 2049
 
 # Log Settings.
 ENV LOG_LEVEL info
