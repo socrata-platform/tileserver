@@ -1,4 +1,4 @@
-FROM socrata/java
+FROM socrata/java8
 
 # Service specifif settings.
 ENV SERVER_NAME tileserver
