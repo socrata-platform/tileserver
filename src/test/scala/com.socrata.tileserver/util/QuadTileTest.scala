@@ -54,8 +54,8 @@ class QuadTileTest extends TestBase {
   }
 
   test("tile.px(lon, lat) maps points into pixel space") {
-    import gen.Points._
-    import gen.QuadTiles._
+    import gen.Points._ // scalastyle:ignore
+    import gen.QuadTiles._ // scalastyle:ignore
 
     forAll { (tile: QuadTile, pt: ValidPoint) =>
       val (lon, lat) = pt.onto(tile)
@@ -66,8 +66,8 @@ class QuadTileTest extends TestBase {
   }
 
   test("tile.px(Coordinate(x, y)) returns the same values as tile.px(x, y)") {
-    import gen.Points._
-    import gen.QuadTiles._
+    import gen.Points._ // scalastyle:ignore
+    import gen.QuadTiles._ // scalastyle:ignore
 
     forAll { (tile: QuadTile, pt: ValidPoint) =>
       val (lon, lat) = pt.onto(tile)
@@ -78,8 +78,8 @@ class QuadTileTest extends TestBase {
   }
 
   test("tile.px(lon, lat) does not map points that aren't on the tile.") {
-    import gen.Points._
-    import gen.QuadTiles._
+    import gen.Points._ // scalastyle:ignore
+    import gen.QuadTiles._ // scalastyle:ignore
 
     forAll { (tile: QuadTile, pt: InvalidPoint) =>
       val (lon, lat) = pt.onto(tile)
@@ -89,7 +89,7 @@ class QuadTileTest extends TestBase {
   }
 
   test("North and East edges are excluded)") {
-    import gen.QuadTiles._
+    import gen.QuadTiles._ // scalastyle:ignore
 
     forAll { tile: QuadTile =>
       tile.px(tile.west, tile.north) must be (None)
@@ -99,8 +99,8 @@ class QuadTileTest extends TestBase {
   }
 
   test("Points next to the North and East edges are included") {
-    import gen.Points._
-    import gen.QuadTiles._
+    import gen.Points._ // scalastyle:ignore
+    import gen.QuadTiles._ // scalastyle:ignore
 
     val c = Size - 1
 

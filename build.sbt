@@ -1,9 +1,6 @@
 name := "tileserver"
-organization := "com.socrata"
-scalaVersion := "2.10.4"
 
 resolvers ++= Seq(
-  "socrata maven" at "https://repository-socrata-oss.forge.cloudbees.com/release",
   "ecc" at "https://github.com/ElectronicChartCentre/ecc-mvn-repo/raw/master/releases",
   "velvia maven" at "http://dl.bintray.com/velvia/maven"
 )
@@ -31,8 +28,7 @@ libraryDependencies ++= Seq(
 
 libraryDependencies ++= Seq(
   "org.mockito"              % "mockito-core"             % "1.9.5"  % "test",
-  "org.scalacheck"          %% "scalacheck"               % "1.11.6" % "test",
-  "org.scalatest"           %% "scalatest"                % "2.2.1"  % "test"
+  "org.scalacheck"          %% "scalacheck"               % "1.11.6" % "test"
 )
 
 val TestOptionNoTraces = "-oD"
@@ -41,52 +37,8 @@ val TestOptionFullTraces = "-oDF"
 
 testOptions in Test += Tests.Argument(TestFrameworks.ScalaTest, TestOptionNoTraces)
 
-com.socrata.cloudbeessbt.SocrataCloudbeesSbt.socrataSettings(assembly = true)
-
-// WARNING: -optimize is not recommended with akka, should that come up.
-// NOTE: Having to remove -Xfatal-warnings because it chokes due to inliner issues.
-// This really bothers me.
-scalacOptions ++= Seq("-optimize",
-                      "-deprecation",
-                      "-feature",
-                      "-language:postfixOps",
-                      "-Xlint",
-                      "-Xfatal-warnings")
-
 // Setup revolver.
 Revolver.settings
 
-// Make "package" and "assembly" depend on "scalastyle".
-lazy val styleTask = taskKey[Unit]("a task that wraps 'scalastyle' with no input parameters.")
-styleTask := { val _ = (scalastyle in Compile).toTask("").value }
-  (Keys.`package` in Compile) <<= (Keys.`package` in Compile) dependsOn styleTask
-AssemblyKeys.assembly <<= AssemblyKeys.assembly dependsOn styleTask
-
-// Make "test:test" depend on "test:scalastyle"
-lazy val testStyleTask = taskKey[Unit]("a task that wraps 'test:scalastyle' with no input parameters.")
-testStyleTask := { val _ = (scalastyle in Test).toTask("").value }
-  (test in Test) <<= (test in Test) dependsOn (testStyleTask)
-
-// Make test:scalastyle use scalastyle-test-config.xml
-(scalastyleConfig in Test) := baseDirectory.value / "scalastyle-test-config.xml"
-
-// Generate com.socrata.tileserver.BuildInfo
-buildInfoSettings
-sourceGenerators in Compile <+= buildInfo
-buildInfoKeys := Seq[BuildInfoKey](name,
-                                   version,
-                                   scalaVersion,
-                                   sbtVersion,
-                                   BuildInfoKey.action("buildTime") { System.currentTimeMillis })
-
-buildInfoPackage := organization.value + "." + name.value
-
-// Disable scoverage highlighting required for scala version below 2.11.1
-ScoverageSbtPlugin.ScoverageKeys.coverageHighlighting := false
-
-// Warn on low coverage.
+// Require full coverage.
 ScoverageSbtPlugin.ScoverageKeys.coverageMinimum := 100
-
-// Fail on low coverage.
-// This only fails cloudbees, as jenkins.sea1 does not run scoverage.
-ScoverageSbtPlugin.ScoverageKeys.coverageFailOnMinimum := true

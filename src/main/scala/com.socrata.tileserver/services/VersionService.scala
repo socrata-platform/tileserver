@@ -4,6 +4,7 @@ package services
 import org.joda.time.DateTime
 import com.rojoma.json.v3.codec.JsonEncode
 import org.slf4j.LoggerFactory
+import buildinfo.BuildInfo
 
 import com.socrata.http.server.implicits.httpResponseToChainedResponse
 import com.socrata.http.server.HttpService

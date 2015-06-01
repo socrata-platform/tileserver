@@ -32,14 +32,13 @@ package object gen {
       statusCode <- Gen.oneOf(knownStatusCodes.toSeq)
     } yield (KnownStatusCode(statusCode))
 
-    // scalastyle:off magic.number
     private val unknownScGen = for {
-      statusCode <- Gen.choose(100, 599) suchThat { statusCode: Int =>
+      statusCode <- Gen.choose(100, 599) suchThat { statusCode: Int => // scalastyle:ignore
         !knownStatusCodes(statusCode) &&
           statusCode != SC_OK && statusCode != SC_NOT_MODIFIED
       }
     } yield (UnknownStatusCode(statusCode))
-    // scalastyle:on magic.number
+
     implicit val knownSc: Arbitrary[KnownStatusCode] = Arbitrary(knownScGen)
     implicit val unknownSc: Arbitrary[UnknownStatusCode] = Arbitrary(unknownScGen)
   }
@@ -139,9 +138,8 @@ package object gen {
   }
 
   object QuadTiles {
-    import util.QuadTile
+    import util.QuadTile // scalastyle:ignore
 
-    // scalastyle:off magic.number
     private val tileGen = for {
       zoom <- Gen.choose(1, 20)
       max = 1 << zoom - 1

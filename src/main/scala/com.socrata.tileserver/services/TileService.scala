@@ -46,7 +46,7 @@ case class TileService(client: CuratedServiceClient) extends SimpleResource {
   type Callback = Response => HttpResponse
 
   /** The types (file extensions) supported by this endpoint. */
-  val types: Set[String] = Set("pbf", "bpbf", "json", "txt")
+  val types: Set[String] = Set("pbf", "bpbf", "json", "txt") // scalastyle:ignore
 
   // Call to the underlying service (Core)
   // Note: this can either pull the points as .geojson or .soqlpack
@@ -82,8 +82,8 @@ case class TileService(client: CuratedServiceClient) extends SimpleResource {
       fatal("Invalid SoQLPack returned from underlying service", soqlPackEx)
     case jtsEx: ParseException =>
       fatal("Invalid WKB geometry returned from underlying service", jtsEx)
-    case unknown =>
-      fatal("Unknown error", unknown)
+    case unknown: Any =>
+      fatal("Unknown error", unknown) // scalastyle:ignore
   }
 
   private[services] def processResponse(tile: QuadTile,
@@ -98,7 +98,7 @@ case class TileService(client: CuratedServiceClient) extends SimpleResource {
       val enc = TileEncoder(rollup(tile, features))
       val payload = ext match {
         case "pbf" => ContentType("application/octet-stream") ~> ContentBytes(enc.bytes)
-        case "bpbf" => Content("text/plain", enc.base64)
+        case "bpbf" => Content("text/plain", enc.base64) // scalastyle:ignore
         case "txt" => Content("text/plain", enc.toString)
         case "json" => Json(jValue)
       }
@@ -115,7 +115,7 @@ case class TileService(client: CuratedServiceClient) extends SimpleResource {
       case _ => echoResponse(resp)
     }
 
-    Header("Access-Control-Allow-Origin", "*") ~> result
+    Header("Access-Control-Allow-Origin", "*") ~> result // scalastyle:ignore
   }
 
   // Do the actual heavy lifting for the request handling.
@@ -135,11 +135,11 @@ case class TileService(client: CuratedServiceClient) extends SimpleResource {
                  identifier,
                  params,
                  // Right now soqlpack queries won't work on non-geom columns
-                 !req.queryParameters.contains("$select"),
+                 !req.queryParameters.contains("$select"), // scalastyle:ignore
                  processResponse(tile, ext, req.resourceScope))
-    } recover {
-      case e => fatal("Unknown error", e)
-    } get
+    }.recover {
+      case e: Any => fatal("Unknown error", e)
+    }.get
   }
 
   /** Handle the request.
@@ -180,9 +180,10 @@ object TileService {
   private[services] def echoResponse(resp: Response): HttpResponse = {
     val jValue =
       Try(JsonReader.fromString(IOUtils.toString(resp.inputStream(), UTF_8)))
-    val body = jValue recover {
-      case e => json"""{ message: "Failed to open inputStream", cause: ${e.getMessage}}"""
-    } get
+    val body = jValue.recover {
+      case e: Any =>
+        json"""{ message: "Failed to open inputStream", cause: ${e.getMessage}}""" // scalastyle:ignore
+    }.get
 
     logger.info(s"Proxying response: ${resp.resultCode}: $body")
 
@@ -199,7 +200,7 @@ object TileService {
     val payload = cause match {
       case e: InvalidGeoJsonException =>
         json"""{message: $message, cause: ${e.error}, invalidJson: ${e.jValue}}"""
-      case e =>
+      case e: Any =>
         json"""{message: $message, cause: ${e.getMessage}}"""
     }
 
@@ -229,8 +230,10 @@ object TileService {
       val headers = MsgPack.unpack(dis, MsgPack.UNPACK_RAW_AS_STRING).asInstanceOf[Map[String, Any]]
       val jsonHeaders = JObject(headers.mapValues(v => JString(v.toString)))
       headers.asInt("geometry_index") match {
-        case geomIndex if geomIndex < 0 => Failure(InvalidSoqlPackException(headers))
-        case geomIndex => Success(jsonHeaders -> new FeatureJsonIterator(dis, geomIndex))
+        case geomIndex: Any if geomIndex < 0 =>
+          Failure(InvalidSoqlPackException(headers))
+        case geomIndex: Any =>
+          Success(jsonHeaders -> new FeatureJsonIterator(dis, geomIndex))
       }
     } catch {
       case _: InvalidMsgPackDataException => Failure(InvalidSoqlPackException(Map.empty))
@@ -245,7 +248,7 @@ object TileService {
                                       select: String): Map[String, String] = {
     val params = req.queryParameters
     val whereParam =
-      if (params.contains("$where")) params("$where") + s" and $where" else where
+      if (params.contains("$where")) params("$where") + s" and $where" else where // scalastyle:ignore
     val selectParam =
       if (params.contains("$select")) params("$select") + s", $select" else select
 
