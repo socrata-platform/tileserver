@@ -28,8 +28,7 @@ libraryDependencies ++= Seq(
 
 libraryDependencies ++= Seq(
   "org.mockito"              % "mockito-core"             % "1.9.5"  % "test",
-  "org.scalacheck"          %% "scalacheck"               % "1.11.6" % "test",
-  "org.scalatest"           %% "scalatest"                % "2.2.4"  % "test"
+  "org.scalacheck"          %% "scalacheck"               % "1.11.6" % "test"
 )
 
 val TestOptionNoTraces = "-oD"
@@ -41,5 +40,5 @@ testOptions in Test += Tests.Argument(TestFrameworks.ScalaTest, TestOptionNoTrac
 // Setup revolver.
 Revolver.settings
 
-// Warn on low coverage.
+// Require full coverage.
 ScoverageSbtPlugin.ScoverageKeys.coverageMinimum := 100

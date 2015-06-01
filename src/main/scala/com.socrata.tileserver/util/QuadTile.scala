@@ -13,7 +13,7 @@ import CoordinateMapper.Size
   * @param zoom zoom level of the map
   */
 case class QuadTile(rawX: Int, rawY: Int, zoom: Int) {
-  /** The mapper for this zoom. **/
+  /** The mapper for this zoom. */
   val mapper = CoordinateMapper(zoom)
 
   /** The mapped TMS coordinate. */
