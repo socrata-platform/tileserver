@@ -25,9 +25,9 @@ object HeaderFilter {
       incoming(name)
     }
 
-    headerNames flatMap { name: String =>
+    headerNames.flatMap { name: String =>
       req.headers(name) map { (name, _) }
-    } toIterable
+    }.toIterable
   }
 
   def headers(resp: Response): Iterable[(String, String)] = {
@@ -35,9 +35,9 @@ object HeaderFilter {
       outgoing(name)
     }
 
-    headerNames flatMap { name: String =>
+    headerNames.flatMap { name: String =>
       resp.headers(name) map { (name, _) }
-    } toIterable
+    }.toIterable
   }
 
   def extract(resp: Response): HttpResponse =

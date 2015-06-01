@@ -31,7 +31,7 @@ class TileEncoderTest extends TestBase with MockitoSugar {
   }
 
   test("Features are encoded as bytes only if they are valid") {
-    import gen.Points._
+    import gen.Points._ // scalastyle:ignore
 
     forAll { (pt0: ValidPoint,
               pt1: ValidPoint,
@@ -56,7 +56,7 @@ class TileEncoderTest extends TestBase with MockitoSugar {
   }
 
   test("Features are encoded as base64 bytes only if they are valid") {
-    import gen.Points._
+    import gen.Points._ // scalastyle:ignore
 
     forAll { (pt0: ValidPoint,
               pt1: ValidPoint,
@@ -83,7 +83,7 @@ class TileEncoderTest extends TestBase with MockitoSugar {
 
   // Behavior is undefined for invalid features.
   test("toString includes all valid features") {
-    import gen.Points._
+    import gen.Points._ // scalastyle:ignore
 
     forAll { (pt0: ValidPoint,
               pt1: ValidPoint,

@@ -26,7 +26,7 @@ trait TestBase
   }
 
   def feature(ptct: (gen.Points.ValidPoint, Int)): Feature = {
-    import gen.Points._
+    import gen.Points._ // scalastyle:ignore
 
     val (pt, ct) = ptct
     feature(pt, count=ct)
