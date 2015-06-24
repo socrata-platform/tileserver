@@ -28,12 +28,13 @@ import com.socrata.thirdparty.geojson.FeatureJson
 import util.TileEncoder
 
 class TileServiceTest extends TestBase with UnusedSugar with MockitoSugar {
-  test("Service supports at least .pbf, .bpbf and .json") {
-    val svc = TileService(Unused)
+  test("Service supports at least .pbf, .bpbf, .json and .png") {
+    val svc = TileService(Unused, Unused)
 
     svc.types must contain ("pbf")
     svc.types must contain ("bpbf")
     svc.types must contain ("json")
+    svc.types must contain ("png")
   }
 
   test("Headers and parameters are correct when making a geo-json query") {
@@ -54,7 +55,7 @@ class TileServiceTest extends TestBase with UnusedSugar with MockitoSugar {
         query(Map(param)).
         get.builder
 
-      val client = mocks.StaticClient.withReq { request =>
+      val client = mocks.StaticCuratedClient.withReq { request =>
         val actual = request(base).builder
 
         // The assertions are here, because of weird inversion of control.
@@ -66,12 +67,12 @@ class TileServiceTest extends TestBase with UnusedSugar with MockitoSugar {
         mock[Response]
       }
 
-      TileService(client).pointQuery(reqId,
-                                     request,
-                                     id,
-                                     Map(param),
-                                     false,
-                                     Unused): Unit
+      TileService(Unused, client).pointQuery(reqId,
+                                             request,
+                                             id,
+                                             Map(param),
+                                             false,
+                                             Unused): Unit
     }
   }
 
@@ -86,7 +87,8 @@ class TileServiceTest extends TestBase with UnusedSugar with MockitoSugar {
       val upstream = mocks.HeaderResponse(Map(known, unknown))
       val resp = new mocks.ByteArrayServletOutputStream().responseFor
 
-      TileService(Unused).processResponse(Unused, ext, Unused)(upstream)(resp)
+      TileService(Unused, Unused).
+        processResponse(Unused, ext, Unused)(upstream)(resp)
 
       verify(resp).setStatus(ScOk)
       verify(resp).setHeader("Access-Control-Allow-Origin", "*")
@@ -104,7 +106,8 @@ class TileServiceTest extends TestBase with UnusedSugar with MockitoSugar {
       val outputStream = new mocks.ByteArrayServletOutputStream
       val resp = outputStream.responseFor
 
-      TileService(Unused).processResponse(Unused, ext, Unused)(upstream)(resp)
+      TileService(Unused, Unused).
+        processResponse(Unused, ext, Unused)(upstream)(resp)
 
       verify(resp).setStatus(ScOk)
 
@@ -129,7 +132,8 @@ class TileServiceTest extends TestBase with UnusedSugar with MockitoSugar {
       val outputStream = new mocks.ByteArrayServletOutputStream
       val resp = outputStream.responseFor
 
-      TileService(Unused).processResponse(Unused, ext, Unused)(upstream)(resp)
+      TileService(Unused, Unused).
+        processResponse(Unused, ext, Unused)(upstream)(resp)
 
       verify(resp).setStatus(ScInternalServerError)
 
@@ -148,7 +152,8 @@ class TileServiceTest extends TestBase with UnusedSugar with MockitoSugar {
       val outputStream = new mocks.ByteArrayServletOutputStream
       val resp = outputStream.responseFor
 
-      TileService(Unused).processResponse(Unused, ext, Unused)(upstream)(resp)
+      TileService(Unused, Unused).
+        processResponse(Unused, ext, Unused)(upstream)(resp)
 
       verify(resp).setStatus(ScInternalServerError)
 
@@ -168,7 +173,8 @@ class TileServiceTest extends TestBase with UnusedSugar with MockitoSugar {
       val outputStream = new mocks.ByteArrayServletOutputStream
       val resp = outputStream.responseFor
 
-      TileService(Unused).processResponse(Unused, ext, Unused)(upstream)(resp)
+      TileService(Unused, Unused).
+        processResponse(Unused, ext, Unused)(upstream)(resp)
 
       verify(resp).setStatus(ScInternalServerError)
 
@@ -184,11 +190,12 @@ class TileServiceTest extends TestBase with UnusedSugar with MockitoSugar {
 
     forAll { (pt: ValidPoint, ext: Extension) =>
       val upstream = mocks.SeqResponse(Seq(fJson(pt)))
-      val client = mocks.StaticClient(upstream)
+      val client = mocks.StaticCuratedClient(upstream)
       val outputStream = new mocks.ByteArrayServletOutputStream
       val resp = outputStream.responseFor
 
-      TileService(client).handleRequest(Unused, Unused, Unused, Unused, ext)(resp)
+      TileService(Unused, client).
+        handleRequest(Unused, Unused, Unused, Unused, ext)(resp)
 
       verify(resp).setStatus(ScOk)
 
@@ -206,11 +213,12 @@ class TileServiceTest extends TestBase with UnusedSugar with MockitoSugar {
     forAll { (pt: ValidPoint, ext: Extension) =>
       val s = GeoJson.codec.encode(fJson(pt)).toString.replaceAll("\\s*", "")
       val upstream = mocks.StringResponse(s)
-      val client = mocks.StaticClient(upstream)
+      val client = mocks.StaticCuratedClient(upstream)
       val outputStream = new mocks.ByteArrayServletOutputStream
       val resp = outputStream.responseFor
 
-      TileService(client).handleRequest(Unused, Unused, Unused, Unused, ext)(resp)
+      TileService(Unused, client).
+        handleRequest(Unused, Unused, Unused, Unused, ext)(resp)
 
       verify(resp).setStatus(ScOk)
 
@@ -224,11 +232,12 @@ class TileServiceTest extends TestBase with UnusedSugar with MockitoSugar {
     val upstream = mock[Response]
     when(upstream.resultCode).thenReturn(ScNotModified)
 
-    val client = mocks.StaticClient(upstream)
+    val client = mocks.StaticCuratedClient(upstream)
     val outputStream = new mocks.ByteArrayServletOutputStream
     val resp = outputStream.responseFor
 
-    TileService(client).handleRequest(Unused, Unused, Unused, Unused, Unused)(resp)
+    TileService(Unused, client).
+      handleRequest(Unused, Unused, Unused, Unused, Unused)(resp)
 
     verify(resp).setStatus(ScNotModified)
 
@@ -244,11 +253,12 @@ class TileServiceTest extends TestBase with UnusedSugar with MockitoSugar {
       when(upstream.resultCode).thenReturn(statusCode)
       when(upstream.inputStream(anyInt)).thenReturn(mocks.StringInputStream(message))
 
-      val client = mocks.StaticClient(upstream)
+      val client = mocks.StaticCuratedClient(upstream)
       val outputStream = new mocks.ByteArrayServletOutputStream
       val resp = outputStream.responseFor
 
-      TileService(client).handleRequest(Unused, Unused, Unused, Unused, Unused)(resp)
+      TileService(Unused, client).
+        handleRequest(Unused, Unused, Unused, Unused, Unused)(resp)
 
       verify(resp).setStatus(statusCode)
 
@@ -267,11 +277,12 @@ class TileServiceTest extends TestBase with UnusedSugar with MockitoSugar {
       when(upstream.inputStream(anyInt)).
         thenReturn(mocks.StringInputStream(message))
 
-      val client = mocks.StaticClient(upstream)
+      val client = mocks.StaticCuratedClient(upstream)
       val outputStream = new mocks.ByteArrayServletOutputStream
       val resp = outputStream.responseFor
 
-      TileService(client).handleRequest(Unused, Unused, Unused, Unused, Unused)(resp)
+      TileService(Unused, client).
+        handleRequest(Unused, Unused, Unused, Unused, Unused)(resp)
 
       verify(resp).setStatus(ScInternalServerError)
 
@@ -285,14 +296,15 @@ class TileServiceTest extends TestBase with UnusedSugar with MockitoSugar {
     import gen.Extensions._ // scalastyle:ignore
 
     forAll { (message: String, ext: Extension) =>
-      val client = mocks.StaticClient {
+      val client = mocks.StaticCuratedClient {
         () => throw new RuntimeException(message)
       }
 
       val outputStream = new mocks.ByteArrayServletOutputStream
       val resp = outputStream.responseFor
 
-      TileService(client).handleRequest(Unused, Unused, Unused, Unused, ext)(resp)
+      TileService(Unused, client).
+        handleRequest(Unused, Unused, Unused, Unused, ext)(resp)
 
       verify(resp).setStatus(ScInternalServerError)
 
@@ -307,11 +319,11 @@ class TileServiceTest extends TestBase with UnusedSugar with MockitoSugar {
 
     forAll { (pt: ValidPoint, ext: Extension) =>
       val upstream = mocks.SeqResponse(Seq(fJson(pt)))
-      val client = mocks.StaticClient(upstream)
+      val client = mocks.StaticCuratedClient(upstream)
       val outputStream = new mocks.ByteArrayServletOutputStream
       val resp = outputStream.responseFor
 
-      TileService(client).
+      TileService(Unused, client).
         service(Unused,
                 Unused,
                 Unused,
@@ -548,7 +560,8 @@ class TileServiceTest extends TestBase with UnusedSugar with MockitoSugar {
 
       val expected = Success(JNull -> Iterator.empty)
 
-      TileService(Unused).processResponse(Unused, ext, Unused)(upstream)(resp)
+      TileService(Unused, Unused).
+        processResponse(Unused, ext, Unused)(upstream)(resp)
 
       verify(resp).setStatus(ScOk)
 
@@ -605,7 +618,8 @@ class TileServiceTest extends TestBase with UnusedSugar with MockitoSugar {
       val outputStream = new mocks.ByteArrayServletOutputStream
       val resp = outputStream.responseFor
 
-      TileService(Unused).processResponse(Unused, "pbf", Unused)(upstream)(resp)
+      TileService(Unused, Unused).
+        processResponse(Unused, "pbf", Unused)(upstream)(resp)
 
       verify(resp).setStatus(ScInternalServerError)
 
@@ -623,7 +637,8 @@ class TileServiceTest extends TestBase with UnusedSugar with MockitoSugar {
       val outputStream = new mocks.ByteArrayServletOutputStream
       val resp = outputStream.responseFor
 
-      TileService(Unused).processResponse(Unused, ext, Unused)(upstream)(resp)
+      TileService(Unused, Unused).
+        processResponse(Unused, ext, Unused)(upstream)(resp)
 
       verify(resp).setStatus(ScInternalServerError)
 
@@ -642,7 +657,8 @@ class TileServiceTest extends TestBase with UnusedSugar with MockitoSugar {
       val outputStream = new mocks.ByteArrayServletOutputStream
       val resp = outputStream.responseFor
 
-      TileService(Unused).processResponse(Unused, ext, Unused)(upstream)(resp)
+      TileService(Unused, Unused).
+        processResponse(Unused, ext, Unused)(upstream)(resp)
 
       verify(resp).setStatus(ScInternalServerError)
 
@@ -661,7 +677,8 @@ class TileServiceTest extends TestBase with UnusedSugar with MockitoSugar {
 
         val expected = Success(JNull -> Iterator.empty)
 
-        TileService(Unused).processResponse(Unused, ext, Unused)(upstream)(resp)
+        TileService(Unused, Unused).
+          processResponse(Unused, ext, Unused)(upstream)(resp)
 
         verify(resp).setStatus(ScInternalServerError)
 

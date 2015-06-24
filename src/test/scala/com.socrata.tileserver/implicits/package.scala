@@ -20,6 +20,11 @@ package object gen {
     }
     implicit def unknownStatusCodeToInt(u: UnknownStatusCode): Int = u.underlying
 
+    case class NotOkStatusCode(val underlying: Int) {
+      override val toString: String = underlying.toString
+    }
+    implicit def notOkStatusCodeToInt(u: NotOkStatusCode): Int = u.underlying
+
     private val knownStatusCodes = Set(SC_BAD_REQUEST,
                                        SC_FORBIDDEN,
                                        SC_NOT_FOUND,
@@ -39,8 +44,15 @@ package object gen {
       }
     } yield (UnknownStatusCode(statusCode))
 
+    private val notOkScGen = for {
+      statusCode <- Gen.choose(100, 599) suchThat { statusCode: Int => // scalastyle:ignore
+        statusCode != SC_OK && statusCode != SC_NOT_MODIFIED
+      }
+    } yield (NotOkStatusCode(statusCode))
+
     implicit val knownSc: Arbitrary[KnownStatusCode] = Arbitrary(knownScGen)
     implicit val unknownSc: Arbitrary[UnknownStatusCode] = Arbitrary(unknownScGen)
+    implicit val notOkSc: Arbitrary[NotOkStatusCode] = Arbitrary(notOkScGen)
   }
 
   object Headers {

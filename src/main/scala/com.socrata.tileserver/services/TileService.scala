@@ -34,19 +34,20 @@ import com.socrata.thirdparty.geojson.{GeoJson, FeatureCollectionJson, FeatureJs
 import TileService._
 import exceptions._
 import util.TileEncoder.Feature
-import util.{HeaderFilter, FeatureJsonIterator, QuadTile, TileEncoder}
+import util.{HeaderFilter, FeatureJsonIterator, QuadTile, CartoRenderer, TileEncoder}
 
 /** Service that provides the actual tiles.
   *
   * @constructor This should only be called once, by the main application.
   * @param client The client to talk to the upstream geo-json service.
   */
-case class TileService(client: CuratedServiceClient) extends SimpleResource {
+case class TileService(renderer: CartoRenderer,
+                       client: CuratedServiceClient) extends SimpleResource {
   /** Type of callback we will be passing to `client`. */
   type Callback = Response => HttpResponse
 
   /** The types (file extensions) supported by this endpoint. */
-  val types: Set[String] = Set("pbf", "bpbf", "json", "txt") // scalastyle:ignore
+  val types: Set[String] = Set("pbf", "bpbf", "json", "txt", "png") // scalastyle:ignore
 
   // Call to the underlying service (Core)
   // Note: this can either pull the points as .geojson or .soqlpack

@@ -6,6 +6,7 @@ import javax.servlet.http.HttpServletRequest
 import com.rojoma.simplearm.v2.conversions._
 import com.rojoma.simplearm.v2.{Resource, managed}
 
+import com.socrata.http.client.{HttpClientHttpClient, RequestBuilder}
 import com.socrata.http.server.implicits._
 import com.socrata.http.server.responses._
 import com.socrata.http.server.{HttpRequest, HttpResponse, HttpService, SocrataServerJetty}
@@ -13,15 +14,26 @@ import com.socrata.thirdparty.curator._
 
 import config.TileServerConfig
 import services.{TileService, VersionService}
+import util.CartoRenderer
 
 // $COVERAGE-OFF$ Disabled because this is framework boilerplate.
 /** Main object that actually starts up the server; wires everything together. */
 object TileServer extends App {
+  /** Never timeout shutting down an executor. */
+  implicit val shutdownTimeout = Resource.executorShutdownNoTimeout
+
   for {
-    broker <- DiscoveryBrokerFromConfig(TileServerConfig.broker, "tileserver")
+    executor <- managed(Executors.newCachedThreadPool())
+    http <- managed(new HttpClientHttpClient(executor,
+                                             HttpClientHttpClient.
+                                               defaultOptions.
+                                               withUserAgent("tileserver")))
+    broker <- DiscoveryBrokerFromConfig(TileServerConfig.broker, http)
     upstream <- broker.clientFor(TileServerConfig.upstream)
   } {
-    val tileService = TileService(upstream)
+    val renderer = CartoRenderer(http,
+                                 RequestBuilder(TileServerConfig.cartoBaseUrl))
+    val tileService = TileService(renderer, upstream)
     val router = new Router(VersionService, tileService.types, tileService.service)
 
     val server = new SocrataServerJetty(
@@ -33,4 +45,4 @@ object TileServer extends App {
     server.run()
   }
 }
-// $COVERAGE-ON$
+  // $COVERAGE-ON$

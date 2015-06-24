@@ -45,10 +45,10 @@ class TileEncoderTest extends TestBase with MockitoSugar {
 
       val bytes = TileEncoder(invalid ++ valid).bytes
 
-      decoder.decode(bytes)
-      decoder.getLayerNames must equal (Set("main").asJava)
+      val decoded = decoder.decode(bytes)
+      decoded.getLayerNames must equal (Set("main").asJava)
 
-      val features = decoder.getFeatures("main").asScala.map(convert)
+      val features = decoded.asScala.map(convert)
 
       features must have size (valid.size)
       valid foreach { features must contain (_)}
@@ -71,10 +71,10 @@ class TileEncoderTest extends TestBase with MockitoSugar {
       val base64 = TileEncoder(invalid ++ valid).base64
       val bytes = Base64.decodeBase64(base64)
 
-      decoder.decode(bytes)
-      decoder.getLayerNames must equal (Set("main").asJava)
+      val decoded = decoder.decode(bytes)
+      decoded.getLayerNames must equal (Set("main").asJava)
 
-      val features = decoder.getFeatures("main").asScala.map(convert)
+      val features = decoded.asScala.map(convert)
 
       features must have size (valid.size)
       valid foreach { features must contain (_)}
