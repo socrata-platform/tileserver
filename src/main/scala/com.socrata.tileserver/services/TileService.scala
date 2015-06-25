@@ -89,6 +89,7 @@ case class TileService(renderer: CartoRenderer,
 
   private[services] def processResponse(tile: QuadTile,
                                         ext: String,
+                                        cartoCss: Option[String],
                                         rs: ResourceScope): Callback =
   { resp: Response =>
     def createResponse(parsed: (JValue, Iterator[FeatureJson])): HttpResponse = {
@@ -97,11 +98,16 @@ case class TileService(renderer: CartoRenderer,
       logger.debug(s"Underlying json: {}", jValue)
 
       val enc = TileEncoder(rollup(tile, features))
-      val payload = ext match {
-        case "pbf" => ContentType("application/octet-stream") ~> ContentBytes(enc.bytes)
-        case "bpbf" => Content("text/plain", enc.base64) // scalastyle:ignore
-        case "txt" => Content("text/plain", enc.toString)
-        case "json" => Json(jValue)
+      val payload = ((ext, cartoCss): @unchecked) match {
+        case ("pbf", _) => ContentType("application/octet-stream") ~> ContentBytes(enc.bytes)
+        case ("bpbf", _) => Content("text/plain", enc.base64) // scalastyle:ignore
+        case ("txt", _) => Content("text/plain", enc.toString)
+        case ("json", _) => Json(jValue)
+        case ("png", Some(style)) => ContentType("image/png") ~>
+            ContentBytes(renderer.renderPng(enc.toString,
+                                            tile.zoom,
+                                            style)(rs).get)
+        case ("png", None) => fatal("Cannot render png without '$style' query parameter.")
       }
 
       OK ~> HeaderFilter.extract(resp) ~> payload
@@ -130,6 +136,7 @@ case class TileService(renderer: CartoRenderer,
     Try {
       val params = augmentParams(req, withinBox, pointColumn)
       val requestId = extractRequestId(req)
+      val style = params.get("$style")
 
       pointQuery(requestId,
                  req,
@@ -137,7 +144,7 @@ case class TileService(renderer: CartoRenderer,
                  params,
                  // Right now soqlpack queries won't work on non-geom columns
                  !req.queryParameters.contains("$select"), // scalastyle:ignore
-                 processResponse(tile, ext, req.resourceScope))
+                 processResponse(tile, ext, style, req.resourceScope))
     }.recover {
       case e: Any => fatal("Unknown error", e)
     }.get
@@ -195,14 +202,21 @@ object TileService {
       Json(json"""{underlying: {resultCode:${resp.resultCode}, body: $body}}""")
   }
 
-  private[services] def fatal(message: String, cause: Throwable): HttpResponse = {
+  private[services] def fatal(message: String): HttpResponse =
+    fatal(message, None)
+  private[services] def fatal(message: String, cause: Throwable): HttpResponse =
+    fatal(message, Some(cause))
+
+  private[services] def fatal(message: String, cause: Option[Throwable]): HttpResponse = {
     logger.warn(message, cause)
 
     val payload = cause match {
-      case e: InvalidGeoJsonException =>
+      case Some(e: InvalidGeoJsonException) =>
         json"""{message: $message, cause: ${e.error}, invalidJson: ${e.jValue}}"""
-      case e: Any =>
+      case Some(e) =>
         json"""{message: $message, cause: ${e.getMessage}}"""
+      case None =>
+        json"""{message: $message}"""
     }
 
     InternalServerError ~>

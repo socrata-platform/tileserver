@@ -14,12 +14,14 @@ import util.CartoRenderer
 trait UnusedSugar {
   trait UnusedValue
   object Unused extends UnusedValue
+
   implicit def unusedToInt(u: UnusedValue): Int = 0
   implicit def unusedToString(u: UnusedValue): String = "unused"
 
   // Can't be Map[K, V] because then it matches K => V.
   implicit def unusedToMap[T](u: UnusedValue): Map[String, T] = Map.empty
   implicit def unusedToSet[T](u: UnusedValue): Set[T] = Set.empty
+  implicit def unusedToOption[T](u: UnusedValue): Option[T] = None
 
   implicit def unusedToRespToHttpResponse(u: UnusedValue): Response => HttpResponse =
     r => mock(classOf[HttpResponse])

@@ -141,9 +141,10 @@ package object gen {
     val Json = Extension("json")
     val Pbf = Extension("pbf")
     val BPbf = Extension("bpbf")
+    val Png = Extension("png")
     val Txt = Extension("txt")
 
-    private val extensions = Seq(Json, Pbf, BPbf, Txt)
+    private val extensions = Seq(Json, Pbf, BPbf, Png, Txt)
 
     implicit def extensionToString(e: Extension): String = e.name
     implicit val extension: Arbitrary[Extension] = Arbitrary(Gen.oneOf(extensions))

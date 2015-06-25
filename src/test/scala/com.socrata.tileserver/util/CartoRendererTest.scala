@@ -51,7 +51,7 @@ class CartoRendererTest extends TestBase with UnusedSugar {
 
       val actual = renderer.mapnikXml(css)
 
-      actual.isFailure must be (true)
+      actual must be ('failure)
       actual.failed.get.getMessage must equal (message)
     }
   }
@@ -64,7 +64,7 @@ class CartoRendererTest extends TestBase with UnusedSugar {
 
       val actual = renderer.renderPng(pbf, zoom, css)
 
-      actual.isFailure must be (true)
+      actual must be ('failure)
       actual.failed.get.getMessage must equal (message)
     }
   }

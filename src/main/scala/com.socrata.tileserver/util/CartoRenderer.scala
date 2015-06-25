@@ -15,19 +15,6 @@ import org.apache.commons.io.IOUtils
 import CartoRenderer._
 import exceptions.FailedRenderException
 
-object CartoRenderer {
-  private[util] def handleResponse(response: Try[Response]): Try[InputStream] = {
-    response match {
-      case Success(resp) if resp.resultCode == ScOk =>
-        Success(resp.inputStream())
-      case Success(resp) =>
-        Failure(
-          FailedRenderException(IOUtils.toString(resp.inputStream(), UTF_8)))
-      case Failure(t) => Failure(t)
-    }
-  }
-}
-
 case class CartoRenderer(http: HttpClient, baseUrl: RequestBuilder) {
   def mapnikXml(cartoCss: String)(implicit rs: ResourceScope): Try[String] = {
     val content = JValueEventIterator(json"{ style: ${cartoCss} }") // scalastyle:ignore
@@ -47,6 +34,19 @@ case class CartoRenderer(http: HttpClient, baseUrl: RequestBuilder) {
 
     Try(http.execute(req, rs)).map { resp: Response =>
       IOUtils.toByteArray(resp.inputStream())
+    }
+  }
+}
+
+object CartoRenderer {
+  private[util] def handleResponse(response: Try[Response]): Try[InputStream] = {
+    response match {
+      case Success(resp) if resp.resultCode == ScOk =>
+        Success(resp.inputStream())
+      case Success(resp) =>
+        Failure(
+          FailedRenderException(IOUtils.toString(resp.inputStream(), UTF_8)))
+      case Failure(t) => Failure(t)
     }
   }
 }

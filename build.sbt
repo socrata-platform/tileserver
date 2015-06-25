@@ -36,7 +36,7 @@ val TestOptionNoTraces = "-oD"
 val TestOptionShortTraces = "-oDS"
 val TestOptionFullTraces = "-oDF"
 
-testOptions in Test += Tests.Argument(TestFrameworks.ScalaTest, TestOptionShortTraces)
+testOptions in Test += Tests.Argument(TestFrameworks.ScalaTest, TestOptionNoTraces)
 
 // Setup revolver.
 Revolver.settings
