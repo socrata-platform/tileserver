@@ -31,8 +31,10 @@ object TileServer extends App {
     broker <- DiscoveryBrokerFromConfig(TileServerConfig.broker, http)
     upstream <- broker.clientFor(TileServerConfig.upstream)
   } {
-    val renderer = CartoRenderer(http,
-                                 RequestBuilder(TileServerConfig.cartoBaseUrl))
+    val cartoBaseUrl = RequestBuilder(TileServerConfig.cartoHost).
+      port(TileServerConfig.cartoPort)
+
+    val renderer = CartoRenderer(http, cartoBaseUrl)
     val tileService = TileService(renderer, upstream)
     val router = new Router(VersionService, tileService.types, tileService.service)
 

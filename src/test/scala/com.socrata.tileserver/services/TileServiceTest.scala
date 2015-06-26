@@ -3,6 +3,7 @@ package services
 
 import java.nio.charset.StandardCharsets.UTF_8
 import javax.servlet.http.HttpServletRequest
+import javax.servlet.http.HttpServletResponse.{SC_BAD_REQUEST => ScBadRequest}
 import javax.servlet.http.HttpServletResponse.{SC_INTERNAL_SERVER_ERROR => ScInternalServerError}
 import javax.servlet.http.HttpServletResponse.{SC_NOT_MODIFIED => ScNotModified}
 import javax.servlet.http.HttpServletResponse.{SC_OK => ScOk}
@@ -125,7 +126,7 @@ class TileServiceTest extends TestBase with UnusedSugar with MockitoSugar {
           outputStream.getString must include (TileEncoder(expected).base64)
         case Json =>
           outputStream.getString must equal (upstream.toString)
-          // ".txt" should be supported, but its output format is unspecified.
+        // ".txt" should be supported, but its output format is unspecified.
         case Png =>
           outputStream.getString must equal (expected.toString)
         case Txt => ()
@@ -203,8 +204,11 @@ class TileServiceTest extends TestBase with UnusedSugar with MockitoSugar {
       val outputStream = new mocks.ByteArrayServletOutputStream
       val resp = outputStream.responseFor
 
+      val req: HttpRequest =
+        if (ext == Png) mocks.StaticRequest("$style" -> Unused) else Unused
+
       TileService(Unused, client).
-        handleRequest(Unused, Unused, Unused, Unused, ext)(resp)
+        handleRequest(req, Unused, Unused, Unused, ext)(resp)
 
       verify(resp).setStatus(ScOk)
 
@@ -212,6 +216,20 @@ class TileServiceTest extends TestBase with UnusedSugar with MockitoSugar {
         outputStream.getString must include (upstream.toString)
       }
     }
+  }
+
+  test("Handle request fails when rendering a `.png` without `$style`") {
+    import gen.Extensions._ // scalastyle:ignore
+
+    val upstream = mocks.SeqResponse(Seq.empty)
+    val client = mocks.StaticCuratedClient(upstream)
+    val outputStream = new mocks.ByteArrayServletOutputStream
+    val resp = outputStream.responseFor
+
+    TileService(Unused, client).
+      handleRequest(Unused, Unused, Unused, Unused, Png)(resp)
+
+    verify(resp).setStatus(ScBadRequest)
   }
 
   test("Handle request returns OK when underlying succeeds for single FeatureJson") {
@@ -226,8 +244,11 @@ class TileServiceTest extends TestBase with UnusedSugar with MockitoSugar {
       val outputStream = new mocks.ByteArrayServletOutputStream
       val resp = outputStream.responseFor
 
+      val req: HttpRequest =
+        if (ext == Png) mocks.StaticRequest("$style" -> Unused) else Unused
+
       TileService(Unused, client).
-        handleRequest(Unused, Unused, Unused, Unused, ext)(resp)
+        handleRequest(req, Unused, Unused, Unused, ext)(resp)
 
       verify(resp).setStatus(ScOk)
 
@@ -332,13 +353,16 @@ class TileServiceTest extends TestBase with UnusedSugar with MockitoSugar {
       val outputStream = new mocks.ByteArrayServletOutputStream
       val resp = outputStream.responseFor
 
+      val req: HttpRequest =
+        if (ext == Png) mocks.StaticRequest("$style" -> Unused) else Unused
+
       TileService(Unused, client).
         service(Unused,
                 Unused,
                 Unused,
                 Unused,
                 TypedPathComponent(Unused, ext)).
-        get(Unused)(resp)
+        get(req)(resp)
 
       verify(resp).setStatus(ScOk)
 
@@ -561,7 +585,7 @@ class TileServiceTest extends TestBase with UnusedSugar with MockitoSugar {
   test("An empty message is successfully unpacked") {
     import gen.Extensions._ // scalastyle:ignore
 
-    forAll { (ext: Extension) =>
+    forAll { ext: Extension =>
       val header: Map[String, Int] = Map("geometry_index" -> Unused)
       val upstream = mocks.BinaryResponse(header, Seq.empty)
       val outputStream = new mocks.ByteArrayServletOutputStream
@@ -696,6 +720,35 @@ class TileServiceTest extends TestBase with UnusedSugar with MockitoSugar {
 
         outputStream.getLowStr must include ("header error")
       }
+    }
+  }
+
+  test("`$style` is not passed upstream") {
+    import gen.Extensions._ // scalastyle:ignore
+
+    forAll { ext: Extension =>
+      val upstream = mocks.StringResponse(Unused)
+      val outputStream = new mocks.ByteArrayServletOutputStream
+      val resp = outputStream.responseFor
+
+      val client = mocks.StaticCuratedClient.withReq { request =>
+        val actual = request(Unused).builder
+
+        // The assertions are here, because of weird inversion of control.
+        // If an assertion fails, it causes the endpoint to return
+        // ScInternalServerError instead of ScOk, because error handling.
+        actual.query.toMap.get("$style") must be ('empty)
+
+        val pt: (Int, Int) = (Unused, Unused)
+        mocks.SeqResponse(Seq(fJson(pt)))
+      }
+
+      val req: HttpRequest = mocks.StaticRequest("$style" -> Unused)
+
+      TileService(Unused, client).
+        handleRequest(req, Unused, Unused, Unused, ext)(resp)
+
+      verify(resp).setStatus(ScOk)
     }
   }
 }

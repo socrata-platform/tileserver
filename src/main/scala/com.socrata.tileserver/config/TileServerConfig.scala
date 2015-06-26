@@ -16,7 +16,8 @@ object TileServerConfig {
   lazy val threadpool = config.getConfig("tileserver.threadpool")
 
   /** CartoCSS Renderer Base Url */
-  lazy val cartoBaseUrl = config.getString("tileserver.carto-base-url")
+  lazy val cartoHost = config.getString("tileserver.carto-host")
+  lazy val cartoPort = config.getInt("tileserver.carto-port")
 
   /** Zookeeper configuration. */
   lazy val broker = new DiscoveryBrokerConfig(config, "curator")

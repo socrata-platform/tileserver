@@ -87,30 +87,38 @@ case class TileService(renderer: CartoRenderer,
       fatal("Unknown error", unknown) // scalastyle:ignore
   }
 
+  // Cyclomatic Complexity is 11, this should drop when we add feature encoding to SoQLPack.
   private[services] def processResponse(tile: QuadTile,
                                         ext: String,
                                         cartoCss: Option[String],
-                                        rs: ResourceScope): Callback =
-  { resp: Response =>
+                                        rs: ResourceScope): Callback = { resp: Response =>
     def createResponse(parsed: (JValue, Iterator[FeatureJson])): HttpResponse = {
       val (jValue, features) = parsed
 
       logger.debug(s"Underlying json: {}", jValue)
 
       val enc = TileEncoder(rollup(tile, features))
-      val payload = ((ext, cartoCss): @unchecked) match {
-        case ("pbf", _) => ContentType("application/octet-stream") ~> ContentBytes(enc.bytes)
-        case ("bpbf", _) => Content("text/plain", enc.base64) // scalastyle:ignore
-        case ("txt", _) => Content("text/plain", enc.toString)
-        case ("json", _) => Json(jValue)
-        case ("png", Some(style)) => ContentType("image/png") ~>
-            ContentBytes(renderer.renderPng(enc.toString,
+      val respOk = OK ~> HeaderFilter.extract(resp)
+
+      ((ext, cartoCss): @unchecked) match {
+        case ("pbf", _) =>
+          respOk ~> ContentType("application/octet-stream") ~> ContentBytes(enc.bytes)
+        case ("bpbf", _) =>
+          respOk ~> Content("text/plain", enc.base64) // scalastyle:ignore
+        case ("txt", _) =>
+          respOk ~> Content("text/plain", enc.toString)
+        case ("json", _) =>
+          respOk ~> Json(jValue)
+        case ("png", Some(style)) =>
+          respOk ~>
+            ContentType("image/png") ~>
+            ContentBytes(renderer.renderPng(enc.base64,
                                             tile.zoom,
                                             style)(rs).get)
-        case ("png", None) => fatal("Cannot render png without '$style' query parameter.")
+        case ("png", None) =>
+          BadRequest ~>
+            Content("text/plain", "Cannot render png without '$style' query parameter.")
       }
-
-      OK ~> HeaderFilter.extract(resp) ~> payload
     }
 
     lazy val result = resp.resultCode match {
@@ -134,9 +142,9 @@ case class TileService(renderer: CartoRenderer,
     val withinBox = tile.withinBox(pointColumn)
 
     Try {
+      val style = req.queryParameters.get("$style") // scalastyle:ignore
       val params = augmentParams(req, withinBox, pointColumn)
       val requestId = extractRequestId(req)
-      val style = params.get("$style")
 
       pointQuery(requestId,
                  req,
@@ -208,7 +216,11 @@ object TileService {
     fatal(message, Some(cause))
 
   private[services] def fatal(message: String, cause: Option[Throwable]): HttpResponse = {
-    logger.warn(message, cause)
+    logger.warn(message)
+
+    if (cause != None) {
+      logger.warn(cause.get.getMessage, cause.get.getStackTrace)
+    }
 
     val payload = cause match {
       case Some(e: InvalidGeoJsonException) =>
@@ -267,7 +279,7 @@ object TileService {
     val selectParam =
       if (params.contains("$select")) params("$select") + s", $select" else select
 
-    params + ("$where" -> whereParam) + ("$select" -> selectParam)
+    params + ("$where" -> whereParam) + ("$select" -> selectParam) - "$style"
   }
 
   private[services] def rollup(tile: QuadTile,
