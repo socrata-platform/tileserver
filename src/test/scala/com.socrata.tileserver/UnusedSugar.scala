@@ -40,8 +40,7 @@ trait UnusedSugar {
 
   implicit def unusedToQuadTile(u: UnusedValue): util.QuadTile =
     new util.QuadTile(0, 0, 0) {
-      override def px(lon: Double, lat: Double): Option[(Int, Int)] =
-        Some((lon.toInt, lat.toInt))
+      override def px(lon: Double, lat: Double): (Int, Int) = (lon.toInt, lat.toInt)
     }
 }
 

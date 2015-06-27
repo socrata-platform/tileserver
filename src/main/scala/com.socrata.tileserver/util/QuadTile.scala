@@ -47,23 +47,18 @@ case class QuadTile(rawX: Int, rawY: Int, zoom: Int) {
     *
     * This throws out coordinates that aren't within this tile.
     */
-  def px(lon: Double, lat: Double): Option[(Int, Int)] = {
+  def px(lon: Double, lat: Double): (Int, Int) = {
     val (lonX, latY) = mapper.px(lon, lat)
 
-    if (onTile(lonX, rawX) && onTile(latY, rawY)) {
-      Some((lonX % Size, latY % Size))
-    } else {
-      None
-    }
+    (lonX - (rawX * Size), latY - (rawY * Size))
   }
 
   /** Map a (lon, lat) coordinate into (x, y) in 256x256 space.
     *
     * This throws out coordinates that aren't within this tile.
     */
-  def px(c: Coordinate): Option[Coordinate] = {
-    px(c.x, c.y) map { case (x, y) =>
-      new Coordinate(x, y)
-    }
+  def px(c: Coordinate): Coordinate = {
+    val (x, y) = px(c.x, c.y)
+    new Coordinate(x, y)
   }
 }
