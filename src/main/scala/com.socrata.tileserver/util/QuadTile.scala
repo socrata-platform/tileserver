@@ -39,10 +39,6 @@ case class QuadTile(rawX: Int, rawY: Int, zoom: Int) {
     s"within_box($pointColumn, $north, $west, $south, $east)"
   }
 
-  private def onTile(coord: Int, tileCoord: Int) = {
-    coord >= 0 && coord / Size == tileCoord
-  }
-
   /** The pixel (x, y) corresponding * to "lon" and "lat" in 256x256 space.
     *
     * This throws out coordinates that aren't within this tile.

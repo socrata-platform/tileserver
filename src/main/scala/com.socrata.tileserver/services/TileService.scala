@@ -210,25 +210,15 @@ object TileService {
       Json(json"""{underlying: {resultCode:${resp.resultCode}, body: $body}}""")
   }
 
-  private[services] def fatal(message: String): HttpResponse =
-    fatal(message, None)
-  private[services] def fatal(message: String, cause: Throwable): HttpResponse =
-    fatal(message, Some(cause))
-
-  private[services] def fatal(message: String, cause: Option[Throwable]): HttpResponse = {
+  private[services] def fatal(message: String, cause: Throwable): HttpResponse = {
     logger.warn(message)
-
-    if (cause != None) {
-      logger.warn(cause.get.getMessage, cause.get.getStackTrace)
-    }
+    logger.warn(cause.getMessage, cause.getStackTrace)
 
     val payload = cause match {
-      case Some(e: InvalidGeoJsonException) =>
+      case e: InvalidGeoJsonException =>
         json"""{message: $message, cause: ${e.error}, invalidJson: ${e.jValue}}"""
-      case Some(e) =>
+      case e: Any =>
         json"""{message: $message, cause: ${e.getMessage}}"""
-      case None =>
-        json"""{message: $message}"""
     }
 
     InternalServerError ~>
