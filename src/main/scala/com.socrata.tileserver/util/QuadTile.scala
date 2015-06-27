@@ -1,7 +1,7 @@
 package com.socrata.tileserver
 package util
 
-import com.vividsolutions.jts.geom.Coordinate
+import com.vividsolutions.jts.geom.{Coordinate, CoordinateFilter}
 
 import CoordinateMapper.Size
 
@@ -12,7 +12,7 @@ import CoordinateMapper.Size
   * @param rawY raw y coordinate (before mapping to tms)
   * @param zoom zoom level of the map
   */
-case class QuadTile(rawX: Int, rawY: Int, zoom: Int) {
+case class QuadTile(rawX: Int, rawY: Int, zoom: Int) extends CoordinateFilter {
   /** The mapper for this zoom. */
   val mapper = CoordinateMapper(zoom)
 
@@ -39,22 +39,24 @@ case class QuadTile(rawX: Int, rawY: Int, zoom: Int) {
     s"within_box($pointColumn, $north, $west, $south, $east)"
   }
 
-  /** The pixel (x, y) corresponding * to "lon" and "lat" in 256x256 space.
-    *
-    * This throws out coordinates that aren't within this tile.
-    */
+  /** The pixel (x, y) corresponding * to "lon" and "lat" in 256x256 space. */
   def px(lon: Double, lat: Double): (Int, Int) = {
     val (lonX, latY) = mapper.px(lon, lat)
 
     (lonX - (rawX * Size), latY - (rawY * Size))
   }
 
-  /** Map a (lon, lat) coordinate into (x, y) in 256x256 space.
-    *
-    * This throws out coordinates that aren't within this tile.
-    */
+  /** Map a (lon, lat) coordinate into (x, y) in 256x256 space. */
   def px(c: Coordinate): Coordinate = {
     val (x, y) = px(c.x, c.y)
     new Coordinate(x, y)
+  }
+
+  /** Map a (lon, lat) coordinate into (x, y) in 256x256 space.
+    *
+    * NOTE: This mutates the provided coordinate. */
+  def filter(c: Coordinate): Unit = {
+    val mapped = px(c)
+    c.setCoordinate(mapped)
   }
 }

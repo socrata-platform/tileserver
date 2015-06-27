@@ -274,19 +274,19 @@ object TileService {
 
   private[services] def rollup(tile: QuadTile,
                                features: => Iterator[FeatureJson]): Set[Feature] = {
-    val pixels = features.map { f =>
-      (tile.px(f.geometry.getCoordinate), f.properties)
+    // So far, `features` is still an Iterator; foreach is a streaming way to
+    // do a grouping count without materializing all the pixels/geometries and
+    // producing multiple intermediate objects, so we can save on memory use.
+    val pxCounts = new collection.mutable.HashMap[Feature, Int].withDefaultValue(0)
+    features.foreach { f =>
+      val geom = f.geometry
+      geom.apply(tile)
+      geom.geometryChanged()
+
+      pxCounts(geom -> f.properties) += 1
     }
 
-    // So far, pixels is still an Iterator. pixels foreach is a streaming way to
-    // do a grouping count without materializing all the pixels/geometries and producing
-    // multiple intermediate objects, so we can save on memory use.
-    val geomCounts = new collection.mutable.HashMap[Feature, Int].withDefaultValue(0)
-    pixels.foreach { case (px, props) =>
-      geomCounts((geomFactory.createPoint(px), props)) += 1
-    }
-
-    geomCounts.map { case ((pt, props), count) =>
+    pxCounts.map { case ((pt, props), count) =>
       pt -> Map("count" -> toJValue(count), "properties" -> toJValue(props))
     } (collection.breakOut) // Build `Set` not `Seq`.
   }
