@@ -286,8 +286,8 @@ object TileService {
       pxCounts(geom -> f.properties) += 1
     }
 
-    pxCounts.map { case ((pt, props), count) =>
-      pt -> Map("count" -> toJValue(count), "properties" -> toJValue(props))
+    pxCounts.map { case ((geom, props), count) =>
+      geom -> Map("count" -> toJValue(count), "properties" -> toJValue(props))
     } (collection.breakOut) // Build `Set` not `Seq`.
   }
 }
