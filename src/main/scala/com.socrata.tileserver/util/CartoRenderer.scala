@@ -7,9 +7,8 @@ import javax.servlet.http.HttpServletResponse.{SC_OK => ScOk}
 import scala.util.{Failure, Try, Success}
 
 import com.rojoma.json.v3.interpolation._
-import com.rojoma.json.v3.io.JValueEventIterator
 import com.rojoma.simplearm.v2.ResourceScope
-import com.socrata.http.client.{HttpClient, JsonHttpRequest, RequestBuilder, Response}
+import com.socrata.http.client.{HttpClient, RequestBuilder, Response}
 import org.apache.commons.io.IOUtils
 import org.slf4j.{Logger, LoggerFactory}
 
@@ -18,8 +17,8 @@ import exceptions.FailedRenderException
 
 case class CartoRenderer(http: HttpClient, baseUrl: RequestBuilder) {
   def mapnikXml(cartoCss: String)(implicit rs: ResourceScope): Try[String] = {
-    val content = JValueEventIterator(json"{ style: ${cartoCss} }") // scalastyle:ignore
-    val req = new JsonHttpRequest(baseUrl.addPath("style"), content)
+    val content = json"{ style: ${cartoCss} }" // scalastyle:ignore
+    val req = baseUrl.addPath("style").jsonBody(content)
 
     Try(http.execute(req, rs)).map { resp: Response =>
       IOUtils.toString(resp.inputStream(), UTF_8)
@@ -29,11 +28,10 @@ case class CartoRenderer(http: HttpClient, baseUrl: RequestBuilder) {
   def renderPng(pbf: String,
                 zoom: Int,
                 cartoCss: String)(implicit rs: ResourceScope): Try[Array[Byte]]  = {
-    val contentObj = json"{ bpbf: ${pbf}, zoom: ${zoom}, style: ${cartoCss} }"
-    val content = JValueEventIterator(contentObj) // scalastyle:ignore
-    val req = new JsonHttpRequest(baseUrl.addPath("render").method("POST"), content)
+    val content = json"{ bpbf: ${pbf}, zoom: ${zoom}, style: ${cartoCss} }" // scalastyle:ignore
+    val req = baseUrl.addPath("render").jsonBody(content)
 
-    logger.debug("content: {}", contentObj)
+    logger.debug("content: {}", content)
 
     Try(http.execute(req, rs)).map { resp: Response =>
       IOUtils.toByteArray(resp.inputStream())
