@@ -32,4 +32,6 @@ Calling the tileserver requires setting X-Socrata-Host properly.
 
 A valid staging value is: dataspace-demo.test-socrata.com
 
+A valid RC value is: dataspace-demo.rc-socrata.com
+
 A valid production value is: dataspace.demo.socrata.com
