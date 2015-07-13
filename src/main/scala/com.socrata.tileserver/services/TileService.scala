@@ -245,7 +245,19 @@ object TileService {
             case x: SoQLValue         => throw new RuntimeException("Should not be seeing non-geom SoQL type" + x)
           }
           val props = (0 until soqlRow.size).filterNot(_ == soqlIter.geomIndex).map { i =>
-            colNames(i) -> JString(soqlRow(i).toString)
+            colNames(i) -> { soqlRow(i) match {
+                               case SoQLText(str)   => JString(str)
+                               case SoQLNumber(bd)  => JNumber(bd)
+                               case SoQLMoney(bd)   => JNumber(bd)
+                               case SoQLDouble(dbl) => JNumber(dbl)
+                               case SoQLBoolean(b)  => JBoolean(b)
+                               case SoQLFixedTimestamp(dt) => JString(SoQLFixedTimestamp.StringRep(dt))
+                               case SoQLFloatingTimestamp(dt) => JString(SoQLFloatingTimestamp.StringRep(dt))
+                               case SoQLTime(dt) => JString(SoQLTime.StringRep(dt))
+                               case SoQLDate(dt) => JString(SoQLDate.StringRep(dt))
+                               case other: SoQLValue => JString(other.toString)
+                             }
+                           }
           }.toMap
           FeatureJson(props, geom)
         }

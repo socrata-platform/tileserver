@@ -623,7 +623,35 @@ class TileServiceTest extends TestBase with UnusedSugar with MockitoSugar {
     }
   }
 
-  test("TODO: features are unpacked with properties") (pending)
+  test("Features are unpacked with properties") {
+    import gen.Points._ // scalastyle:ignore
+
+    val writer = new WKBWriter()
+
+    forAll { pts: Seq[ValidPoint] =>
+      val rows = pts.map { pt =>
+        val (geom, props) = feature(pt)
+        Seq(writer.write(geom), "abcde")
+      }
+
+      val upstream = mocks.BinaryResponse(headerMap(0, Some("txt" -> SoQLText)), rows)
+
+      using(new ResourceScope()) { rs =>
+        val maybeResult = TileService.soqlUnpackFeatures(rs)(upstream)
+        maybeResult must be a ('success)
+
+        val (jVal, iter) = maybeResult.get
+        val features = iter.toSeq
+
+        features must have length (pts.size)
+        for { i <- 0 until rows.length } {
+          features(i).geometry must equal (point(pts(i)))
+          features(i).properties must equal (Map("txt" -> JString("abcde")))
+        }
+      }
+    }
+
+  }
 
   test("Invalid headers are rejected when unpacking") {
     import gen.Extensions._ // scalastyle:ignore
