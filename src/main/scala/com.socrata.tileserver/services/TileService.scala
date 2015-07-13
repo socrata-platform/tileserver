@@ -15,13 +15,14 @@ import com.rojoma.json.v3.interpolation._
 import com.rojoma.json.v3.io.JsonReader
 import com.rojoma.json.v3.io.JsonReaderException
 import com.rojoma.simplearm.v2.{using, ResourceScope}
-import com.vividsolutions.jts.geom.GeometryFactory
+import com.vividsolutions.jts.geom.{Geometry, GeometryFactory}
 import com.vividsolutions.jts.io.ParseException
 import org.apache.commons.io.IOUtils
 import org.slf4j.{Logger, LoggerFactory, MDC}
-import org.velvia.MsgPackUtils._
-import org.velvia.{MsgPack, InvalidMsgPackDataException}
+import org.velvia.InvalidMsgPackDataException
 
+import com.socrata.soql.SoQLPackIterator
+import com.socrata.soql.types._
 import com.socrata.thirdparty.curator.CuratedServiceClient
 import com.socrata.http.client.{RequestBuilder, Response}
 import com.socrata.http.server.implicits._
@@ -34,7 +35,7 @@ import com.socrata.thirdparty.geojson.{GeoJson, FeatureCollectionJson, FeatureJs
 import TileService._
 import exceptions._
 import util.TileEncoder.Feature
-import util.{HeaderFilter, FeatureJsonIterator, QuadTile, TileEncoder}
+import util.{HeaderFilter, QuadTile, TileEncoder}
 
 /** Service that provides the actual tiles.
   *
@@ -227,13 +228,28 @@ object TileService {
     val dis = rs.open(new DataInputStream(resp.inputStream(Long.MaxValue)))
 
     try {
-      val headers = MsgPack.unpack(dis, MsgPack.UNPACK_RAW_AS_STRING).asInstanceOf[Map[String, Any]]
-      val jsonHeaders = JObject(headers.mapValues(v => JString(v.toString)))
-      headers.asInt("geometry_index") match {
-        case geomIndex: Any if geomIndex < 0 =>
-          Failure(InvalidSoqlPackException(headers))
-        case geomIndex: Any =>
-          Success(jsonHeaders -> new FeatureJsonIterator(dis, geomIndex))
+      val soqlIter = new SoQLPackIterator(dis)
+      val jsonHeaders = JObject(soqlIter.headers.mapValues(v => JString(v.toString)))
+      if (soqlIter.geomIndex < 0) {
+        Failure(InvalidSoqlPackException(soqlIter.headers))
+      } else {
+        val colNames = soqlIter.schema.map(_._1).toArray
+        val featureJsonIter = soqlIter.map { case soqlRow =>
+          val geom: Geometry = soqlRow(soqlIter.geomIndex) match {
+            case SoQLMultiPolygon(mp) => mp
+            case SoQLPolygon(p)       => p
+            case SoQLPoint(pt)        => pt
+            case SoQLMultiPoint(mp)   => mp
+            case SoQLLine(l)          => l
+            case SoQLMultiLine(ml)    => ml
+            case x: SoQLValue         => throw new RuntimeException("Should not be seeing non-geom SoQL type" + x)
+          }
+          val props = (0 until soqlRow.size).filterNot(_ == soqlIter.geomIndex).map { i =>
+            colNames(i) -> JString(soqlRow(i).toString)
+          }.toMap
+          FeatureJson(props, geom)
+        }
+        Success(jsonHeaders -> featureJsonIter)
       }
     } catch {
       case _: InvalidMsgPackDataException => Failure(InvalidSoqlPackException(Map.empty))
