@@ -31,7 +31,7 @@ case class CartoRenderer(http: HttpClient, baseUrl: RequestBuilder) {
     val content = json"{ bpbf: ${pbf}, zoom: ${zoom}, style: ${cartoCss} }" // scalastyle:ignore
     val req = baseUrl.addPath("render").jsonBody(content)
 
-    logger.debug("content: {}", content)
+    // logger.debug("content: {}", content)
 
     Try(http.execute(req, rs)).map { resp: Response =>
       IOUtils.toByteArray(resp.inputStream())

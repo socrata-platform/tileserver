@@ -60,7 +60,8 @@ case class TileService(renderer: CartoRenderer,
                                    binaryQuery: Boolean = false,
                                    callback: Response => HttpResponse): HttpResponse = {
     val headers = HeaderFilter.headers(req)
-    val queryType = if (binaryQuery) "soqlpack" else "geojson"
+    //TODO: soqlpack breaks when parsing certain responses
+    val queryType = if (false) "soqlpack" else "geojson"
 
     val jsonReq = { base: RequestBuilder =>
       val req = base.path(Seq("id", s"$id.$queryType")).
@@ -95,7 +96,7 @@ case class TileService(renderer: CartoRenderer,
     def createResponse(parsed: (JValue, Iterator[FeatureJson])): HttpResponse = {
       val (jValue, features) = parsed
 
-      logger.debug(s"Underlying json: {}", jValue)
+      // logger.debug(s"Underlying json: {}", jValue)
 
       val enc = TileEncoder(rollup(tile, features))
       val respOk = OK ~> HeaderFilter.extract(resp)
@@ -201,7 +202,7 @@ object TileService {
         json"""{ message: "Failed to open inputStream", cause: ${e.getMessage}}""" // scalastyle:ignore
     }.get
 
-    logger.info(s"Proxying response: ${resp.resultCode}: $body")
+    // logger.info(s"Proxying response: ${resp.resultCode}: $body")
 
     val code = resp.resultCode
     val base = if (allowed(code)) Status(code) else InternalServerError
