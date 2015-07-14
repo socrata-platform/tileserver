@@ -60,8 +60,8 @@ case class TileService(renderer: CartoRenderer,
                                    binaryQuery: Boolean = false,
                                    callback: Response => HttpResponse): HttpResponse = {
     val headers = HeaderFilter.headers(req)
-    //TODO: soqlpack breaks when parsing certain responses
-    val queryType = if (false) "soqlpack" else "geojson"
+    // TODO: INVESTIGATE, soqlpack breaks when parsing certain responses
+    val queryType = if (binaryQuery) "soqlpack" else "geojson"
 
     val jsonReq = { base: RequestBuilder =>
       val req = base.path(Seq("id", s"$id.$queryType")).
@@ -95,8 +95,6 @@ case class TileService(renderer: CartoRenderer,
                                         rs: ResourceScope): Callback = { resp: Response =>
     def createResponse(parsed: (JValue, Iterator[FeatureJson])): HttpResponse = {
       val (jValue, features) = parsed
-
-      // logger.debug(s"Underlying json: {}", jValue)
 
       val enc = TileEncoder(rollup(tile, features))
       val respOk = OK ~> HeaderFilter.extract(resp)
@@ -140,11 +138,11 @@ case class TileService(renderer: CartoRenderer,
                                       pointColumn: String,
                                       tile: QuadTile,
                                       ext: String) : HttpResponse = {
-    val withinBox = tile.withinBox(pointColumn)
+    val intersects = tile.intersects(pointColumn)
 
     Try {
       val style = req.queryParameters.get("$style") // scalastyle:ignore
-      val params = augmentParams(req, withinBox, pointColumn)
+      val params = augmentParams(req, intersects, pointColumn)
       val requestId = extractRequestId(req)
 
       pointQuery(requestId,

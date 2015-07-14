@@ -35,9 +35,9 @@ case class QuadTile(rawX: Int, rawY: Int, zoom: Int) extends CoordinateFilter {
     *
     * @param pointColumn the column to match against.
     */
-  //TODO: rename this function
-  def withinBox(pointColumn: String): String = {
-    s"intersects($pointColumn, 'MULTIPOLYGON((($west $north, $east $north, $east $south, $west $south, $west $north)))')"
+  def intersects(pointColumn: String): String = {
+    "intersects(" +
+      s"$pointColumn, 'MULTIPOLYGON((($west $north, $east $north, $east $south, $west $south, $west $north)))')"
   }
 
   /** The pixel (x, y) corresponding * to "lon" and "lat" in 256x256 space. */
