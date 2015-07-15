@@ -145,12 +145,15 @@ case class TileService(renderer: CartoRenderer,
       val params = augmentParams(req, intersects, pointColumn)
       val requestId = extractRequestId(req)
 
+      // scalastyle:ignore
+      val binaryQuery = !req.queryParameters.contains("$select") && ext != "json"
+
       pointQuery(requestId,
                  req,
                  identifier,
                  params,
                  // Right now soqlpack queries won't work on non-geom columns
-                 !req.queryParameters.contains("$select"), // scalastyle:ignore
+                 binaryQuery,
                  processResponse(tile, ext, style, req.resourceScope))
     }.recover {
       case e: Any => fatal("Unknown error", e)
