@@ -23,6 +23,7 @@ import com.socrata.http.client.{RequestBuilder, Response}
 import com.socrata.http.server.HttpRequest
 import com.socrata.http.server.HttpRequest.AugmentedHttpServletRequest
 import com.socrata.http.server.routing.TypedPathComponent
+import com.socrata.soql.types._
 import com.socrata.thirdparty.geojson.FeatureJson
 
 import util.TileEncoder
@@ -537,12 +538,22 @@ class TileServiceTest extends TestBase with UnusedSugar with MockitoSugar {
     }
   }
 
+  val geoIndexKey = "geometry_index"
+
+  def headerMap(geoIndex: Int, extraCol: Option[(String, SoQLType)] = None): Map[String, Any] = {
+    assert(geoIndex <= 0)
+    val schema: Seq[Map[String, String]] = if (geoIndex < 0) Nil else {
+      Seq(Some("geo" -> SoQLPoint), extraCol).flatten.
+        map { case (col, typ) => Map("c" -> col, "t" -> typ.toString) }
+    }
+    Map(geoIndexKey -> geoIndex, "schema" -> schema)
+  }
+
   test("An empty message is successfully unpacked") {
     import gen.Extensions._ // scalastyle:ignore
 
     forAll { (ext: Extension) =>
-      val header: Map[String, Int] = Map("geometry_index" -> Unused)
-      val upstream = mocks.BinaryResponse(header, Seq.empty)
+      val upstream = mocks.BinaryResponse(headerMap(Unused), Seq.empty)
       val outputStream = new mocks.ByteArrayServletOutputStream
       val resp = outputStream.responseFor
 
@@ -562,8 +573,8 @@ class TileServiceTest extends TestBase with UnusedSugar with MockitoSugar {
     import gen.Points._ // scalastyle:ignore
 
     val writer = new WKBWriter()
-    val geoIndexKey = "geometry_index"
-    val expectedJson = JObject(Map(geoIndexKey -> JString("0")))
+    val expectedJson = JObject(Map("schema" -> JString("Vector(Map(t -> point, c -> geo))"),
+                                   geoIndexKey -> JString("0")))
 
     forAll { pts: Seq[ValidPoint] =>
       val rows = pts.map { pt =>
@@ -571,7 +582,7 @@ class TileServiceTest extends TestBase with UnusedSugar with MockitoSugar {
         Seq(writer.write(geom))
       }
 
-      val upstream = mocks.BinaryResponse(Map(geoIndexKey -> 0), rows)
+      val upstream = mocks.BinaryResponse(headerMap(0), rows)
 
       using(new ResourceScope()) { rs =>
         val maybeResult = TileService.soqlUnpackFeatures(rs)(upstream)
@@ -591,7 +602,6 @@ class TileServiceTest extends TestBase with UnusedSugar with MockitoSugar {
     import gen.Points._ // scalastyle:ignore
 
     val writer = new WKBWriter()
-    val geoIndexKey = "geometry_index"
     val expectedJson = JObject(Map(geoIndexKey -> JString("0")))
     val invalidWKB = Array[Byte](3, 2, 1, 0)
 
@@ -601,7 +611,7 @@ class TileServiceTest extends TestBase with UnusedSugar with MockitoSugar {
         Seq(writer.write(geom))
       }
 
-      val upstream = mocks.BinaryResponse(Map(geoIndexKey -> 0), rows, Some(invalidWKB))
+      val upstream = mocks.BinaryResponse(headerMap(0), rows, Some(invalidWKB))
       val outputStream = new mocks.ByteArrayServletOutputStream
       val resp = outputStream.responseFor
 
@@ -609,11 +619,39 @@ class TileServiceTest extends TestBase with UnusedSugar with MockitoSugar {
 
       verify(resp).setStatus(ScInternalServerError)
 
-      outputStream.getLowStr must include ("invalid wkb geometry")
+      outputStream.getLowStr must include ("non-geom soql type")
     }
   }
 
-  test("TODO: features are unpacked with properties") (pending)
+  test("Features are unpacked with properties") {
+    import gen.Points._ // scalastyle:ignore
+
+    val writer = new WKBWriter()
+
+    forAll { pts: Seq[ValidPoint] =>
+      val rows = pts.map { pt =>
+        val (geom, props) = feature(pt)
+        Seq(writer.write(geom), "abcde")
+      }
+
+      val upstream = mocks.BinaryResponse(headerMap(0, Some("txt" -> SoQLText)), rows)
+
+      using(new ResourceScope()) { rs =>
+        val maybeResult = TileService.soqlUnpackFeatures(rs)(upstream)
+        maybeResult must be a ('success)
+
+        val (jVal, iter) = maybeResult.get
+        val features = iter.toSeq
+
+        features must have length (pts.size)
+        for { i <- 0 until rows.length } {
+          features(i).geometry must equal (point(pts(i)))
+          features(i).properties must equal (Map("txt" -> JString("abcde")))
+        }
+      }
+    }
+
+  }
 
   test("Invalid headers are rejected when unpacking") {
     import gen.Extensions._ // scalastyle:ignore
@@ -655,11 +693,9 @@ class TileServiceTest extends TestBase with UnusedSugar with MockitoSugar {
 
     forAll { (idx: Int, ext: Extension) =>
       whenever (idx < 0) {
-        val upstream = mocks.BinaryResponse(Map("geometry_index" -> -1), Seq.empty)
+        val upstream = mocks.BinaryResponse(headerMap(-1), Seq.empty)
         val outputStream = new mocks.ByteArrayServletOutputStream
         val resp = outputStream.responseFor
-
-        val expected = Success(JNull -> Iterator.empty)
 
         TileService(Unused).processResponse(Unused, ext, Unused)(upstream)(resp)
 
