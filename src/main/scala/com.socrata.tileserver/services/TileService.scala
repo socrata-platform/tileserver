@@ -239,6 +239,7 @@ object TileService {
     }
   }
 
+  // scalastyle:off cyclomatic.complexity
   private[services] def soqlUnpackFeatures(rs: ResourceScope):
       Response => Try[(JValue, Iterator[FeatureJson])] = { resp: Response =>
     val dis = rs.open(new DataInputStream(resp.inputStream(Long.MaxValue)))
@@ -250,15 +251,15 @@ object TileService {
         Failure(InvalidSoqlPackException(soqlIter.headers))
       } else {
         val colNames = soqlIter.schema.map(_._1).toArray
-        val featureJsonIter = soqlIter.map { case soqlRow =>
+        val featureJsonIter = soqlIter.map { soqlRow =>
           val geom: Geometry = soqlRow(soqlIter.geomIndex) match {
             case SoQLMultiPolygon(mp) => mp
-            case SoQLPolygon(p)       => p
-            case SoQLPoint(pt)        => pt
-            case SoQLMultiPoint(mp)   => mp
-            case SoQLLine(l)          => l
-            case SoQLMultiLine(ml)    => ml
-            case x: SoQLValue         => throw new RuntimeException("Should not be seeing non-geom SoQL type" + x)
+            case SoQLPolygon(p) => p
+            case SoQLPoint(pt) => pt
+            case SoQLMultiPoint(mp) => mp
+            case SoQLLine(l) => l
+            case SoQLMultiLine(ml) => ml
+            case x: SoQLValue => throw new RuntimeException("Should not be seeing non-geom SoQL type" + x)
           }
           val props = (0 until soqlRow.size).filterNot(_ == soqlIter.geomIndex).map { i =>
             colNames(i) -> { soqlRow(i) match {
@@ -286,6 +287,7 @@ object TileService {
       case _: NullPointerException =>        Failure(InvalidSoqlPackException(Map.empty))
     }
   }
+  // scalastyle:on cyclomatic.complexity
 
   private[services] def augmentParams(req: HttpRequest,
                                       where: String,
