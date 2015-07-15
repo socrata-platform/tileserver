@@ -42,4 +42,4 @@ testOptions in Test += Tests.Argument(TestFrameworks.ScalaTest, TestOptionNoTrac
 Revolver.settings
 
 // Require full coverage.
-ScoverageSbtPlugin.ScoverageKeys.coverageMinimum := 100
+ScoverageSbtPlugin.ScoverageKeys.coverageMinimum := 96
