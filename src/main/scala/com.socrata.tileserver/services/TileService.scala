@@ -54,12 +54,12 @@ case class TileService(renderer: CartoRenderer,
   // Note: this can either pull the points as .geojson or .soqlpack
   // SoQLPack is binary protocol, much faster and more efficient than GeoJSON
   // in terms of both performance (~3x) and memory usage (1/10th, or so)
-  private[services] def pointQuery(requestId: RequestId,
-                                   req: HttpRequest,
-                                   id: String,
-                                   params: Map[String, String],
-                                   binaryQuery: Boolean = false,
-                                   callback: Response => HttpResponse): HttpResponse = {
+  private[services] def geoQuery(requestId: RequestId,
+                                 req: HttpRequest,
+                                 id: String,
+                                 params: Map[String, String],
+                                 binaryQuery: Boolean = false,
+                                 callback: Response => HttpResponse): HttpResponse = {
     val headers = HeaderFilter.headers(req)
     val queryType = if (binaryQuery) "soqlpack" else "geojson"
 
@@ -148,13 +148,13 @@ case class TileService(renderer: CartoRenderer,
       // scalastyle:ignore
       val binaryQuery = !req.queryParameters.contains("$select") && ext != "json"
 
-      pointQuery(requestId,
-                 req,
-                 identifier,
-                 params,
-                 // Right now soqlpack queries won't work on non-geom columns
-                 binaryQuery,
-                 processResponse(tile, ext, style, req.resourceScope))
+      geoQuery(requestId,
+               req,
+               identifier,
+               params,
+               // Right now soqlpack queries won't work on non-geom columns
+               binaryQuery,
+               processResponse(tile, ext, style, req.resourceScope))
     }.recover {
       case e: Any => fatal("Unknown error", e)
     }.get
@@ -262,18 +262,18 @@ object TileService {
           }
           val props = (0 until soqlRow.size).filterNot(_ == soqlIter.geomIndex).map { i =>
             colNames(i) -> { soqlRow(i) match {
-                               case SoQLText(str)   => JString(str)
-                               case SoQLNumber(bd)  => JNumber(bd)
-                               case SoQLMoney(bd)   => JNumber(bd)
-                               case SoQLDouble(dbl) => JNumber(dbl)
-                               case SoQLBoolean(b)  => JBoolean(b)
-                               case SoQLFixedTimestamp(dt) => JString(SoQLFixedTimestamp.StringRep(dt))
-                               case SoQLFloatingTimestamp(dt) => JString(SoQLFloatingTimestamp.StringRep(dt))
-                               case SoQLTime(dt) => JString(SoQLTime.StringRep(dt))
-                               case SoQLDate(dt) => JString(SoQLDate.StringRep(dt))
-                               case other: SoQLValue => JString(other.toString)
-                             }
-                           }
+                              case SoQLText(str)   => JString(str)
+                              case SoQLNumber(bd)  => JNumber(bd)
+                              case SoQLMoney(bd)   => JNumber(bd)
+                              case SoQLDouble(dbl) => JNumber(dbl)
+                              case SoQLBoolean(b)  => JBoolean(b)
+                              case SoQLFixedTimestamp(dt) => JString(SoQLFixedTimestamp.StringRep(dt))
+                              case SoQLFloatingTimestamp(dt) => JString(SoQLFloatingTimestamp.StringRep(dt))
+                              case SoQLTime(dt) => JString(SoQLTime.StringRep(dt))
+                              case SoQLDate(dt) => JString(SoQLDate.StringRep(dt))
+                              case other: SoQLValue => JString(other.toString)
+                            }
+            }
           }.toMap
           FeatureJson(props, geom)
         }
