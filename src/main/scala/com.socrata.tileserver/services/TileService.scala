@@ -95,7 +95,6 @@ case class TileService(renderer: CartoRenderer,
                                         rs: ResourceScope): Callback = { resp: Response =>
     def createResponse(parsed: (JValue, Iterator[FeatureJson])): HttpResponse = {
       val (jValue, features) = parsed
-      logger.debug("%s", features)
 
       val enc = TileEncoder(rollup(tile, features))
       val respOk = OK ~> HeaderFilter.extract(resp)
