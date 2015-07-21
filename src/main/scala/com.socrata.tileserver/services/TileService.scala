@@ -88,35 +88,35 @@ case class TileService(renderer: CartoRenderer,
       fatal("Unknown error", unknown) // scalastyle:ignore
   }
 
-  // Cyclomatic Complexity is 11, this should drop when we add feature encoding to SoQLPack.
   private[services] def processResponse(tile: QuadTile,
                                         ext: String,
                                         cartoCss: Option[String],
                                         rs: ResourceScope): Callback = { resp: Response =>
     def createResponse(parsed: (JValue, Iterator[FeatureJson])): HttpResponse = {
       val (jValue, features) = parsed
+      logger.debug("%s", features)
 
       val enc = TileEncoder(rollup(tile, features))
       val respOk = OK ~> HeaderFilter.extract(resp)
 
-      ((ext, cartoCss): @unchecked) match {
-        case ("pbf", _) =>
+      ext match {
+        case "pbf" =>
           respOk ~> ContentType("application/octet-stream") ~> ContentBytes(enc.bytes)
-        case ("bpbf", _) =>
+        case "bpbf" =>
           respOk ~> Content("text/plain", enc.base64) // scalastyle:ignore
-        case ("txt", _) =>
+        case "txt" =>
           respOk ~> Content("text/plain", enc.toString)
-        case ("json", _) =>
+        case "json" =>
           respOk ~> Json(jValue)
-        case ("png", Some(style)) =>
-          respOk ~>
-            ContentType("image/png") ~>
-            ContentBytes(renderer.renderPng(enc.base64,
-                                            tile.zoom,
-                                            style)(rs).get)
-        case ("png", None) =>
-          BadRequest ~>
-            Content("text/plain", "Cannot render png without '$style' query parameter.")
+        case "png" =>
+          cartoCss.map(style =>
+            respOk ~>
+              ContentType("image/png") ~>
+              ContentBytes(renderer.renderPng(enc.base64, tile.zoom, style)(rs).get)
+          ).getOrElse(
+            BadRequest ~>
+              Content("text/plain", "Cannot render png without '$style' query parameter.")
+          )
       }
     }
 
