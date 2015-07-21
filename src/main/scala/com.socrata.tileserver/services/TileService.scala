@@ -37,6 +37,7 @@ import exceptions._
 import util.TileEncoder.Feature
 import util.{HeaderFilter, QuadTile, CartoRenderer, TileEncoder}
 
+// scalastyle:off multiple.string.literals
 /** Service that provides the actual tiles.
   *
   * @constructor This should only be called once, by the main application.
@@ -48,7 +49,7 @@ case class TileService(renderer: CartoRenderer,
   type Callback = Response => HttpResponse
 
   /** The types (file extensions) supported by this endpoint. */
-  val types: Set[String] = Set("pbf", "bpbf", "json", "txt", "png") // scalastyle:ignore
+  val types: Set[String] = Set("pbf", "bpbf", "json", "txt", "png")
 
   // Call to the underlying service (Core)
   // Note: this can either pull the points as .geojson or .soqlpack
@@ -85,7 +86,7 @@ case class TileService(renderer: CartoRenderer,
     case jtsEx: ParseException =>
       fatal("Invalid WKB geometry returned from underlying service", jtsEx)
     case unknown: Any =>
-      fatal("Unknown error", unknown) // scalastyle:ignore
+      fatal("Unknown error", unknown)
   }
 
   private[services] def processResponse(tile: QuadTile,
@@ -103,7 +104,7 @@ case class TileService(renderer: CartoRenderer,
         case "pbf" =>
           respOk ~> ContentType("application/octet-stream") ~> ContentBytes(enc.bytes)
         case "bpbf" =>
-          respOk ~> Content("text/plain", enc.base64) // scalastyle:ignore
+          respOk ~> Content("text/plain", enc.base64)
         case "txt" =>
           respOk ~> Content("text/plain", enc.toString)
         case "json" =>
@@ -129,7 +130,7 @@ case class TileService(renderer: CartoRenderer,
       case _ => echoResponse(resp)
     }
 
-    Header("Access-Control-Allow-Origin", "*") ~> result // scalastyle:ignore
+    Header("Access-Control-Allow-Origin", "*") ~> result
   }
 
   // Do the actual heavy lifting for the request handling.
@@ -141,11 +142,10 @@ case class TileService(renderer: CartoRenderer,
     val intersects = tile.intersects(pointColumn)
 
     Try {
-      val style = req.queryParameters.get("$style") // scalastyle:ignore
+      val style = req.queryParameters.get("$style")
       val params = augmentParams(req, intersects, pointColumn)
       val requestId = extractRequestId(req)
 
-      // scalastyle:ignore
       val binaryQuery = !req.queryParameters.contains("$select") && ext != "json"
 
       geoQuery(requestId,
@@ -200,7 +200,7 @@ object TileService {
       Try(JsonReader.fromString(IOUtils.toString(resp.inputStream(), UTF_8)))
     val body = jValue.recover {
       case e: Any =>
-        json"""{ message: "Failed to open inputStream", cause: ${e.getMessage}}""" // scalastyle:ignore
+        json"""{ message: "Failed to open inputStream", cause: ${e.getMessage}}"""
     }.get
 
     val code = resp.resultCode
@@ -294,7 +294,7 @@ object TileService {
                                       select: String): Map[String, String] = {
     val params = req.queryParameters
     val whereParam =
-      if (params.contains("$where")) params("$where") + s" and $where" else where // scalastyle:ignore
+      if (params.contains("$where")) params("$where") + s" and $where" else where
     val selectParam =
       if (params.contains("$select")) params("$select") + s", $select" else select
 

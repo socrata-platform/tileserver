@@ -8,6 +8,7 @@ import org.scalacheck.Gen
 
 import util.CoordinateMapper.Size
 
+// scalastyle:off import.grouping
 package object gen {
   object StatusCodes {
     case class KnownStatusCode(val underlying: Int) {
@@ -38,14 +39,14 @@ package object gen {
     } yield (KnownStatusCode(statusCode))
 
     private val unknownScGen = for {
-      statusCode <- Gen.choose(100, 599) suchThat { statusCode: Int => // scalastyle:ignore
+      statusCode <- Gen.choose(100, 599) suchThat { statusCode: Int =>
         !knownStatusCodes(statusCode) &&
           statusCode != SC_OK && statusCode != SC_NOT_MODIFIED
       }
     } yield (UnknownStatusCode(statusCode))
 
     private val notOkScGen = for {
-      statusCode <- Gen.choose(100, 599) suchThat { statusCode: Int => // scalastyle:ignore
+      statusCode <- Gen.choose(100, 599) suchThat { statusCode: Int =>
         statusCode != SC_OK && statusCode != SC_NOT_MODIFIED
       }
     } yield (NotOkStatusCode(statusCode))
@@ -119,7 +120,7 @@ package object gen {
     case class InvalidPoint(x: Int, y: Int) extends PointLike
 
     implicit def pointToTuple(pt: PointLike): (Int, Int) = (pt.x, pt.y)
-    // scalastyle:off magic.number
+
     private val validGen = for {
       x <- Gen.choose(0, 255)
       y <- Gen.choose(0, 255)
@@ -129,7 +130,6 @@ package object gen {
       x <- Gen.choose(-256, 512) suchThat { x => x < 0 || x > 255 }
       y <- Gen.choose(-256, 512) suchThat { y => y < 0 || y > 255 }
     } yield InvalidPoint(x, y)
-    // scalastyle:on magic.number
 
     implicit val valid: Arbitrary[ValidPoint] = Arbitrary(validGen)
     implicit val invalid: Arbitrary[InvalidPoint] = Arbitrary(invalidGen)
@@ -151,7 +151,7 @@ package object gen {
   }
 
   object QuadTiles {
-    import util.QuadTile // scalastyle:ignore
+    import util.QuadTile
 
     private val tileGen = for {
       zoom <- Gen.choose(1, 20)
@@ -159,7 +159,6 @@ package object gen {
       x <- Gen.choose(0, max)
       y <- Gen.choose(0, max)
     } yield QuadTile(x, y, zoom)
-    // scalastyle:on magic.number
 
     implicit val quadTile: Arbitrary[QuadTile] = Arbitrary(tileGen)
   }

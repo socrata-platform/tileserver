@@ -29,6 +29,7 @@ import com.socrata.thirdparty.geojson.FeatureJson
 
 import util.{CartoRenderer, TileEncoder}
 
+// scalastyle:off import.grouping
 class TileServiceTest extends TestBase with UnusedSugar with MockitoSugar {
   test("Service supports at least .pbf, .bpbf, .json and .png") {
     val svc = TileService(Unused, Unused)
@@ -40,7 +41,7 @@ class TileServiceTest extends TestBase with UnusedSugar with MockitoSugar {
   }
 
   test("Headers and parameters are correct when making a geo-json query") {
-    import gen.Headers._ // scalastyle:ignore
+    import gen.Headers._
 
     forAll { (reqId: RequestId,
               id: String,
@@ -79,8 +80,8 @@ class TileServiceTest extends TestBase with UnusedSugar with MockitoSugar {
   }
 
   test("Correct returned headers are surfaced when processing response") {
-    import gen.Extensions._ // scalastyle:ignore
-    import gen.Headers._ // scalastyle:ignore
+    import gen.Extensions._
+    import gen.Headers._
 
     forAll { (known: OutgoingHeader,
               unknown: UnknownHeader,
@@ -101,8 +102,8 @@ class TileServiceTest extends TestBase with UnusedSugar with MockitoSugar {
   }
 
   test("Features are encoded according to extension when processing response") {
-    import gen.Extensions._ // scalastyle:ignore
-    import gen.Points._ // scalastyle:ignore
+    import gen.Extensions._
+    import gen.Points._
 
     forAll { (pt: ValidPoint, ext: Extension) =>
       val upstream = mocks.SeqResponse(Seq(fJson(pt)))
@@ -136,7 +137,7 @@ class TileServiceTest extends TestBase with UnusedSugar with MockitoSugar {
   }
 
   test("Invalid json returns 'internal server error' when processing response") {
-    import gen.Extensions._ // scalastyle:ignore
+    import gen.Extensions._
 
     forAll { (message: String, ext: Extension) =>
       val upstream = mocks.StringResponse("{")
@@ -156,7 +157,7 @@ class TileServiceTest extends TestBase with UnusedSugar with MockitoSugar {
   }
 
   test("Invalid geo-json returns 'internal server error' when processing response") {
-    import gen.Extensions._ // scalastyle:ignore
+    import gen.Extensions._
 
     forAll { (message: String, ext: Extension) =>
       val upstream = mocks.StringResponse(json"""{"invalidKey": $message}""")
@@ -177,7 +178,7 @@ class TileServiceTest extends TestBase with UnusedSugar with MockitoSugar {
   }
 
   test("Unknown errors are handled when processing response") {
-    import gen.Extensions._ // scalastyle:ignore
+    import gen.Extensions._
 
     forAll { (message: String, ext: Extension) =>
       val upstream = mocks.ThrowsResponse(message)
@@ -196,8 +197,8 @@ class TileServiceTest extends TestBase with UnusedSugar with MockitoSugar {
   }
 
   test("Handle request returns OK when underlying succeeds") {
-    import gen.Extensions._ // scalastyle:ignore
-    import gen.Points._ // scalastyle:ignore
+    import gen.Extensions._
+    import gen.Points._
 
     forAll { (pt: ValidPoint, ext: Extension) =>
       val upstream = mocks.SeqResponse(Seq(fJson(pt)))
@@ -220,7 +221,7 @@ class TileServiceTest extends TestBase with UnusedSugar with MockitoSugar {
   }
 
   test("Handle request fails when rendering a `.png` without `$style`") {
-    import gen.Extensions._ // scalastyle:ignore
+    import gen.Extensions._
 
     val upstream = mocks.SeqResponse(Seq.empty)
     val client = mocks.StaticCuratedClient(upstream)
@@ -234,9 +235,9 @@ class TileServiceTest extends TestBase with UnusedSugar with MockitoSugar {
   }
 
   test("Handle request returns OK when underlying succeeds for single FeatureJson") {
-    import gen.Extensions._ // scalastyle:ignore
-    import gen.Points._ // scalastyle:ignore
-    import com.socrata.thirdparty.geojson.GeoJson // scalastyle:ignore
+    import gen.Extensions._
+    import gen.Points._
+    import com.socrata.thirdparty.geojson.GeoJson
 
     forAll { (pt: ValidPoint, ext: Extension) =>
       val s = GeoJson.codec.encode(fJson(pt)).toString.replaceAll("\\s*", "")
@@ -276,7 +277,7 @@ class TileServiceTest extends TestBase with UnusedSugar with MockitoSugar {
   }
 
   test("Handle request echos known codes") {
-    import gen.StatusCodes._ // scalastyle:ignore
+    import gen.StatusCodes._
 
     forAll { (statusCode: KnownStatusCode, payload: String) =>
       val message = s"""{message: ${encode(payload)}}"""
@@ -299,7 +300,7 @@ class TileServiceTest extends TestBase with UnusedSugar with MockitoSugar {
   }
 
   test("Handle request returns 'internal server error' on unknown status") {
-    import gen.StatusCodes._ // scalastyle:ignore
+    import gen.StatusCodes._
 
     forAll { (statusCode: UnknownStatusCode, payload: String) =>
       val message = s"""{message: ${encode(payload)}}"""
@@ -324,7 +325,7 @@ class TileServiceTest extends TestBase with UnusedSugar with MockitoSugar {
   }
 
   test("Handle request returns 'internal server error' if processing throws") {
-    import gen.Extensions._ // scalastyle:ignore
+    import gen.Extensions._
 
     forAll { (message: String, ext: Extension) =>
       val client = mocks.StaticCuratedClient {
@@ -345,8 +346,8 @@ class TileServiceTest extends TestBase with UnusedSugar with MockitoSugar {
   }
 
   test("Get returns success when underlying succeeds") {
-    import gen.Extensions._ // scalastyle:ignore
-    import gen.Points._ // scalastyle:ignore
+    import gen.Extensions._
+    import gen.Points._
 
     forAll { (pt: ValidPoint, ext: Extension) =>
       val upstream = mocks.SeqResponse(Seq(fJson(pt)))
@@ -374,7 +375,7 @@ class TileServiceTest extends TestBase with UnusedSugar with MockitoSugar {
   }
 
   test("Echoed response must include known status code, content-type, and payload") {
-    import gen.StatusCodes._ // scalastyle:ignore
+    import gen.StatusCodes._
 
     forAll { (statusCode: KnownStatusCode, payload: String) =>
       val outputStream = new mocks.ByteArrayServletOutputStream
@@ -394,7 +395,7 @@ class TileServiceTest extends TestBase with UnusedSugar with MockitoSugar {
   }
 
   test("Echoing response succeeds when upstream throws") {
-    import gen.StatusCodes._ // scalastyle:ignore
+    import gen.StatusCodes._
 
     forAll { (statusCode: KnownStatusCode, message: String) =>
       val upstream = mocks.ThrowsResponse(message, statusCode)
@@ -517,7 +518,7 @@ class TileServiceTest extends TestBase with UnusedSugar with MockitoSugar {
   }
 
   test("A single coordinate rolls up correctly") {
-    import gen.Points._ // scalastyle:ignore
+    import gen.Points._
 
     forAll { pt: ValidPoint =>
       TileService.rollup(Unused, Iterator.single(fJson(pt))) must equal (Set(feature(pt)))
@@ -525,7 +526,7 @@ class TileServiceTest extends TestBase with UnusedSugar with MockitoSugar {
   }
 
   test("Unique coordinates are included when rolled up") {
-    import gen.Points._ // scalastyle:ignore
+    import gen.Points._
 
     forAll { pts: Set[ValidPoint] =>
       val coordinates = pts.map(fJson(_))
@@ -537,7 +538,7 @@ class TileServiceTest extends TestBase with UnusedSugar with MockitoSugar {
   }
 
   test("Coordinates have correct counts when rolled up") {
-    import gen.Points._ // scalastyle:ignore
+    import gen.Points._
 
     forAll { uniquePts: Set[ValidPoint] =>
       val pts = uniquePts.toSeq
@@ -556,7 +557,7 @@ class TileServiceTest extends TestBase with UnusedSugar with MockitoSugar {
   }
 
   test("Coordinates with unique properties are not rolled up") {
-    import gen.Points._ // scalastyle:ignore
+    import gen.Points._
 
     forAll { (pt0: ValidPoint,
               pt1: ValidPoint,
@@ -595,7 +596,7 @@ class TileServiceTest extends TestBase with UnusedSugar with MockitoSugar {
   }
 
   test("An empty message is successfully unpacked") {
-    import gen.Extensions._ // scalastyle:ignore
+    import gen.Extensions._
 
     forAll { (ext: Extension) =>
       val upstream = mocks.BinaryResponse(headerMap(Unused), Seq.empty)
@@ -619,7 +620,7 @@ class TileServiceTest extends TestBase with UnusedSugar with MockitoSugar {
   }
 
   test("Features are successfully unpacked") {
-    import gen.Points._ // scalastyle:ignore
+    import gen.Points._
 
     val writer = new WKBWriter()
     val expectedJson = JObject(Map("schema" -> JString("Vector(Map(t -> point, c -> geo))"),
@@ -648,7 +649,7 @@ class TileServiceTest extends TestBase with UnusedSugar with MockitoSugar {
   }
 
   test("Invalid WKB is handled correctly as parsing error") {
-    import gen.Points._ // scalastyle:ignore
+    import gen.Points._
 
     val writer = new WKBWriter()
     val expectedJson = JObject(Map(geoIndexKey -> JString("0")))
@@ -674,7 +675,7 @@ class TileServiceTest extends TestBase with UnusedSugar with MockitoSugar {
   }
 
   test("Features are unpacked with properties") {
-    import gen.Points._ // scalastyle:ignore
+    import gen.Points._
 
     val writer = new WKBWriter()
 
@@ -704,7 +705,7 @@ class TileServiceTest extends TestBase with UnusedSugar with MockitoSugar {
   }
 
   test("Invalid headers are rejected when unpacking") {
-    import gen.Extensions._ // scalastyle:ignore
+    import gen.Extensions._
 
     forAll { (payload: Array[Byte], ext: Extension) =>
       val upstream = mocks.BinaryResponse(payload)
@@ -722,9 +723,9 @@ class TileServiceTest extends TestBase with UnusedSugar with MockitoSugar {
   }
 
   test("Message pack null is rejected when unpacking") {
-    import gen.Extensions._ // scalastyle:ignore
+    import gen.Extensions._
 
-    val msgNull: Array[Byte] = Array(-64) // scalastyle:ignore
+    val msgNull: Array[Byte] = Array(-64)
 
     forAll { ext: Extension =>
       val upstream = mocks.BinaryResponse(msgNull)
@@ -741,7 +742,7 @@ class TileServiceTest extends TestBase with UnusedSugar with MockitoSugar {
   }
 
   test("Invalid `geometry_index`s are rejected when unpacking") {
-    import gen.Extensions._ // scalastyle:ignore
+    import gen.Extensions._
 
     forAll { (idx: Int, ext: Extension) =>
       whenever (idx < 0) {
@@ -760,7 +761,7 @@ class TileServiceTest extends TestBase with UnusedSugar with MockitoSugar {
   }
 
   test("`$style` is not passed upstream") {
-    import gen.Extensions._ // scalastyle:ignore
+    import gen.Extensions._
 
     forAll { ext: Extension =>
       val upstream = mocks.StringResponse(Unused)

@@ -15,9 +15,10 @@ import org.slf4j.{Logger, LoggerFactory}
 import CartoRenderer._
 import exceptions.FailedRenderException
 
+// scalastyle:off multiple.string.literals
 case class CartoRenderer(http: HttpClient, baseUrl: RequestBuilder) {
   def mapnikXml(cartoCss: String)(implicit rs: ResourceScope): Try[String] = {
-    val content = json"{ style: ${cartoCss} }" // scalastyle:ignore
+    val content = json"{ style: ${cartoCss} }"
     val req = baseUrl.addPath("style").jsonBody(content)
 
     Try(http.execute(req, rs)).map { resp: Response =>
@@ -28,7 +29,7 @@ case class CartoRenderer(http: HttpClient, baseUrl: RequestBuilder) {
   def renderPng(pbf: String,
                 zoom: Int,
                 cartoCss: String)(implicit rs: ResourceScope): Try[Array[Byte]]  = {
-    val content = json"{ bpbf: ${pbf}, zoom: ${zoom}, style: ${cartoCss} }" // scalastyle:ignore
+    val content = json"{ bpbf: ${pbf}, zoom: ${zoom}, style: ${cartoCss} }"
     val req = baseUrl.addPath("render").jsonBody(content)
 
     // logger.debug("content: {}", content)

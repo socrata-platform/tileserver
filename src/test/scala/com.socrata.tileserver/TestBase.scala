@@ -12,6 +12,7 @@ import com.socrata.thirdparty.geojson.FeatureJson
 
 import util.TileEncoder.Feature
 
+// scalastyle:off import.grouping
 trait TestBase
     extends FunSuite
     with org.scalatest.MustMatchers
@@ -26,7 +27,7 @@ trait TestBase
   }
 
   def feature(ptct: (gen.Points.ValidPoint, Int)): Feature = {
-    import gen.Points._ // scalastyle:ignore
+    import gen.Points._
 
     val (pt, ct) = ptct
     feature(pt, count=ct)

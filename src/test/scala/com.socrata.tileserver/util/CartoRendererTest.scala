@@ -14,6 +14,7 @@ import com.socrata.http.client.{exceptions => _, _}
 
 import exceptions.FailedRenderException
 
+// scalastyle:off import.grouping
 class CartoRendererTest extends TestBase with UnusedSugar {
   implicit val rs: ResourceScope = Unused
 
@@ -32,7 +33,7 @@ class CartoRendererTest extends TestBase with UnusedSugar {
   }
 
   test("handleResponse fails on non-200 responses") {
-    import gen.StatusCodes._ // scalastyle:ignore
+    import gen.StatusCodes._
 
     forAll { (payload: String, sc: NotOkStatusCode) =>
       val expected = Failure(FailedRenderException(payload))

@@ -5,9 +5,9 @@ import com.vividsolutions.jts.geom.Coordinate
 
 import CoordinateMapper.Size
 
+// scalastyle:off import.grouping
 class QuadTileTest extends TestBase {
   test("Tile includes point on east edge") {
-    // scalastyle:off magic.number
     val tile = new QuadTile(330, 800, 11)
     val (lon, lat) = (-121.816769, 36.579349)
     tile.east must be > lon
@@ -16,29 +16,23 @@ class QuadTileTest extends TestBase {
     tile.south must be > lat
 
     tile.px(lon, lat) must equal ((255, 34))
-    // scalastyle:on magic.number
   }
 
   test("Left tile's east edge must touch right tile's west edge") {
-    // scalastyle:off magic.number
     val left = new QuadTile(330, 800, 11)
     val right = new QuadTile(331, 800, 11)
 
     left.east must equal (right.west)
-    // scalastyle:on magic.number
   }
 
   test("Upper tile's south edge must touch lower tile's north edge") {
-    // scalastyle:off magic.number
     val upper = new QuadTile(330, 800, 11)
     val lower = new QuadTile(330, 799, 11)
 
     upper.south must equal (lower.north)
-    // scalastyle:on magic.number
   }
 
   test("tilePx(lon, lat) maps correctly to pixels") {
-    // scalastyle:off magic.number
     val tile14 = QuadTile(4207, 6101, 14)
     tile14.px(-87.539383, 41.681059) must equal ((252, 129))
     tile14.px(-87.545220, 41.683555) must equal ((184, 90))
@@ -50,12 +44,11 @@ class QuadTileTest extends TestBase {
     tile5.px(-87.676410, 41.776204) must equal ((53, 232))
     tile5.px(-87.560088, 41.753145) must equal ((56, 233))
     tile5.px(-87.667603, 42.011423) must equal ((53, 225))
-    // scalastyle:on magic.number
   }
 
   test("tile.px(lon, lat) maps points into pixel space") {
-    import gen.Points._ // scalastyle:ignore
-    import gen.QuadTiles._ // scalastyle:ignore
+    import gen.Points._
+    import gen.QuadTiles._
 
     forAll { (tile: QuadTile, pt: ValidPoint) =>
       val (lon, lat) = pt.onto(tile)
@@ -66,8 +59,8 @@ class QuadTileTest extends TestBase {
   }
 
   test("tile.px(Coordinate(x, y)) returns the same values as tile.px(x, y)") {
-    import gen.Points._ // scalastyle:ignore
-    import gen.QuadTiles._ // scalastyle:ignore
+    import gen.Points._
+    import gen.QuadTiles._
 
     forAll { (tile: QuadTile, pt: ValidPoint) =>
       val (lon, lat) = pt.onto(tile)
@@ -78,8 +71,8 @@ class QuadTileTest extends TestBase {
   }
 
   test("Points next to the North and East edges are included") {
-    import gen.Points._ // scalastyle:ignore
-    import gen.QuadTiles._ // scalastyle:ignore
+    import gen.Points._
+    import gen.QuadTiles._
 
     val c = Size - 1
 
