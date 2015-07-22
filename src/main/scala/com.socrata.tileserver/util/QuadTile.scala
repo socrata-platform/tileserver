@@ -53,9 +53,9 @@ case class QuadTile(rawX: Int, rawY: Int, zoom: Int) extends CoordinateFilter {
 
   private def clip(n: Int): Int =
     if (n < 0) {
-      0
+      -CoordinateMapper.Size
     } else if (n > CoordinateMapper.Size) {
-      CoordinateMapper.Size
+      2 * CoordinateMapper.Size
     } else {
       n
     }
