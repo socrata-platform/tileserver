@@ -46,8 +46,12 @@ case class CoordinateMapper(val zoom: Int) {
     -1 * r2d * (2 * atan(exp(g)) - 0.5 * Pi)
   }
 
-  /** The pixel (x, y) corresponding to "lon" and "lat" */
-  private[util] def px(lon: Double, lat: Double): (Int, Int) = {
+  /**
+    The pixel (x, y) corresponding to "lon" and "lat"
+
+    NOTE: These are global coordinates, not relative to the tile.
+    */
+  def px(lon: Double, lat: Double): (Int, Int) = {
     val f = min(max(sin(d2r * lat), -0.9999), 0.9999)
 
     val x = (d + lon * bc).round.toInt

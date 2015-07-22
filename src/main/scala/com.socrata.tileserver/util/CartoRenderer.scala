@@ -32,8 +32,6 @@ case class CartoRenderer(http: HttpClient, baseUrl: RequestBuilder) {
     val content = json"{ bpbf: ${pbf}, zoom: ${zoom}, style: ${cartoCss} }"
     val req = baseUrl.addPath("render").jsonBody(content)
 
-    // logger.debug("content: {}", content)
-
     Try(http.execute(req, rs)).map { resp: Response =>
       IOUtils.toByteArray(resp.inputStream())
     }
@@ -41,8 +39,6 @@ case class CartoRenderer(http: HttpClient, baseUrl: RequestBuilder) {
 }
 
 object CartoRenderer {
-  private val logger: Logger = LoggerFactory.getLogger(getClass)
-
   private[util] def handleResponse(response: Try[Response]): Try[InputStream] = {
     response.flatMap { resp =>
       if (resp.resultCode == ScOk) {
