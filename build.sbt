@@ -19,7 +19,7 @@ libraryDependencies ++= Seq(
     ExclusionRule(organization = "com.socrata", name = "socrata-thirdparty-utils_2.10")),
   "com.socrata"             %% "socrata-thirdparty-utils" % "3.1.4",
   "com.socrata"             %% "soql-pack"                % "0.6.0",
-  "com.typesafe"             % "config"                   % "1.3.0",
+  "com.typesafe"             % "config"                   % "1.2.1",
   "commons-codec"            % "commons-codec"            % "1.10",
   "commons-io"               % "commons-io"               % "2.4",
   "no.ecc.vectortile"        % "java-vector-tile"         % "1.0.8",
