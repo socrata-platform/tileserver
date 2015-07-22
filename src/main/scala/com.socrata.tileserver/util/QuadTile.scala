@@ -2,7 +2,6 @@ package com.socrata.tileserver
 package util
 
 import com.vividsolutions.jts.geom.{Coordinate, CoordinateFilter}
-import org.slf4j.{Logger, LoggerFactory}
 
 import CoordinateMapper.Size
 
@@ -14,8 +13,6 @@ import CoordinateMapper.Size
   * @param zoom zoom level of the map
   */
 case class QuadTile(rawX: Int, rawY: Int, zoom: Int) extends CoordinateFilter {
-  private val logger: Logger = LoggerFactory.getLogger(getClass)
-
   /** The mapper for this zoom. */
   val mapper = CoordinateMapper(zoom)
 
@@ -46,19 +43,9 @@ case class QuadTile(rawX: Int, rawY: Int, zoom: Int) extends CoordinateFilter {
   /** The pixel (x, y) corresponding * to "lon" and "lat" in 256x256 space. */
   def px(lon: Double, lat: Double): (Int, Int) = {
     val (lonX, latY) = mapper.px(lon, lat)
-    val (x, y) = (lonX - (rawX * Size), latY - (rawY * Size))
 
-    (clip(x), clip(y))
+    (lonX - (rawX * Size), latY - (rawY * Size))
   }
-
-  private def clip(n: Int): Int =
-    if (n < 0) {
-      -CoordinateMapper.Size
-    } else if (n > CoordinateMapper.Size) {
-      2 * CoordinateMapper.Size
-    } else {
-      n
-    }
 
   /** Map a (lon, lat) coordinate into (x, y) in 256x256 space. */
   def px(c: Coordinate): Coordinate = {
