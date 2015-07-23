@@ -28,15 +28,11 @@ case class CartoRenderer(http: HttpClient, baseUrl: RequestBuilder) {
 
   def renderPng(pbf: String,
                 zoom: Int,
-                cartoCss: String)(implicit rs: ResourceScope): Try[Array[Byte]]  = {
+                cartoCss: String)(implicit rs: ResourceScope): InputStream = {
     val content = json"{ bpbf: ${pbf}, zoom: ${zoom}, style: ${cartoCss} }"
     val req = baseUrl.addPath("render").jsonBody(content)
 
-    // logger.debug("content: {}", content)
-
-    Try(http.execute(req, rs)).map { resp: Response =>
-      IOUtils.toByteArray(resp.inputStream())
-    }
+    http.execute(req, rs).inputStream()
   }
 }
 

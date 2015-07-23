@@ -112,7 +112,7 @@ case class TileService(renderer: CartoRenderer,
           cartoCss.map(style =>
             respOk ~>
               ContentType("image/png") ~>
-              ContentBytes(renderer.renderPng(enc.base64, tile.zoom, style)(rs).get)
+              Stream(renderer.renderPng(enc.base64, tile.zoom, style)(rs))
           ).getOrElse(
             BadRequest ~>
               Content("text/plain", "Cannot render png without '$style' query parameter.")

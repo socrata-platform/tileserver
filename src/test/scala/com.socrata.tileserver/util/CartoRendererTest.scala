@@ -3,6 +3,7 @@ package util
 
 import java.nio.charset.StandardCharsets.UTF_8
 import javax.servlet.http.HttpServletResponse.{SC_OK => ScOk}
+import scala.util.control.NoStackTrace
 import scala.util.{Failure, Success}
 
 import com.rojoma.json.v3.ast._
@@ -57,16 +58,15 @@ class CartoRendererTest extends TestBase with UnusedSugar {
     }
   }
 
-  test("renderPng does not throw") {
+  test("renderPng throws on error") {
     forAll { (pbf: String, zoom: Int, css: String, message: String) =>
       val resp = mocks.ThrowsResponse(message)
       val client = mocks.StaticHttpClient(resp)
       val renderer = CartoRenderer(client, Unused)
 
-      val actual = renderer.renderPng(pbf, zoom, css)
-
-      actual must be ('failure)
-      actual.failed.get.getMessage must equal (message)
+      val actual =
+        the [NoStackTrace] thrownBy renderer.renderPng(pbf, zoom, css) // scalastyle:ignore
+      actual.getMessage must equal (message)
     }
   }
 
@@ -118,10 +118,10 @@ class CartoRendererTest extends TestBase with UnusedSugar {
       val client = mocks.DynamicHttpClient(f(salt))
       val renderer = CartoRenderer(client, Unused)
 
-      val expected = Success(payload.getBytes(UTF_8).toSeq)
+      val expected = payload.getBytes(UTF_8)
       val actual = renderer.renderPng(pbf, zoom, css)
 
-      actual.map(_.toSeq) must equal (expected)
+      IOUtils.toByteArray(actual) must equal (expected)
     }
   }
 }
