@@ -21,44 +21,46 @@ import org.apache.commons.io.IOUtils
 import org.slf4j.{Logger, LoggerFactory, MDC}
 import org.velvia.InvalidMsgPackDataException
 
-import com.socrata.soql.SoQLPackIterator
-import com.socrata.soql.types._
-import com.socrata.thirdparty.curator.CuratedServiceClient
 import com.socrata.http.client.{RequestBuilder, Response}
 import com.socrata.http.server.implicits._
 import com.socrata.http.server.responses._
 import com.socrata.http.server.routing.{SimpleResource, TypedPathComponent}
 import com.socrata.http.server.util.RequestId.{RequestId, ReqIdHeader, getFromRequest}
 import com.socrata.http.server.{HttpRequest, HttpResponse, HttpService}
+import com.socrata.soql.SoQLPackIterator
+import com.socrata.soql.types._
+import com.socrata.thirdparty.curator.CuratedServiceClient
 import com.socrata.thirdparty.geojson.{GeoJson, FeatureCollectionJson, FeatureJson}
 
 import TileService._
 import exceptions._
 import util.TileEncoder.Feature
-import util.{HeaderFilter, QuadTile, TileEncoder}
+import util.{HeaderFilter, QuadTile, CartoRenderer, TileEncoder}
 
+// scalastyle:off multiple.string.literals
 /** Service that provides the actual tiles.
   *
   * @constructor This should only be called once, by the main application.
   * @param client The client to talk to the upstream geo-json service.
   */
-case class TileService(client: CuratedServiceClient) extends SimpleResource {
+case class TileService(renderer: CartoRenderer,
+                       client: CuratedServiceClient) extends SimpleResource {
   /** Type of callback we will be passing to `client`. */
   type Callback = Response => HttpResponse
 
   /** The types (file extensions) supported by this endpoint. */
-  val types: Set[String] = Set("pbf", "bpbf", "json", "txt") // scalastyle:ignore
+  val types: Set[String] = Set("pbf", "bpbf", "json", "txt", "png")
 
   // Call to the underlying service (Core)
   // Note: this can either pull the points as .geojson or .soqlpack
   // SoQLPack is binary protocol, much faster and more efficient than GeoJSON
   // in terms of both performance (~3x) and memory usage (1/10th, or so)
-  private[services] def pointQuery(requestId: RequestId,
-                                   req: HttpRequest,
-                                   id: String,
-                                   params: Map[String, String],
-                                   binaryQuery: Boolean = false,
-                                   callback: Response => HttpResponse): HttpResponse = {
+  private[services] def geoQuery(requestId: RequestId,
+                                 req: HttpRequest,
+                                 id: String,
+                                 params: Map[String, String],
+                                 binaryQuery: Boolean = false,
+                                 callback: Response => HttpResponse): HttpResponse = {
     val headers = HeaderFilter.headers(req)
     val queryType = if (binaryQuery) "soqlpack" else "geojson"
 
@@ -84,39 +86,52 @@ case class TileService(client: CuratedServiceClient) extends SimpleResource {
     case jtsEx: ParseException =>
       fatal("Invalid WKB geometry returned from underlying service", jtsEx)
     case unknown: Any =>
-      fatal("Unknown error", unknown) // scalastyle:ignore
+      fatal("Unknown error", unknown)
   }
 
   private[services] def processResponse(tile: QuadTile,
                                         ext: String,
-                                        rs: ResourceScope): Callback =
-  { resp: Response =>
+                                        cartoCss: Option[String],
+                                        requestId: String,
+                                        rs: ResourceScope): Callback = { resp: Response =>
     def createResponse(parsed: (JValue, Iterator[FeatureJson])): HttpResponse = {
       val (jValue, features) = parsed
 
-      logger.debug(s"Underlying json: {}", jValue)
-
       val enc = TileEncoder(rollup(tile, features))
-      val payload = ext match {
-        case "pbf" => ContentType("application/octet-stream") ~> ContentBytes(enc.bytes)
-        case "bpbf" => Content("text/plain", enc.base64) // scalastyle:ignore
-        case "txt" => Content("text/plain", enc.toString)
-        case "json" => Json(jValue)
-      }
+      val respOk = OK ~> HeaderFilter.extract(resp)
 
-      OK ~> HeaderFilter.extract(resp) ~> payload
+      ext match {
+        case "pbf" =>
+          respOk ~> ContentType("application/octet-stream") ~> ContentBytes(enc.bytes)
+        case "bpbf" =>
+          respOk ~> Content("text/plain", enc.base64)
+        case "txt" =>
+          respOk ~> Content("text/plain", enc.toString)
+        case "json" =>
+          respOk ~> Json(jValue)
+        case "png" =>
+          cartoCss.map(style =>
+            respOk ~>
+              ContentType("image/png") ~>
+              Stream(renderer.renderPng(enc.base64, tile.zoom, style, requestId)(rs))
+          ).getOrElse(
+            BadRequest ~>
+              Content("text/plain", "Cannot render png without '$style' query parameter.")
+          )
+      }
     }
 
     lazy val result = resp.resultCode match {
       case ScOk =>
         val isGeoJsonResponse = Response.acceptGeoJson(resp.contentType)
         val features = if (isGeoJsonResponse) geoJsonFeatures _ else soqlUnpackFeatures(rs)
+
         features(resp).map(createResponse).recover(handleErrors).get
       case ScNotModified => NotModified
       case _ => echoResponse(resp)
     }
 
-    Header("Access-Control-Allow-Origin", "*") ~> result // scalastyle:ignore
+    Header("Access-Control-Allow-Origin", "*") ~> result
   }
 
   // Do the actual heavy lifting for the request handling.
@@ -125,22 +140,25 @@ case class TileService(client: CuratedServiceClient) extends SimpleResource {
                                       pointColumn: String,
                                       tile: QuadTile,
                                       ext: String) : HttpResponse = {
-    val withinBox = tile.withinBox(pointColumn)
+    val intersects = tile.intersects(pointColumn)
 
-    Try {
-      val params = augmentParams(req, withinBox, pointColumn)
+    try {
+      val style = req.queryParameters.get("$style")
+      val params = augmentParams(req, intersects, pointColumn)
       val requestId = extractRequestId(req)
 
-      pointQuery(requestId,
-                 req,
-                 identifier,
-                 params,
-                 // Right now soqlpack queries won't work on non-geom columns
-                 !req.queryParameters.contains("$select"), // scalastyle:ignore
-                 processResponse(tile, ext, req.resourceScope))
-    }.recover {
-      case e: Any => fatal("Unknown error", e)
-    }.get
+      val binaryQuery = !req.queryParameters.contains("$select") && ext != "json"
+
+      geoQuery(requestId,
+               req,
+               identifier,
+               params,
+               // Right now soqlpack queries won't work on non-geom columns
+               binaryQuery,
+               processResponse(tile, ext, style, requestId, req.resourceScope))
+    } catch {
+      case e: Exception => fatal("Unknown error", e)
+    }
   }
 
   /** Handle the request.
@@ -183,10 +201,8 @@ object TileService {
       Try(JsonReader.fromString(IOUtils.toString(resp.inputStream(), UTF_8)))
     val body = jValue.recover {
       case e: Any =>
-        json"""{ message: "Failed to open inputStream", cause: ${e.getMessage}}""" // scalastyle:ignore
+        json"""{ message: "Failed to open inputStream", cause: ${e.getMessage}}"""
     }.get
-
-    logger.info(s"Proxying response: ${resp.resultCode}: $body")
 
     val code = resp.resultCode
     val base = if (allowed(code)) Status(code) else InternalServerError
@@ -196,7 +212,8 @@ object TileService {
   }
 
   private[services] def fatal(message: String, cause: Throwable): HttpResponse = {
-    logger.warn(message, cause)
+    logger.warn(message)
+    logger.warn(cause.getMessage, cause.getStackTrace)
 
     val payload = cause match {
       case e: InvalidGeoJsonException =>
@@ -278,33 +295,29 @@ object TileService {
                                       select: String): Map[String, String] = {
     val params = req.queryParameters
     val whereParam =
-      if (params.contains("$where")) params("$where") + s" and $where" else where // scalastyle:ignore
+      if (params.contains("$where")) params("$where") + s" and $where" else where
     val selectParam =
       if (params.contains("$select")) params("$select") + s", $select" else select
 
-    params + ("$where" -> whereParam) + ("$select" -> selectParam)
+    params + ("$where" -> whereParam) + ("$select" -> selectParam) - "$style"
   }
 
   private[services] def rollup(tile: QuadTile,
                                features: => Iterator[FeatureJson]): Set[Feature] = {
-    val maybePixels = features map { f =>
-      (tile.px(f.geometry.getCoordinate), f.properties)
+    // So far, `features` is still an Iterator; foreach is a streaming way to
+    // do a grouping count without materializing all the pixels/geometries and
+    // producing multiple intermediate objects, so we can save on memory use.
+    val pxCounts = new collection.mutable.HashMap[Feature, Int].withDefaultValue(0)
+    features.foreach { f =>
+      val geom = f.geometry
+      geom.apply(tile)
+      geom.geometryChanged()
+
+      pxCounts(geom -> f.properties) += 1
     }
 
-    val pixels = maybePixels collect { case (Some(px), props) =>
-      (px, props)
-    }
-
-    // So far, pixels is still an Iterator. pixels foreach is a streaming way to
-    // do a grouping count without materializing all the pixels/geometries and producing
-    // multiple intermediate objects, so we can save on memory use.
-    val ptCounts = new collection.mutable.HashMap[Feature, Int].withDefaultValue(0)
-    pixels foreach { case (px, props) =>
-      ptCounts((geomFactory.createPoint(px), props)) += 1
-    }
-
-    ptCounts.map { case ((pt, props), count) =>
-      pt -> Map("count" -> toJValue(count), "properties" -> toJValue(props))
+    pxCounts.map { case ((geom, props), count) =>
+      geom -> Map("count" -> toJValue(count), "properties" -> toJValue(props))
     } (collection.breakOut) // Build `Set` not `Seq`.
   }
 }

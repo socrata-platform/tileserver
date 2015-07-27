@@ -17,7 +17,9 @@ import TileEncoder._
 case class TileEncoder(features: Set[TileEncoder.Feature]) {
   /** Create a vector tile encoded as a protocol-buffer. */
   lazy val bytes: Array[Byte] = {
-    val underlying = new VectorTileEncoder()
+    val underlying = new VectorTileEncoder(ZoomFactor * CoordinateMapper.Size,
+                                           ZoomFactor * CoordinateMapper.Size,
+                                           true)
 
     features foreach { case (geometry, attributes) =>
       underlying.addFeature("main", attributes.asJava, geometry)
@@ -39,6 +41,8 @@ case class TileEncoder(features: Set[TileEncoder.Feature]) {
 }
 
 object TileEncoder {
+  private val ZoomFactor: Int = 16
+
   /** (geometry, attributes) */
   type Feature = (Geometry, Map[String, JValue])
 

@@ -9,9 +9,9 @@ import com.socrata.thirdparty.curator.{CuratedClientConfig, CuratedServiceClient
 import com.socrata.http.client.{RequestBuilder, Response, SimpleHttpRequest}
 import com.socrata.thirdparty.curator.ServerProvider
 
-import StaticClient._
+import StaticCuratedClient._
 
-class StaticClient(resp: Request => Response) extends MockitoSugar {
+class StaticCuratedClient(resp: Request => Response) extends MockitoSugar {
   val EmptyConfig = new CuratedClientConfig(mock[Config], "") {
     override val serviceName = ""
     override val connectTimeout = 0
@@ -25,10 +25,10 @@ class StaticClient(resp: Request => Response) extends MockitoSugar {
   }
 }
 
-object StaticClient {
+object StaticCuratedClient {
   type Request = RequestBuilder => SimpleHttpRequest
 
-  def withReq(resp: Request => Response): CuratedServiceClient = new StaticClient(resp).client
+  def withReq(resp: Request => Response): CuratedServiceClient = new StaticCuratedClient(resp).client
   def apply(resp: () => Response): CuratedServiceClient = withReq { r => resp() }
   def apply(resp: Response): CuratedServiceClient = apply { () => resp }
 }

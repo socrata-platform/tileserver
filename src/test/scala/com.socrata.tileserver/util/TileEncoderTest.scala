@@ -16,6 +16,7 @@ import org.scalatest.{FunSuite, MustMatchers}
 
 import TileEncoder.Feature
 
+// scalastyle:off import.grouping
 class TileEncoderTest extends TestBase with MockitoSugar {
   implicit def byteToInt(pt: (Byte, Byte)): (Int, Int) = pt match {
     case (x: Byte, y: Byte) => (x.toInt, y.toInt)
@@ -31,7 +32,7 @@ class TileEncoderTest extends TestBase with MockitoSugar {
   }
 
   test("Features are encoded as bytes only if they are valid") {
-    import gen.Points._ // scalastyle:ignore
+    import gen.Points._
 
     forAll { (pt0: ValidPoint,
               pt1: ValidPoint,
@@ -45,10 +46,10 @@ class TileEncoderTest extends TestBase with MockitoSugar {
 
       val bytes = TileEncoder(invalid ++ valid).bytes
 
-      decoder.decode(bytes)
-      decoder.getLayerNames must equal (Set("main").asJava)
+      val decoded = decoder.decode(bytes)
+      decoded.getLayerNames must equal (Set("main").asJava)
 
-      val features = decoder.getFeatures("main").asScala.map(convert)
+      val features = decoded.asScala.map(convert)
 
       features must have size (valid.size)
       valid foreach { features must contain (_)}
@@ -56,7 +57,7 @@ class TileEncoderTest extends TestBase with MockitoSugar {
   }
 
   test("Features are encoded as base64 bytes only if they are valid") {
-    import gen.Points._ // scalastyle:ignore
+    import gen.Points._
 
     forAll { (pt0: ValidPoint,
               pt1: ValidPoint,
@@ -71,10 +72,10 @@ class TileEncoderTest extends TestBase with MockitoSugar {
       val base64 = TileEncoder(invalid ++ valid).base64
       val bytes = Base64.decodeBase64(base64)
 
-      decoder.decode(bytes)
-      decoder.getLayerNames must equal (Set("main").asJava)
+      val decoded = decoder.decode(bytes)
+      decoded.getLayerNames must equal (Set("main").asJava)
 
-      val features = decoder.getFeatures("main").asScala.map(convert)
+      val features = decoded.asScala.map(convert)
 
       features must have size (valid.size)
       valid foreach { features must contain (_)}
@@ -83,7 +84,7 @@ class TileEncoderTest extends TestBase with MockitoSugar {
 
   // Behavior is undefined for invalid features.
   test("toString includes all valid features") {
-    import gen.Points._ // scalastyle:ignore
+    import gen.Points._
 
     forAll { (pt0: ValidPoint,
               pt1: ValidPoint,

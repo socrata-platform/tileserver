@@ -8,6 +8,7 @@ import org.scalacheck.Gen
 
 import util.CoordinateMapper.Size
 
+// scalastyle:off import.grouping
 package object gen {
   object StatusCodes {
     case class KnownStatusCode(val underlying: Int) {
@@ -19,6 +20,11 @@ package object gen {
       override val toString: String = underlying.toString
     }
     implicit def unknownStatusCodeToInt(u: UnknownStatusCode): Int = u.underlying
+
+    case class NotOkStatusCode(val underlying: Int) {
+      override val toString: String = underlying.toString
+    }
+    implicit def notOkStatusCodeToInt(u: NotOkStatusCode): Int = u.underlying
 
     private val knownStatusCodes = Set(SC_BAD_REQUEST,
                                        SC_FORBIDDEN,
@@ -33,14 +39,21 @@ package object gen {
     } yield (KnownStatusCode(statusCode))
 
     private val unknownScGen = for {
-      statusCode <- Gen.choose(100, 599) suchThat { statusCode: Int => // scalastyle:ignore
+      statusCode <- Gen.choose(100, 599) suchThat { statusCode: Int =>
         !knownStatusCodes(statusCode) &&
           statusCode != SC_OK && statusCode != SC_NOT_MODIFIED
       }
     } yield (UnknownStatusCode(statusCode))
 
+    private val notOkScGen = for {
+      statusCode <- Gen.choose(100, 599) suchThat { statusCode: Int =>
+        statusCode != SC_OK && statusCode != SC_NOT_MODIFIED
+      }
+    } yield (NotOkStatusCode(statusCode))
+
     implicit val knownSc: Arbitrary[KnownStatusCode] = Arbitrary(knownScGen)
     implicit val unknownSc: Arbitrary[UnknownStatusCode] = Arbitrary(unknownScGen)
+    implicit val notOkSc: Arbitrary[NotOkStatusCode] = Arbitrary(notOkScGen)
   }
 
   object Headers {
@@ -107,7 +120,7 @@ package object gen {
     case class InvalidPoint(x: Int, y: Int) extends PointLike
 
     implicit def pointToTuple(pt: PointLike): (Int, Int) = (pt.x, pt.y)
-    // scalastyle:off magic.number
+
     private val validGen = for {
       x <- Gen.choose(0, 255)
       y <- Gen.choose(0, 255)
@@ -117,7 +130,6 @@ package object gen {
       x <- Gen.choose(-256, 512) suchThat { x => x < 0 || x > 255 }
       y <- Gen.choose(-256, 512) suchThat { y => y < 0 || y > 255 }
     } yield InvalidPoint(x, y)
-    // scalastyle:on magic.number
 
     implicit val valid: Arbitrary[ValidPoint] = Arbitrary(validGen)
     implicit val invalid: Arbitrary[InvalidPoint] = Arbitrary(invalidGen)
@@ -129,16 +141,17 @@ package object gen {
     val Json = Extension("json")
     val Pbf = Extension("pbf")
     val BPbf = Extension("bpbf")
+    val Png = Extension("png")
     val Txt = Extension("txt")
 
-    private val extensions = Seq(Json, Pbf, BPbf, Txt)
+    private val extensions = Seq(Json, Pbf, BPbf, Png, Txt)
 
     implicit def extensionToString(e: Extension): String = e.name
     implicit val extension: Arbitrary[Extension] = Arbitrary(Gen.oneOf(extensions))
   }
 
   object QuadTiles {
-    import util.QuadTile // scalastyle:ignore
+    import util.QuadTile
 
     private val tileGen = for {
       zoom <- Gen.choose(1, 20)
@@ -146,7 +159,6 @@ package object gen {
       x <- Gen.choose(0, max)
       y <- Gen.choose(0, max)
     } yield QuadTile(x, y, zoom)
-    // scalastyle:on magic.number
 
     implicit val quadTile: Arbitrary[QuadTile] = Arbitrary(tileGen)
   }
