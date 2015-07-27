@@ -1,6 +1,7 @@
 package com.socrata.tileserver
 
 import scala.language.implicitConversions
+import java.io.{ByteArrayInputStream, InputStream}
 
 import com.rojoma.simplearm.v2.ResourceScope
 import org.mockito.Mockito.mock
@@ -22,6 +23,8 @@ trait UnusedSugar {
   implicit def unusedToMap[T](u: UnusedValue): Map[String, T] = Map.empty
   implicit def unusedToSet[T](u: UnusedValue): Set[T] = Set.empty
   implicit def unusedToOption[T](u: UnusedValue): Option[T] = None
+  implicit def unusedToInputStream(u: UnusedValue): InputStream =
+    new ByteArrayInputStream(Array.empty)
 
   implicit def unusedToRespToHttpResponse(u: UnusedValue): Response => HttpResponse =
     r => mock(classOf[HttpResponse])
@@ -44,6 +47,6 @@ trait UnusedSugar {
     }
 }
 
-object UnusedSugar {
+object UnusedSugar extends UnusedSugar {
   val rs = new ResourceScope()
 }

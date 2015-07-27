@@ -10,6 +10,7 @@ import com.vividsolutions.jts.geom.{Coordinate, GeometryFactory, Point}
 
 import com.socrata.thirdparty.geojson.FeatureJson
 
+import UnusedSugar._
 import util.TileEncoder.Feature
 
 // scalastyle:off import.grouping
@@ -19,6 +20,8 @@ trait TestBase
     with PropertyChecks
     with BeforeAndAfterAll {
   val GeomFactory = new GeometryFactory()
+
+  def fJson(): FeatureJson = fJson((Unused, Unused): (Int, Int))
 
   def fJson(pt: (Int, Int),
             attributes: Map[String, String] = Map.empty): FeatureJson = {

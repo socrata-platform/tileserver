@@ -17,20 +17,15 @@ import exceptions.FailedRenderException
 
 // scalastyle:off multiple.string.literals
 case class CartoRenderer(http: HttpClient, baseUrl: RequestBuilder) {
-  def mapnikXml(cartoCss: String)(implicit rs: ResourceScope): Try[String] = {
-    val content = json"{ style: ${cartoCss} }"
-    val req = baseUrl.addPath("style").jsonBody(content)
-
-    Try(http.execute(req, rs)).map { resp: Response =>
-      IOUtils.toString(resp.inputStream(), UTF_8)
-    }
-  }
-
   def renderPng(pbf: String,
                 zoom: Int,
-                cartoCss: String)(implicit rs: ResourceScope): InputStream = {
+                cartoCss: String,
+                requestId: String)(implicit rs: ResourceScope): InputStream = {
     val content = json"{ bpbf: ${pbf}, zoom: ${zoom}, style: ${cartoCss} }"
-    val req = baseUrl.addPath("render").jsonBody(content)
+    val req = baseUrl.
+      addPath("render").
+      addHeader("X-Socrata-RequestID" -> requestId).
+      jsonBody(content)
 
     http.execute(req, rs).inputStream()
   }

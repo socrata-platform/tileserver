@@ -21,15 +21,15 @@ import org.apache.commons.io.IOUtils
 import org.slf4j.{Logger, LoggerFactory, MDC}
 import org.velvia.InvalidMsgPackDataException
 
-import com.socrata.soql.SoQLPackIterator
-import com.socrata.soql.types._
-import com.socrata.thirdparty.curator.CuratedServiceClient
 import com.socrata.http.client.{RequestBuilder, Response}
 import com.socrata.http.server.implicits._
 import com.socrata.http.server.responses._
 import com.socrata.http.server.routing.{SimpleResource, TypedPathComponent}
 import com.socrata.http.server.util.RequestId.{RequestId, ReqIdHeader, getFromRequest}
 import com.socrata.http.server.{HttpRequest, HttpResponse, HttpService}
+import com.socrata.soql.SoQLPackIterator
+import com.socrata.soql.types._
+import com.socrata.thirdparty.curator.CuratedServiceClient
 import com.socrata.thirdparty.geojson.{GeoJson, FeatureCollectionJson, FeatureJson}
 
 import TileService._
@@ -92,6 +92,7 @@ case class TileService(renderer: CartoRenderer,
   private[services] def processResponse(tile: QuadTile,
                                         ext: String,
                                         cartoCss: Option[String],
+                                        requestId: String,
                                         rs: ResourceScope): Callback = { resp: Response =>
     def createResponse(parsed: (JValue, Iterator[FeatureJson])): HttpResponse = {
       val (jValue, features) = parsed
@@ -112,7 +113,7 @@ case class TileService(renderer: CartoRenderer,
           cartoCss.map(style =>
             respOk ~>
               ContentType("image/png") ~>
-              Stream(renderer.renderPng(enc.base64, tile.zoom, style)(rs))
+              Stream(renderer.renderPng(enc.base64, tile.zoom, style, requestId)(rs))
           ).getOrElse(
             BadRequest ~>
               Content("text/plain", "Cannot render png without '$style' query parameter.")
@@ -124,6 +125,7 @@ case class TileService(renderer: CartoRenderer,
       case ScOk =>
         val isGeoJsonResponse = Response.acceptGeoJson(resp.contentType)
         val features = if (isGeoJsonResponse) geoJsonFeatures _ else soqlUnpackFeatures(rs)
+
         features(resp).map(createResponse).recover(handleErrors).get
       case ScNotModified => NotModified
       case _ => echoResponse(resp)
@@ -140,7 +142,7 @@ case class TileService(renderer: CartoRenderer,
                                       ext: String) : HttpResponse = {
     val intersects = tile.intersects(pointColumn)
 
-    Try {
+    try {
       val style = req.queryParameters.get("$style")
       val params = augmentParams(req, intersects, pointColumn)
       val requestId = extractRequestId(req)
@@ -153,10 +155,10 @@ case class TileService(renderer: CartoRenderer,
                params,
                // Right now soqlpack queries won't work on non-geom columns
                binaryQuery,
-               processResponse(tile, ext, style, req.resourceScope))
-    }.recover {
-      case e: Any => fatal("Unknown error", e)
-    }.get
+               processResponse(tile, ext, style, requestId, req.resourceScope))
+    } catch {
+      case e: Exception => fatal("Unknown error", e)
+    }
   }
 
   /** Handle the request.

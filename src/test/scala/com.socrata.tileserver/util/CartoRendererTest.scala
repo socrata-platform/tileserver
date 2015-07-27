@@ -45,19 +45,6 @@ class CartoRendererTest extends TestBase with UnusedSugar {
     }
   }
 
-  test("mapnikXml does not throw") {
-    forAll { (css: String, message: String) =>
-      val resp = mocks.ThrowsResponse(message)
-      val client = mocks.StaticHttpClient(resp)
-      val renderer = CartoRenderer(client, Unused)
-
-      val actual = renderer.mapnikXml(css)
-
-      actual must be ('failure)
-      actual.failed.get.getMessage must equal (message)
-    }
-  }
-
   test("renderPng throws on error") {
     forAll { (pbf: String, zoom: Int, css: String, message: String) =>
       val resp = mocks.ThrowsResponse(message)
@@ -65,7 +52,7 @@ class CartoRendererTest extends TestBase with UnusedSugar {
       val renderer = CartoRenderer(client, Unused)
 
       val actual =
-        the [NoStackTrace] thrownBy renderer.renderPng(pbf, zoom, css) // scalastyle:ignore
+        the [NoStackTrace] thrownBy renderer.renderPng(pbf, zoom, css, Unused) // scalastyle:ignore
       actual.getMessage must equal (message)
     }
   }
@@ -80,29 +67,8 @@ class CartoRendererTest extends TestBase with UnusedSugar {
     }
   }
 
-  test("mapnikXml returns expected response") {
-    def f(salt: String): (SimpleHttpRequest => Response) = req => {
-      val jVal = JsonReader.fromEvents(req.asInstanceOf[JsonHttpRequest].contents)
-      val css = extractField("style", jVal)
-
-      mocks.StringResponse(salt + css)
-    }
-
-    forAll { (salt: String, css: String) =>
-      val payload = salt + css
-
-      val client = mocks.DynamicHttpClient(f(salt))
-      val renderer = CartoRenderer(client, Unused)
-
-      val expected = Success(payload)
-      val actual = renderer.mapnikXml(css)
-
-      actual must equal (expected)
-    }
-  }
-
   test("renderPng returns expected response") {
-    def f(salt: String): (SimpleHttpRequest => Response) = req => {
+    def makeResp(salt: String): (SimpleHttpRequest => Response) = req => {
       val jVal = JsonReader.fromEvents(req.asInstanceOf[JsonHttpRequest].contents)
 
       val pbf = extractField("bpbf", jVal)
@@ -115,13 +81,32 @@ class CartoRendererTest extends TestBase with UnusedSugar {
     forAll { (salt: String, pbf: String, zoom: Int, css: String) =>
       val payload = salt + pbf + zoom + css
 
-      val client = mocks.DynamicHttpClient(f(salt))
+      val client = mocks.DynamicHttpClient(makeResp(salt))
       val renderer = CartoRenderer(client, Unused)
 
       val expected = payload.getBytes(UTF_8)
-      val actual = renderer.renderPng(pbf, zoom, css)
+      val actual = renderer.renderPng(pbf, zoom, css, Unused)
 
       IOUtils.toByteArray(actual) must equal (expected)
+    }
+  }
+
+  test("renderPng passes x-socrata-requestid to renderer") {
+    def requireRequestId(reqId: String): (SimpleHttpRequest => Response) = req => {
+      val headers = req.builder.headers.map { pair =>
+        val (k, v) = pair
+        k.toLowerCase -> v
+      }.toMap
+
+      headers("x-socrata-requestid") must equal (reqId)
+      mocks.StringResponse(Unused)
+    }
+
+    forAll { requestId: String =>
+      val client = mocks.DynamicHttpClient(requireRequestId(requestId))
+
+      val renderer = CartoRenderer(client, Unused)
+      renderer.renderPng(Unused, Unused, Unused, requestId): Unit
     }
   }
 }
