@@ -7,6 +7,7 @@ Or, if you want to replace old versions:
 
 ## Required Environment Variables ##
 * `ZOOKEEPER_ENSEMBLE` - A list of hostnames and ports of zookeeper instances. eg: ["10.0.0.1:2181", "10.0.0.2:2818"]
+* `CARTO_HOST` - The carto renderer host.
 
 ## Optional Runtime Variables ##
 See the [DockerFile](Dockerfile) for defaults.

@@ -11,6 +11,7 @@ ENV SERVER_ARTIFACT  ${SERVER_NAME}-assembly.jar
 
 # Environment Settings.
 EXPOSE 2048
+ENV CARTO_PORT 4096
 ENV JAVA_XMX 512m
 ENV MIN_THREADS 3
 ENV MAX_THREADS 5               # Threads currently use about 100m each.
