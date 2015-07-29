@@ -85,7 +85,7 @@ case class TileService(renderer: CartoRenderer,
       fatal("Invalid SoQLPack returned from underlying service", soqlPackEx)
     case jtsEx: ParseException =>
       fatal("Invalid WKB geometry returned from underlying service", jtsEx)
-    case unknown: Any =>
+    case unknown: Throwable =>
       fatal("Unknown error", unknown)
   }
 
@@ -200,7 +200,7 @@ object TileService {
     val jValue =
       Try(JsonReader.fromString(IOUtils.toString(resp.inputStream(), UTF_8)))
     val body = jValue.recover {
-      case e: Any =>
+      case e: Throwable =>
         json"""{ message: "Failed to open inputStream", cause: ${e.getMessage}}"""
     }.get
 
@@ -215,11 +215,19 @@ object TileService {
     logger.warn(message)
     logger.warn(cause.getMessage, cause.getStackTrace)
 
-    val payload = cause match {
+    def rootCause(t: Throwable): Throwable =
+      if (t.getCause != null) rootCause(t.getCause) else t // scalastyle:ignore
+
+    val payload = rootCause(cause) match {
       case e: InvalidGeoJsonException =>
         json"""{message: $message, cause: ${e.error}, invalidJson: ${e.jValue}}"""
-      case e: Any =>
-        json"""{message: $message, cause: ${e.getMessage}}"""
+      case e: Throwable =>
+        val root = rootCause(cause)
+        if (root.getMessage != null) { // scalastyle:ignore
+          json"""{message: $message, cause: ${root.getMessage}}"""
+        } else {
+          json"""{message: $message, cause: ${root.getClass.getName}}"""
+        }
     }
 
     InternalServerError ~>
