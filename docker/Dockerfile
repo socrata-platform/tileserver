@@ -11,6 +11,7 @@ ENV SERVER_ARTIFACT  ${SERVER_NAME}-assembly.jar
 
 # Environment Settings.
 EXPOSE 2048
+ENV CARTO_PORT 4096
 ENV JAVA_XMX 512m
 ENV MIN_THREADS 3
 ENV MAX_THREADS 5               # Threads currently use about 100m each.
@@ -19,7 +20,7 @@ EXPOSE 2049
 
 # Log Settings.
 ENV LOG_LEVEL info
-ENV LOG_PATTERN %d %-5p [%t]  \(%X{X-Socrata-RequestId}\) [%X{X-Socrata-Resource}] %c{36} "%X{X-Socrata-Host}" %m%n
+ENV LOG_PATTERN %d %-5p [%t]  [req-id:%X{X-Socrata-RequestId}] [resource:%X{X-Socrata-Resource}] %c{36} "%X{X-Socrata-Host}" %m%n
 
 # Add other required resources to the container
 ADD ship.d /etc/ship.d

@@ -2,6 +2,9 @@ include "application"
 
 com.socrata {
   tileserver {
+    carto-host = {{ CARTO_HOST }}
+    carto-port = {{ CARTO_PORT }}
+
     threadpool {
       min-threads = {{ MIN_THREADS }}
       max-threads = {{ MAX_THREADS }}
