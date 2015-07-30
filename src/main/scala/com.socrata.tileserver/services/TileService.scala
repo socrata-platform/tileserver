@@ -215,6 +215,7 @@ object TileService {
     logger.warn(message)
     logger.warn(cause.getMessage, cause.getStackTrace)
 
+    @annotation.tailrec
     def rootCause(t: Throwable): Throwable =
       if (t.getCause != null) rootCause(t.getCause) else t // scalastyle:ignore
 
