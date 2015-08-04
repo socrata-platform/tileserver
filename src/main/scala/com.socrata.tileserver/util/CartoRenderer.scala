@@ -20,28 +20,28 @@ case class CartoRenderer(http: HttpClient, baseUrl: RequestBuilder) {
   def renderPng(pbf: String,
                 zoom: Int,
                 cartoCss: String,
-                requestId: String)(implicit rs: ResourceScope): InputStream = {
+                requestId: String)(implicit rs: ResourceScope): Try[InputStream] = {
     val content = json"{ bpbf: ${pbf}, zoom: ${zoom}, style: ${cartoCss} }"
     val req = baseUrl.
       addPath("render").
       addHeader("X-Socrata-RequestID" -> requestId).
       jsonBody(content)
 
-    http.execute(req, rs).inputStream()
+    logger.info(content.toString)
+
+    handleResponse(http.execute(req, rs))
   }
 }
 
 object CartoRenderer {
   private val logger: Logger = LoggerFactory.getLogger(getClass)
 
-  private[util] def handleResponse(response: Try[Response]): Try[InputStream] = {
-    response.flatMap { resp =>
-      if (resp.resultCode == ScOk) {
-        Success(resp.inputStream())
-      } else {
-        Failure(
-          FailedRenderException(IOUtils.toString(resp.inputStream(), UTF_8)))
-      }
+  private[util] def handleResponse(resp: Response): Try[InputStream] = {
+    if (resp.resultCode == ScOk) {
+      Success(resp.inputStream())
+    } else {
+      Failure(
+        FailedRenderException(IOUtils.toString(resp.inputStream(), UTF_8)))
     }
   }
 }

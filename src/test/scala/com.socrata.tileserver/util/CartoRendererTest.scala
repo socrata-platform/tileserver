@@ -25,7 +25,7 @@ class CartoRendererTest extends TestBase with UnusedSugar {
 
       val resp = mocks.StringResponse(payload)
       val client = mocks.StaticHttpClient(resp)
-      val actual = CartoRenderer.handleResponse(Success(resp)).map {
+      val actual = CartoRenderer.handleResponse(resp).map {
         IOUtils.toString(_, UTF_8)
       }
 
@@ -40,7 +40,7 @@ class CartoRendererTest extends TestBase with UnusedSugar {
       val expected = Failure(FailedRenderException(payload))
 
       val resp = mocks.StringResponse(payload, sc)
-      val actual = CartoRenderer.handleResponse(Success(resp))
+      val actual = CartoRenderer.handleResponse(resp)
       actual must equal (expected)
     }
   }
@@ -85,7 +85,7 @@ class CartoRendererTest extends TestBase with UnusedSugar {
       val renderer = CartoRenderer(client, Unused)
 
       val expected = payload.getBytes(UTF_8)
-      val actual = renderer.renderPng(pbf, zoom, css, Unused)
+      val actual = renderer.renderPng(pbf, zoom, css, Unused).get
 
       IOUtils.toByteArray(actual) must equal (expected)
     }

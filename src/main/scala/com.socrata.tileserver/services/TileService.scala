@@ -111,9 +111,12 @@ case class TileService(renderer: CartoRenderer,
           respOk ~> Json(jValue)
         case "png" =>
           cartoCss.map(style =>
-            respOk ~>
-              ContentType("image/png") ~>
-              Stream(renderer.renderPng(enc.base64, tile.zoom, style, requestId)(rs))
+            renderer.renderPng(enc.base64, tile.zoom, style, requestId)(rs).map {
+              respOk ~> ContentType("image/png") ~> Stream(_)
+            }.getOrElse {
+              BadRequest ~>
+                Content("text/plain", "Failed to render png; check your $style parameter.")
+            }
           ).getOrElse(
             BadRequest ~>
               Content("text/plain", "Cannot render png without '$style' query parameter.")
