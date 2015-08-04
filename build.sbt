@@ -11,14 +11,24 @@ libraryDependencies ++= Seq(
   "com.rojoma"              %% "rojoma-json-v3-jackson"   % "1.0.0" excludeAll(
     ExclusionRule(organization = "com.rojoma")),
   "com.rojoma"              %% "simple-arm-v2"            % "2.1.0",
-  "com.socrata"             %% "socrata-http-client"      % "3.3.1" excludeAll(
+  "com.socrata"             %% "socrata-http-common"      % "3.3.1" excludeAll(
+    ExclusionRule(organization = "joda-time"),
+    ExclusionRule(organization = "commons-codec"),
+    ExclusionRule(organization = "commons-io"),
     ExclusionRule(organization = "com.rojoma"),
     ExclusionRule(organization = "com.socrata", name = "socrata-thirdparty-utils_2.10")),
+  "com.socrata"             %% "socrata-http-client"      % "3.3.1" excludeAll(
+    ExclusionRule(organization = "commons-codec"),
+    ExclusionRule(organization = "com.socrata", name = "socrata-http-common")),
   "com.socrata"             %% "socrata-http-jetty"       % "3.3.1" excludeAll(
-    ExclusionRule(organization = "com.rojoma"),
+    ExclusionRule(organization = "com.socrata", name = "socrata-http-common"),
     ExclusionRule(organization = "com.socrata", name = "socrata-thirdparty-utils_2.10")),
   "com.socrata"             %% "socrata-thirdparty-utils" % "3.1.4",
-  "com.socrata"             %% "soql-pack"                % "0.6.0",
+  "com.socrata"             %% "soql-pack"                % "0.6.0" excludeAll(
+    ExclusionRule(organization = "joda-time"),
+    ExclusionRule(organization = "commons-io"),
+    ExclusionRule(organization = "org.slf4j"),
+    ExclusionRule(organization = "com.socrata", name = "socrata-thirdparty-utils_2.10")),
   "com.typesafe"             % "config"                   % "1.2.1",
   "commons-codec"            % "commons-codec"            % "1.10",
   "commons-io"               % "commons-io"               % "2.4",
@@ -40,7 +50,7 @@ val TestOptionFullTraces = "-oDF"
 testOptions in Test += Tests.Argument(TestFrameworks.ScalaTest, TestOptionNoTraces)
 
 enablePlugins(sbtbuildinfo.BuildInfoPlugin)
-// Setup revolver.
+  // Setup revolver.
 Revolver.settings
 
 // Require full coverage.
