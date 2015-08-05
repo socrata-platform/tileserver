@@ -11,7 +11,7 @@ import com.rojoma.json.v3.ast.{JValue, JObject, JString, JNull}
 import com.rojoma.json.v3.codec.JsonEncode
 import com.rojoma.json.v3.interpolation._
 import com.rojoma.simplearm.v2.ResourceScope
-import com.socrata.http.server.util.RequestId.{RequestId, ReqIdHeader}
+import com.socrata.http.server.util.RequestId.ReqIdHeader
 import com.vividsolutions.jts.io.WKBWriter
 import org.mockito.Matchers.{anyInt, anyString, anyObject, eq => matcher}
 import org.mockito.Mockito.{verify, when}
@@ -25,55 +25,17 @@ import com.socrata.soql.types._
 import com.socrata.thirdparty.geojson.FeatureJson
 import com.socrata.thirdparty.geojson.GeoJson
 
-import util.{CartoRenderer, TileEncoder}
+import util.{CartoRenderer, GeoProvider, TileEncoder}
 
 // scalastyle:off import.grouping
 class TileServiceTest extends TestBase with UnusedSugar with MockitoSugar {
   test("Service supports at least .pbf, .bpbf, .json and .png") {
-    val svc = TileService(Unused, Unused)
+    val svc = TileService(Unused, GeoProvider(Unused))
 
     svc.types must contain ("pbf")
     svc.types must contain ("bpbf")
     svc.types must contain ("json")
     svc.types must contain ("png")
-  }
-
-  test("Headers and parameters are correct when making a geo-json query") {
-    import gen.Headers._
-
-    forAll { (reqId: RequestId,
-              id: String,
-              param: (String, String),
-              knownHeader: IncomingHeader,
-              unknownHeader: UnknownHeader) =>
-      val base = RequestBuilder("mock.socrata.com")
-      val request = mocks.StaticRequest(param, Map(knownHeader, unknownHeader))
-
-      val expected = base.
-        path(Seq("id", s"$id.geojson")).
-        addHeader(ReqIdHeader -> reqId).
-        addHeader(knownHeader).
-        query(Map(param)).
-        get.builder
-
-      val client = mocks.StaticCuratedClient.withReq { request =>
-        val actual = request(base).builder
-
-        actual.url must equal (expected.url)
-        actual.method must equal (expected.method)
-        actual.query.toSet must equal (expected.query.toSet)
-        actual.headers.toSet must equal (expected.headers.toSet)
-
-        mock[Response]
-      }
-
-      TileService(Unused, client).geoQuery(reqId,
-                                           request,
-                                           id,
-                                           Map(param),
-                                           false,
-                                           Unused): Unit
-    }
   }
 
   test("Correct returned headers are surfaced when processing response") {
@@ -206,7 +168,7 @@ class TileServiceTest extends TestBase with UnusedSugar with MockitoSugar {
       val req: HttpRequest =
         if (ext == Png) mocks.StaticRequest("$style" -> Unused) else Unused
 
-      TileService(Unused, client).
+      TileService(Unused, GeoProvider(client)).
         handleRequest(req, Unused, Unused, Unused, ext)(resp)
 
       verify(resp).setStatus(SC_OK)
@@ -225,7 +187,7 @@ class TileServiceTest extends TestBase with UnusedSugar with MockitoSugar {
     val outputStream = new mocks.ByteArrayServletOutputStream
     val resp = outputStream.responseFor
 
-    TileService(Unused, client).
+    TileService(Unused, GeoProvider(client)).
       handleRequest(Unused, Unused, Unused, Unused, Png)(resp)
 
     verify(resp).setStatus(SC_BAD_REQUEST)
@@ -245,7 +207,7 @@ class TileServiceTest extends TestBase with UnusedSugar with MockitoSugar {
       val req: HttpRequest =
         if (ext == Png) mocks.StaticRequest("$style" -> Unused) else Unused
 
-      TileService(Unused, client).
+      TileService(Unused, GeoProvider(client)).
         handleRequest(req, Unused, Unused, Unused, ext)(resp)
 
       verify(resp).setStatus(SC_OK)
@@ -264,7 +226,7 @@ class TileServiceTest extends TestBase with UnusedSugar with MockitoSugar {
     val outputStream = new mocks.ByteArrayServletOutputStream
     val resp = outputStream.responseFor
 
-    TileService(Unused, client).
+    TileService(Unused, GeoProvider(client)).
       handleRequest(Unused, Unused, Unused, Unused, Unused)(resp)
 
     verify(resp).setStatus(SC_NOT_MODIFIED)
@@ -285,7 +247,7 @@ class TileServiceTest extends TestBase with UnusedSugar with MockitoSugar {
       val outputStream = new mocks.ByteArrayServletOutputStream
       val resp = outputStream.responseFor
 
-      TileService(Unused, client).
+      TileService(Unused, GeoProvider(client)).
         handleRequest(Unused, Unused, Unused, Unused, Unused)(resp)
 
       verify(resp).setStatus(statusCode)
@@ -309,7 +271,7 @@ class TileServiceTest extends TestBase with UnusedSugar with MockitoSugar {
       val outputStream = new mocks.ByteArrayServletOutputStream
       val resp = outputStream.responseFor
 
-      TileService(Unused, client).
+      TileService(Unused, GeoProvider(client)).
         handleRequest(Unused, Unused, Unused, Unused, Unused)(resp)
 
       verify(resp).setStatus(SC_INTERNAL_SERVER_ERROR)
@@ -331,7 +293,7 @@ class TileServiceTest extends TestBase with UnusedSugar with MockitoSugar {
       val outputStream = new mocks.ByteArrayServletOutputStream
       val resp = outputStream.responseFor
 
-      TileService(Unused, client).
+      TileService(Unused, GeoProvider(client)).
         handleRequest(Unused, Unused, Unused, Unused, ext)(resp)
 
       verify(resp).setStatus(SC_INTERNAL_SERVER_ERROR)
@@ -354,7 +316,7 @@ class TileServiceTest extends TestBase with UnusedSugar with MockitoSugar {
       val req: HttpRequest =
         if (ext == Png) mocks.StaticRequest("$style" -> Unused) else Unused
 
-      TileService(Unused, client).
+      TileService(Unused, GeoProvider(client)).
         service(Unused,
                 Unused,
                 Unused,
@@ -680,17 +642,17 @@ class TileServiceTest extends TestBase with UnusedSugar with MockitoSugar {
 
       val upstream = mocks.BinaryResponse(headerMap(0, Some("txt" -> SoQLText)), rows)
 
-        val maybeResult = TileService.soqlUnpackFeatures(Unused)(upstream)
-        maybeResult must be a ('success)
+      val maybeResult = TileService.soqlUnpackFeatures(Unused)(upstream)
+      maybeResult must be a ('success)
 
-        val (jVal, iter) = maybeResult.get
-        val features = iter.toSeq
+      val (jVal, iter) = maybeResult.get
+      val features = iter.toSeq
 
-        features must have length (pts.size)
-        for { i <- 0 until rows.length } {
-          features(i).geometry must equal (point(pts(i)))
-          features(i).properties must equal (Map("txt" -> JString("abcde")))
-        }
+      features must have length (pts.size)
+      for { i <- 0 until rows.length } {
+        features(i).geometry must equal (point(pts(i)))
+        features(i).properties must equal (Map("txt" -> JString("abcde")))
+      }
     }
   }
 
@@ -770,7 +732,7 @@ class TileServiceTest extends TestBase with UnusedSugar with MockitoSugar {
         mocks.SeqResponse(Seq(fJson(pt)))
       }
 
-      TileService(Unused, client).
+      TileService(Unused, GeoProvider(client)).
         handleRequest(req, Unused, Unused, Unused, ext)(resp)
 
       verify(resp).setStatus(SC_OK)
@@ -788,7 +750,8 @@ class TileServiceTest extends TestBase with UnusedSugar with MockitoSugar {
       val req = mocks.StaticRequest("$style" -> (Unused: String),
                                     "X-Socrata-RequestId" -> requestId)
 
-      TileService(renderer, client).handleRequest(req, Unused, Unused, Unused, Png)
+      TileService(renderer, GeoProvider(client)).
+        handleRequest(req, Unused, Unused, Unused, Png)
 
       verify(renderer).
         renderPng(anyString, anyInt, anyString, matcher(requestId))(anyObject[ResourceScope]): Unit

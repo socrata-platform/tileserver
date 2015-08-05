@@ -14,7 +14,7 @@ import com.socrata.thirdparty.curator._
 
 import config.TileServerConfig
 import services.{TileService, VersionService}
-import util.CartoRenderer
+import util.{CartoRenderer, GeoProvider}
 
 // $COVERAGE-OFF$ Disabled because this is framework boilerplate.
 /** Main object that actually starts up the server; wires everything together. */
@@ -35,7 +35,8 @@ object TileServer extends App {
       port(TileServerConfig.cartoPort)
 
     val renderer = CartoRenderer(http, cartoBaseUrl)
-    val tileService = TileService(renderer, upstream)
+    val provider = GeoProvider(upstream)
+    val tileService = TileService(renderer, provider)
     val router = new Router(VersionService, tileService.types, tileService.service)
 
     val server = new SocrataServerJetty(
@@ -47,4 +48,4 @@ object TileServer extends App {
     server.run()
   }
 }
-  // $COVERAGE-ON$
+// $COVERAGE-ON$

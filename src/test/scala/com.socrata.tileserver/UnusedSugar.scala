@@ -10,7 +10,7 @@ import com.socrata.http.client.{HttpClient, RequestBuilder, Response}
 import com.socrata.http.server.{HttpRequest, HttpResponse}
 import com.socrata.thirdparty.curator.CuratedServiceClient
 
-import util.CartoRenderer
+import util.{CartoRenderer, GeoProvider}
 
 trait UnusedSugar {
   trait UnusedValue
@@ -40,6 +40,9 @@ trait UnusedSugar {
 
   implicit def unusedToRenderer(u: UnusedValue): CartoRenderer =
     CartoRenderer(Unused, Unused)
+
+  implicit def unusedToProvider(u: UnusedValue): GeoProvider =
+    GeoProvider(Unused)
 
   implicit def unusedToQuadTile(u: UnusedValue): util.QuadTile =
     new util.QuadTile(0, 0, 0) {

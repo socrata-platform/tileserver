@@ -2,7 +2,6 @@ package com.socrata.tileserver
 package services
 
 import java.io.DataInputStream
-import java.net.URLDecoder
 import java.nio.charset.StandardCharsets.UTF_8
 import javax.servlet.http.HttpServletResponse
 import javax.servlet.http.HttpServletResponse.{SC_NOT_MODIFIED => ScNotModified}
@@ -21,11 +20,11 @@ import org.apache.commons.io.IOUtils
 import org.slf4j.{Logger, LoggerFactory, MDC}
 import org.velvia.InvalidMsgPackDataException
 
-import com.socrata.http.client.{RequestBuilder, Response}
+import com.socrata.http.client.Response
 import com.socrata.http.server.implicits._
 import com.socrata.http.server.responses._
 import com.socrata.http.server.routing.{SimpleResource, TypedPathComponent}
-import com.socrata.http.server.util.RequestId.{RequestId, ReqIdHeader, getFromRequest}
+import com.socrata.http.server.util.RequestId.{RequestId, getFromRequest}
 import com.socrata.http.server.{HttpRequest, HttpResponse, HttpService}
 import com.socrata.soql.SoQLPackIterator
 import com.socrata.soql.types._
@@ -35,7 +34,7 @@ import com.socrata.thirdparty.geojson.{GeoJson, FeatureCollectionJson, FeatureJs
 import TileService._
 import exceptions._
 import util.TileEncoder.Feature
-import util.{HeaderFilter, QuadTile, CartoRenderer, TileEncoder}
+import util.{CartoRenderer, GeoProvider, HeaderFilter, QuadTile, TileEncoder}
 
 // scalastyle:off multiple.string.literals
 /** Service that provides the actual tiles.
@@ -44,37 +43,12 @@ import util.{HeaderFilter, QuadTile, CartoRenderer, TileEncoder}
   * @param client The client to talk to the upstream geo-json service.
   */
 case class TileService(renderer: CartoRenderer,
-                       client: CuratedServiceClient) extends SimpleResource {
+                       provider: GeoProvider) extends SimpleResource {
   /** Type of callback we will be passing to `client`. */
   type Callback = Response => HttpResponse
 
   /** The types (file extensions) supported by this endpoint. */
   val types: Set[String] = Set("pbf", "bpbf", "json", "txt", "png")
-
-  // Call to the underlying service (Core)
-  // Note: this can either pull the points as .geojson or .soqlpack
-  // SoQLPack is binary protocol, much faster and more efficient than GeoJSON
-  // in terms of both performance (~3x) and memory usage (1/10th, or so)
-  private[services] def geoQuery(requestId: RequestId,
-                                 req: HttpRequest,
-                                 id: String,
-                                 params: Map[String, String],
-                                 binaryQuery: Boolean = false,
-                                 callback: Response => HttpResponse): HttpResponse = {
-    val headers = HeaderFilter.headers(req)
-    val queryType = if (binaryQuery) "soqlpack" else "geojson"
-
-    val jsonReq = { base: RequestBuilder =>
-      val req = base.path(Seq("id", s"$id.$queryType")).
-        addHeaders(headers).
-        addHeader(ReqIdHeader -> requestId).
-        query(params).get
-      logger.info(URLDecoder.decode(req.toString, UTF_8.name))
-      req
-    }
-
-    client.execute(jsonReq, callback)
-  }
 
   private val handleErrors: PartialFunction[Throwable, HttpResponse] = {
     case readerEx: JsonReaderException =>
@@ -83,8 +57,6 @@ case class TileService(renderer: CartoRenderer,
       fatal("Invalid Geo-JSON returned from underlying service", geoJsonEx)
     case soqlPackEx: InvalidSoqlPackException =>
       fatal("Invalid SoQLPack returned from underlying service", soqlPackEx)
-    case jtsEx: ParseException =>
-      fatal("Invalid WKB geometry returned from underlying service", jtsEx)
     case unknown: Throwable =>
       fatal("Unknown error", unknown)
   }
@@ -152,13 +124,13 @@ case class TileService(renderer: CartoRenderer,
 
       val binaryQuery = !req.queryParameters.contains("$select") && ext != "json"
 
-      geoQuery(requestId,
-               req,
-               identifier,
-               params,
-               // Right now soqlpack queries won't work on non-geom columns
-               binaryQuery,
-               processResponse(tile, ext, style, requestId, req.resourceScope))
+      provider.doQuery(requestId,
+                       req,
+                       identifier,
+                       params,
+                       // Right now soqlpack queries won't work on non-geom columns
+                       binaryQuery,
+                       processResponse(tile, ext, style, requestId, req.resourceScope))
     } catch {
       case e: Exception => fatal("Unknown error", e)
     }
