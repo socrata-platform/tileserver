@@ -26,7 +26,7 @@ import com.socrata.http.server.responses._
 import com.socrata.http.server.routing.{SimpleResource, TypedPathComponent}
 import com.socrata.http.server.util.RequestId.{RequestId, getFromRequest}
 import com.socrata.http.server.{HttpRequest, HttpResponse, HttpService}
-import com.socrata.soql.SoQLPackIterator
+import com.socrata.soql.{SoQLPackIterator, SoQLGeoRow}
 import com.socrata.soql.types._
 import com.socrata.thirdparty.curator.CuratedServiceClient
 import com.socrata.thirdparty.geojson.{GeoJson, FeatureCollectionJson, FeatureJson}
@@ -172,12 +172,12 @@ object TileService {
                             HttpServletResponse.SC_NOT_IMPLEMENTED,
                             HttpServletResponse.SC_SERVICE_UNAVAILABLE)
   private[services] def echoResponse(resp: Response): HttpResponse = {
-    val jValue =
-      Try(JsonReader.fromString(IOUtils.toString(resp.inputStream(), UTF_8)))
-    val body = jValue.recover {
+    val body = try {
+      JsonReader.fromString(IOUtils.toString(resp.inputStream(), UTF_8))
+    } catch {
       case e: Throwable =>
         json"""{ message: "Failed to open inputStream", cause: ${e.getMessage}}"""
-    }.get
+    }
 
     val code = resp.resultCode
     val base = if (allowed(code)) Status(code) else InternalServerError
@@ -224,7 +224,6 @@ object TileService {
     }
   }
 
-  // scalastyle:off cyclomatic.complexity
   private[services] def soqlUnpackFeatures(rs: ResourceScope):
       Response => Try[(JValue, Iterator[FeatureJson])] = { resp: Response =>
     val dis = rs.open(new DataInputStream(resp.inputStream(Long.MaxValue)))
@@ -233,46 +232,24 @@ object TileService {
       val soqlIter = new SoQLPackIterator(dis)
       val jsonHeaders = JObject(soqlIter.headers.mapValues(v => JString(v.toString)))
       if (soqlIter.geomIndex < 0) {
-        Failure(InvalidSoqlPackException(soqlIter.headers))
+        Failure(InvalidSoqlPackException(
+                  s"No geometry present or other header error: ${soqlIter.headers}"))
       } else {
-        val colNames = soqlIter.schema.map(_._1).toArray
-        val featureJsonIter = soqlIter.map { soqlRow =>
-          val geom: Geometry = soqlRow(soqlIter.geomIndex) match {
-            case SoQLMultiPolygon(mp) => mp
-            case SoQLPolygon(p) => p
-            case SoQLPoint(pt) => pt
-            case SoQLMultiPoint(mp) => mp
-            case SoQLLine(l) => l
-            case SoQLMultiLine(ml) => ml
-            case x: SoQLValue => throw new RuntimeException("Should not be seeing non-geom SoQL type" + x)
-          }
-          val props = (0 until soqlRow.size).filterNot(_ == soqlIter.geomIndex).map { i =>
-            colNames(i) -> { soqlRow(i) match {
-                              case SoQLText(str)   => JString(str)
-                              case SoQLNumber(bd)  => JNumber(bd)
-                              case SoQLMoney(bd)   => JNumber(bd)
-                              case SoQLDouble(dbl) => JNumber(dbl)
-                              case SoQLBoolean(b)  => JBoolean(b)
-                              case SoQLFixedTimestamp(dt) => JString(SoQLFixedTimestamp.StringRep(dt))
-                              case SoQLFloatingTimestamp(dt) => JString(SoQLFloatingTimestamp.StringRep(dt))
-                              case SoQLTime(dt) => JString(SoQLTime.StringRep(dt))
-                              case SoQLDate(dt) => JString(SoQLDate.StringRep(dt))
-                              case other: SoQLValue => JString(other.toString)
-                            }
-            }
-          }.toMap
-          FeatureJson(props, geom)
+        val featureJsonIter = soqlIter.map { row =>
+          val soqlRow = new SoQLGeoRow(row, soqlIter)
+          FeatureJson(soqlRow.properties, soqlRow.geometry)
         }
+
         Success(jsonHeaders -> featureJsonIter)
       }
     } catch {
-      case _: InvalidMsgPackDataException => Failure(InvalidSoqlPackException(Map.empty))
-      case _: ClassCastException =>          Failure(InvalidSoqlPackException(Map.empty))
-      case _: NoSuchElementException =>      Failure(InvalidSoqlPackException(Map.empty))
-      case _: NullPointerException =>        Failure(InvalidSoqlPackException(Map.empty))
+      case _: InvalidMsgPackDataException |
+          _: ClassCastException |
+          _: NoSuchElementException |
+          _: NullPointerException =>
+        Failure(InvalidSoqlPackException("Unable to parse binary stream into SoQLPack/MessagePack records"))
     }
   }
-  // scalastyle:on cyclomatic.complexity
 
   private[services] def augmentParams(req: HttpRequest,
                                       where: String,
