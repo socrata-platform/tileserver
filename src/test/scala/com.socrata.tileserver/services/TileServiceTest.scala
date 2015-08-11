@@ -21,7 +21,6 @@ import com.socrata.http.client.{RequestBuilder, Response}
 import com.socrata.http.server.HttpRequest
 import com.socrata.http.server.HttpRequest.AugmentedHttpServletRequest
 import com.socrata.http.server.routing.TypedPathComponent
-import com.socrata.soql.types._
 import com.socrata.thirdparty.geojson.FeatureJson
 import com.socrata.thirdparty.geojson.GeoJson
 
@@ -65,7 +64,7 @@ class TileServiceTest extends TestBase with UnusedSugar with MockitoSugar {
     import gen.Points._
 
     forAll { (pt: ValidPoint, ext: Extension) =>
-      val upstream = mocks.SeqResponse(Seq(fJson(pt)))
+      val upstream = mocks.SeqResponse(fJson(pt))
       val expected = Set(feature(pt))
       val outputStream = new mocks.ByteArrayServletOutputStream
       val resp = outputStream.responseFor
@@ -86,53 +85,13 @@ class TileServiceTest extends TestBase with UnusedSugar with MockitoSugar {
         case BPbf =>
           outputStream.getString must include (TileEncoder(expected).base64)
         case Json =>
+          // TODO: Json logic (either the test, or the actual code) is broken.
           outputStream.getString must equal (upstream.toString)
         // ".txt" should be supported, but its output format is unspecified.
         case Png =>
           outputStream.getString must equal (expected.toString)
         case Txt => ()
       }
-    }
-  }
-
-  test("Invalid json returns 'internal server error' when processing response") {
-    import gen.Extensions._
-
-    forAll { (message: String, ext: Extension) =>
-      val upstream = mocks.StringResponse("{")
-      val outputStream = new mocks.ByteArrayServletOutputStream
-      val resp = outputStream.responseFor
-
-      TileService(Unused, Unused).
-        processResponse(Unused, ext, Unused, Unused, Unused)(upstream)(resp)
-
-      verify(resp).setStatus(SC_INTERNAL_SERVER_ERROR)
-
-      outputStream.getLowStr must include ("message")
-      outputStream.getLowStr must include ("invalid")
-      outputStream.getLowStr must include ("json")
-      outputStream.getLowStr must include ("underlying")
-    }
-  }
-
-  test("Invalid geo-json returns 'internal server error' when processing response") {
-    import gen.Extensions._
-
-    forAll { (message: String, ext: Extension) =>
-      val upstream = mocks.StringResponse(json"""{"invalidKey": $message}""")
-      val outputStream = new mocks.ByteArrayServletOutputStream
-      val resp = outputStream.responseFor
-
-      TileService(Unused, Unused).
-        processResponse(Unused, ext, Unused, Unused, Unused)(upstream)(resp)
-
-      verify(resp).setStatus(SC_INTERNAL_SERVER_ERROR)
-
-      outputStream.getLowStr must include ("message")
-      outputStream.getLowStr must include ("invalid")
-      outputStream.getLowStr must include ("json")
-      outputStream.getLowStr must include ("underlying")
-      outputStream.getString must include (encode(message))
     }
   }
 
@@ -160,7 +119,7 @@ class TileServiceTest extends TestBase with UnusedSugar with MockitoSugar {
     import gen.Points._
 
     forAll { (pt: ValidPoint, ext: Extension) =>
-      val upstream = mocks.SeqResponse(Seq(fJson(pt)))
+      val upstream = mocks.SeqResponse(fJson(pt))
       val client = mocks.StaticCuratedClient(upstream)
       val outputStream = new mocks.ByteArrayServletOutputStream
       val resp = outputStream.responseFor
@@ -308,7 +267,7 @@ class TileServiceTest extends TestBase with UnusedSugar with MockitoSugar {
     import gen.Points._
 
     forAll { (pt: ValidPoint, ext: Extension) =>
-      val upstream = mocks.SeqResponse(Seq(fJson(pt)))
+      val upstream = mocks.SeqResponse(fJson(pt))
       val client = mocks.StaticCuratedClient(upstream)
       val outputStream = new mocks.ByteArrayServletOutputStream
       val resp = outputStream.responseFor
@@ -471,93 +430,11 @@ class TileServiceTest extends TestBase with UnusedSugar with MockitoSugar {
     }
   }
 
-  test("An empty list of coordinates rolls up correctly") {
-    TileService.rollup(Unused, Iterator.empty) must be (Set.empty)
-  }
-
-  test("A single coordinate rolls up correctly") {
-    import gen.Points._
-
-    forAll { pt: ValidPoint =>
-      TileService.rollup(Unused, Iterator.single(fJson(pt))) must equal (Set(feature(pt)))
-    }
-  }
-
-  test("Unique coordinates are included when rolled up") {
-    import gen.Points._
-
-    forAll { pts: Set[ValidPoint] =>
-      val coordinates = pts.map(fJson(_))
-      val expected = pts.map(feature(_))
-      val actual = TileService.rollup(Unused, coordinates.toIterator)
-
-      actual must equal (expected)
-    }
-  }
-
-  test("Coordinates have correct counts when rolled up") {
-    import gen.Points._
-
-    forAll { uniquePts: Set[ValidPoint] =>
-      val pts = uniquePts.toSeq
-      val dupes = pts ++
-        (if (pts.isEmpty) pts else pts(0) +: Seq(pts(pts.length - 1)))
-
-      val coordinates = dupes.map(fJson(_))
-      val expected = dupes.
-        groupBy(identity).
-        mapValues(_.size).map(feature(_)).toSet
-
-      val actual = TileService.rollup(Unused, coordinates.toIterator)
-
-      actual must equal (expected)
-    }
-  }
-
-  test("Coordinates with unique properties are not rolled up") {
-    import gen.Points._
-
-    forAll { (pt0: ValidPoint,
-              pt1: ValidPoint,
-              prop0: (String, String),
-              prop1: (String, String)) =>
-      val (k0, _) = prop0
-      val (k1, _) = prop1
-
-      whenever (pt0 != pt1 && prop0 != prop1 && k0 != k1) {
-        val coordinates = Seq(fJson(pt0, Map(prop0)),
-                              fJson(pt0, Map(prop0, prop1)),
-                              fJson(pt0, Map(prop1)),
-                              fJson(pt1, Map(prop1)),
-                              fJson(pt1, Map(prop1)))
-        val expected = Set(feature(pt0, 1, Map(prop0)),
-                           feature(pt0, 1, Map(prop0, prop1)),
-                           feature(pt0, 1, Map(prop1)),
-                           feature(pt1, 2, Map(prop1)))
-
-        val actual = TileService.rollup(Unused, coordinates.toIterator)
-
-        actual must equal (expected)
-      }
-    }
-  }
-
-  val geoIndexKey = "geometry_index"
-
-  def headerMap(geoIndex: Int, extraCol: Option[(String, SoQLType)] = None): Map[String, Any] = {
-    assert(geoIndex <= 0)
-    val schema: Seq[Map[String, String]] = if (geoIndex < 0) Nil else {
-      Seq(Some("geo" -> SoQLPoint), extraCol).flatten.
-        map { case (col, typ) => Map("c" -> col, "t" -> typ.toString) }
-    }
-    Map(geoIndexKey -> geoIndex, "schema" -> schema)
-  }
-
   test("An empty message is successfully unpacked") {
     import gen.Extensions._
 
     forAll { (ext: Extension) =>
-      val upstream = mocks.BinaryResponse(headerMap(Unused), Seq.empty)
+      val upstream = mocks.MsgPackResponse()
       val outputStream = new mocks.ByteArrayServletOutputStream
       val resp = outputStream.responseFor
 
@@ -577,46 +454,15 @@ class TileServiceTest extends TestBase with UnusedSugar with MockitoSugar {
     }
   }
 
-  test("Features are successfully unpacked") {
-    import gen.Points._
-
-    val writer = new WKBWriter()
-    val expectedJson = JObject(Map("schema" -> JString("Vector(Map(t -> point, c -> geo))"),
-                                   geoIndexKey -> JString("0")))
-
-    forAll { pts: Seq[ValidPoint] =>
-      val rows = pts.map { pt =>
-        val (geom, props) = feature(pt)
-        Seq(writer.write(geom))
-      }
-
-      val upstream = mocks.BinaryResponse(headerMap(0), rows)
-      val maybeResult = TileService.soqlUnpackFeatures(Unused)(upstream)
-      maybeResult must be a ('success)
-
-      val (jVal, iter) = maybeResult.get
-      val features = iter.toSeq
-
-      jVal must equal (expectedJson)
-      features must have length (pts.size)
-      features must equal (pts.map(fJson(_)))
-    }
-  }
-
   test("Invalid WKB is handled correctly as parsing error") {
     import gen.Points._
 
     val writer = new WKBWriter()
-    val expectedJson = JObject(Map(geoIndexKey -> JString("0")))
+    val expectedJson = JObject(Map(mocks.MsgPackResponse.GeoIndexKey -> JString("0")))
     val invalidWKB = Array[Byte](3, 2, 1, 0)
 
     forAll { pts: Seq[ValidPoint] =>
-      val rows = pts.map { pt =>
-        val (geom, props) = feature(pt)
-        Seq(writer.write(geom))
-      }
-
-      val upstream = mocks.BinaryResponse(headerMap(0), rows, Some(invalidWKB))
+      val upstream = mocks.MsgPackResponse(pts, invalidWKB)
       val outputStream = new mocks.ByteArrayServletOutputStream
       val resp = outputStream.responseFor
 
@@ -626,33 +472,6 @@ class TileServiceTest extends TestBase with UnusedSugar with MockitoSugar {
       verify(resp).setStatus(SC_INTERNAL_SERVER_ERROR)
 
       outputStream.getLowStr must include ("non-geom soql type")
-    }
-  }
-
-  test("Features are unpacked with properties") {
-    import gen.Points._
-
-    val writer = new WKBWriter()
-
-    forAll { pts: Seq[ValidPoint] =>
-      val rows = pts.map { pt =>
-        val (geom, props) = feature(pt)
-        Seq(writer.write(geom), "abcde")
-      }
-
-      val upstream = mocks.BinaryResponse(headerMap(0, Some("txt" -> SoQLText)), rows)
-
-      val maybeResult = TileService.soqlUnpackFeatures(Unused)(upstream)
-      maybeResult must be a ('success)
-
-      val (jVal, iter) = maybeResult.get
-      val features = iter.toSeq
-
-      features must have length (pts.size)
-      for { i <- 0 until rows.length } {
-        features(i).geometry must equal (point(pts(i)))
-        features(i).properties must equal (Map("txt" -> JString("abcde")))
-      }
     }
   }
 
@@ -702,7 +521,7 @@ class TileServiceTest extends TestBase with UnusedSugar with MockitoSugar {
 
     forAll { (idx: Int, ext: Extension) =>
       whenever (idx < 0) {
-        val upstream = mocks.BinaryResponse(headerMap(-1), Seq.empty)
+        val upstream = mocks.MsgPackResponse(-1)
         val outputStream = new mocks.ByteArrayServletOutputStream
         val resp = outputStream.responseFor
 
@@ -729,7 +548,7 @@ class TileServiceTest extends TestBase with UnusedSugar with MockitoSugar {
         actual.query.toMap.get("$style") must be ('empty)
 
         val pt: (Int, Int) = (Unused, Unused)
-        mocks.SeqResponse(Seq(fJson(pt)))
+        mocks.SeqResponse(fJson(pt))
       }
 
       TileService(Unused, GeoProvider(client)).
@@ -745,7 +564,7 @@ class TileServiceTest extends TestBase with UnusedSugar with MockitoSugar {
 
     forAll { requestId: String =>
       val renderer = mock[CartoRenderer]
-      val upstream = mocks.SeqResponse(Seq(fJson()))
+      val upstream = mocks.SeqResponse(fJson())
       val client = mocks.StaticCuratedClient(upstream)
       val req = mocks.StaticRequest("$style" -> (Unused: String),
                                     "X-Socrata-RequestId" -> requestId)

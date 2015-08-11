@@ -12,6 +12,7 @@ import com.socrata.thirdparty.geojson.FeatureJson
 
 import UnusedSugar._
 import util.TileEncoder.Feature
+import gen.Points.PointLike
 
 // scalastyle:off import.grouping
 trait TestBase
@@ -24,7 +25,7 @@ trait TestBase
   def fJson(): FeatureJson = fJson((Unused, Unused): (Int, Int))
 
   def fJson(pt: (Int, Int),
-            attributes: Map[String, String] = Map.empty): FeatureJson = {
+           attributes: Map[String, String] = Map.empty): FeatureJson = {
     val attributesAsJvalues = attributes map { case (k, v) => (k, toJValue(v)) }
     FeatureJson(attributesAsJvalues, point(pt))
   }

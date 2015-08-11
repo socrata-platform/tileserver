@@ -45,7 +45,4 @@ object TileEncoder {
 
   /** (geometry, attributes) */
   type Feature = (Geometry, Map[String, JValue])
-
-  case class InvalidGeoJsonException(jValue: JValue)
-      extends RuntimeException(jValue.toString)
 }

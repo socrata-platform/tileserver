@@ -1,7 +1,8 @@
 package com.socrata.tileserver
 
-import scala.language.implicitConversions
 import java.io.{ByteArrayInputStream, InputStream}
+import scala.language.implicitConversions
+import scala.util.{Success, Try}
 
 import com.rojoma.simplearm.v2.ResourceScope
 import org.mockito.Mockito.mock
@@ -9,6 +10,7 @@ import org.mockito.Mockito.mock
 import com.socrata.http.client.{HttpClient, RequestBuilder, Response}
 import com.socrata.http.server.{HttpRequest, HttpResponse}
 import com.socrata.thirdparty.curator.CuratedServiceClient
+import com.socrata.thirdparty.geojson.FeatureJson
 
 import util.{CartoRenderer, GeoProvider}
 
@@ -41,8 +43,7 @@ trait UnusedSugar {
   implicit def unusedToRenderer(u: UnusedValue): CartoRenderer =
     CartoRenderer(Unused, Unused)
 
-  implicit def unusedToProvider(u: UnusedValue): GeoProvider =
-    GeoProvider(Unused)
+  implicit def unusedToProvider(u: UnusedValue): GeoProvider = GeoProvider(Unused)
 
   implicit def unusedToQuadTile(u: UnusedValue): util.QuadTile =
     new util.QuadTile(0, 0, 0) {

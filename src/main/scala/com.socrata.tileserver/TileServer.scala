@@ -37,7 +37,7 @@ object TileServer extends App {
     val renderer = CartoRenderer(http, cartoBaseUrl)
     val provider = GeoProvider(upstream)
     val tileService = TileService(renderer, provider)
-    val router = new Router(VersionService, tileService.types, tileService.service)
+    val router = Router(VersionService, tileService.types, tileService.service)
 
     val server = new SocrataServerJetty(
       handler = router.route,

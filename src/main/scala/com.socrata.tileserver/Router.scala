@@ -12,13 +12,13 @@ import com.socrata.http.server.util.handlers.{LoggingOptions, NewLoggingHandler}
 import com.socrata.http.server.{HttpRequest, HttpResponse, HttpService}
 
 // $COVERAGE-OFF$ Disabled because this is basically configuration.
-class Router(versionService: HttpService,
-             tileTypes : String => Boolean,
-             tileService: (String,
-                                 String,
-                                 Int,
-                                 Int,
-                                 TypedPathComponent[Int]) => HttpService) {
+case class Router(versionService: HttpService,
+                  tileTypes : String => Boolean,
+                  tileService: (String,
+                                String,
+                                Int,
+                                Int,
+                                TypedPathComponent[Int]) => HttpService) {
   private val logger = LoggerFactory.getLogger(getClass)
   private val logWrapper =
     NewLoggingHandler(LoggingOptions(logger, Set("X-Socrata-Host",
@@ -40,6 +40,6 @@ class Router(versionService: HttpService,
   }
 
   val route: HttpRequest => HttpResponse = req =>
-    logWrapper(routes(req.requestPath).getOrElse(notFound))(req)
+  logWrapper(routes(req.requestPath).getOrElse(notFound))(req)
 }
 // $COVERAGE-ON$

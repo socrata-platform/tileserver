@@ -26,10 +26,11 @@ import com.socrata.http.server.responses._
 import com.socrata.http.server.routing.{SimpleResource, TypedPathComponent}
 import com.socrata.http.server.util.RequestId.{RequestId, getFromRequest}
 import com.socrata.http.server.{HttpRequest, HttpResponse, HttpService}
-import com.socrata.soql.{SoQLPackIterator, SoQLGeoRow}
 import com.socrata.soql.types._
+import com.socrata.soql.{SoQLPackIterator, SoQLGeoRow}
 import com.socrata.thirdparty.curator.CuratedServiceClient
-import com.socrata.thirdparty.geojson.{GeoJson, FeatureCollectionJson, FeatureJson}
+import com.socrata.thirdparty.geojson.GeoJson._
+import com.socrata.thirdparty.geojson.{FeatureCollectionJson, FeatureJson}
 
 import TileService._
 import exceptions._
@@ -42,8 +43,8 @@ import util.{CartoRenderer, GeoProvider, HeaderFilter, QuadTile, TileEncoder}
   * @constructor This should only be called once, by the main application.
   * @param client The client to talk to the upstream geo-json service.
   */
-case class TileService(renderer: CartoRenderer,
-                       provider: GeoProvider) extends SimpleResource {
+class TileService(renderer: CartoRenderer,
+                  provider: GeoProvider) extends SimpleResource {
   /** Type of callback we will be passing to `client`. */
   type Callback = Response => HttpResponse
 
@@ -51,10 +52,6 @@ case class TileService(renderer: CartoRenderer,
   val types: Set[String] = Set("pbf", "bpbf", "json", "txt", "png")
 
   private val handleErrors: PartialFunction[Throwable, HttpResponse] = {
-    case readerEx: JsonReaderException =>
-      fatal("Invalid JSON returned from underlying service", readerEx)
-    case geoJsonEx: InvalidGeoJsonException =>
-      fatal("Invalid Geo-JSON returned from underlying service", geoJsonEx)
     case soqlPackEx: InvalidSoqlPackException =>
       fatal("Invalid SoQLPack returned from underlying service", soqlPackEx)
     case unknown: Throwable =>
@@ -66,10 +63,8 @@ case class TileService(renderer: CartoRenderer,
                                         cartoCss: Option[String],
                                         requestId: String,
                                         rs: ResourceScope): Callback = { resp: Response =>
-    def createResponse(parsed: (JValue, Iterator[FeatureJson])): HttpResponse = {
-      val (jValue, features) = parsed
-
-      val enc = TileEncoder(rollup(tile, features))
+    def createResponse(features: Iterator[FeatureJson]): HttpResponse = {
+      val enc = TileEncoder(provider.rollup(tile, features))
       val respOk = OK ~> HeaderFilter.extract(resp)
 
       ext match {
@@ -80,7 +75,7 @@ case class TileService(renderer: CartoRenderer,
         case "txt" =>
           respOk ~> Content("text/plain", enc.toString)
         case "json" =>
-          respOk ~> Json(jValue)
+          respOk ~> Json(FeatureCollectionJson(features.toSeq))
         case "png" =>
           cartoCss.map(style =>
             renderer.renderPng(enc.base64, tile.zoom, style, requestId)(rs).map {
@@ -98,10 +93,7 @@ case class TileService(renderer: CartoRenderer,
 
     lazy val result = resp.resultCode match {
       case ScOk =>
-        val isGeoJsonResponse = Response.acceptGeoJson(resp.contentType)
-        val features = if (isGeoJsonResponse) geoJsonFeatures _ else soqlUnpackFeatures(rs)
-
-        features(resp).map(createResponse).recover(handleErrors).get
+        provider.unpackFeatures(rs)(resp).map(createResponse).recover(handleErrors).get
       case ScNotModified => NotModified
       case _ => echoResponse(resp)
     }
@@ -128,8 +120,6 @@ case class TileService(renderer: CartoRenderer,
                        req,
                        identifier,
                        params,
-                       // Right now soqlpack queries won't work on non-geom columns
-                       binaryQuery,
                        processResponse(tile, ext, style, requestId, req.resourceScope))
     } catch {
       case e: Exception => fatal("Unknown error", e)
@@ -171,6 +161,10 @@ object TileService {
                             HttpServletResponse.SC_INTERNAL_SERVER_ERROR,
                             HttpServletResponse.SC_NOT_IMPLEMENTED,
                             HttpServletResponse.SC_SERVICE_UNAVAILABLE)
+
+  def apply(renderer: CartoRenderer, provider: GeoProvider): TileService =
+    new TileService(renderer, provider)
+
   private[services] def echoResponse(resp: Response): HttpResponse = {
     val body = try {
       JsonReader.fromString(IOUtils.toString(resp.inputStream(), UTF_8))
@@ -195,8 +189,6 @@ object TileService {
       if (t.getCause != null) rootCause(t.getCause) else t // scalastyle:ignore
 
     val payload = rootCause(cause) match {
-      case e: InvalidGeoJsonException =>
-        json"""{message: $message, cause: ${e.error}, invalidJson: ${e.jValue}}"""
       case e: Throwable =>
         val root = rootCause(cause)
         if (root.getMessage != null) { // scalastyle:ignore
@@ -214,43 +206,6 @@ object TileService {
   private[services] def extractRequestId(req: HttpRequest): RequestId =
     getFromRequest(req.servletRequest)
 
-  private[services] def geoJsonFeatures(resp: Response): Try[(JValue, Iterator[FeatureJson])] = {
-    Try(resp.jValue(Response.acceptGeoJson)) flatMap { jValue =>
-      GeoJson.codec.decode(jValue) match {
-        case Left(error) => Failure(InvalidGeoJsonException(jValue, error))
-        case Right(FeatureCollectionJson(features, _)) => Success(jValue -> features.toIterator)
-        case Right(feature: FeatureJson) => Success(jValue -> Iterator.single(feature))
-      }
-    }
-  }
-
-  private[services] def soqlUnpackFeatures(rs: ResourceScope):
-      Response => Try[(JValue, Iterator[FeatureJson])] = { resp: Response =>
-    val dis = rs.open(new DataInputStream(resp.inputStream(Long.MaxValue)))
-
-    try {
-      val soqlIter = new SoQLPackIterator(dis)
-      val jsonHeaders = JObject(soqlIter.headers.mapValues(v => JString(v.toString)))
-      if (soqlIter.geomIndex < 0) {
-        Failure(InvalidSoqlPackException(
-                  s"No geometry present or other header error: ${soqlIter.headers}"))
-      } else {
-        val featureJsonIter = soqlIter.map { row =>
-          val soqlRow = new SoQLGeoRow(row, soqlIter)
-          FeatureJson(soqlRow.properties, soqlRow.geometry)
-        }
-
-        Success(jsonHeaders -> featureJsonIter)
-      }
-    } catch {
-      case _: InvalidMsgPackDataException |
-          _: ClassCastException |
-          _: NoSuchElementException |
-          _: NullPointerException =>
-        Failure(InvalidSoqlPackException("Unable to parse binary stream into SoQLPack/MessagePack records"))
-    }
-  }
-
   private[services] def augmentParams(req: HttpRequest,
                                       where: String,
                                       select: String): Map[String, String] = {
@@ -261,24 +216,5 @@ object TileService {
       if (params.contains("$select")) params("$select") + s", $select" else select
 
     params + ("$where" -> whereParam) + ("$select" -> selectParam) - "$style"
-  }
-
-  private[services] def rollup(tile: QuadTile,
-                               features: => Iterator[FeatureJson]): Set[Feature] = {
-    // So far, `features` is still an Iterator; foreach is a streaming way to
-    // do a grouping count without materializing all the pixels/geometries and
-    // producing multiple intermediate objects, so we can save on memory use.
-    val pxCounts = new collection.mutable.HashMap[Feature, Int].withDefaultValue(0)
-    features.foreach { f =>
-      val geom = f.geometry
-      geom.apply(tile)
-      geom.geometryChanged()
-
-      pxCounts(geom -> f.properties) += 1
-    }
-
-    pxCounts.map { case ((geom, props), count) =>
-      geom -> Map("count" -> toJValue(count), "properties" -> toJValue(props))
-    } (collection.breakOut) // Build `Set` not `Seq`.
   }
 }
