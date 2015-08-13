@@ -3,7 +3,6 @@ package util
 
 import java.nio.charset.StandardCharsets.UTF_8
 import javax.servlet.http.HttpServletResponse.{SC_OK => ScOk}
-import scala.util.control.NoStackTrace
 import scala.util.{Failure, Success}
 
 import com.rojoma.json.v3.ast._
@@ -52,7 +51,7 @@ class CartoRendererTest extends TestBase with UnusedSugar {
       val renderer = CartoRenderer(client, Unused)
 
       val actual =
-        the [NoStackTrace] thrownBy renderer.renderPng(pbf, zoom, css, Unused) // scalastyle:ignore
+        the [Exception] thrownBy renderer.renderPng(pbf, zoom, css, Unused) // scalastyle:ignore
       actual.getMessage must equal (message)
     }
   }

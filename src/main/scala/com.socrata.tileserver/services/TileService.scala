@@ -8,8 +8,8 @@ import javax.servlet.http.HttpServletResponse.{SC_NOT_MODIFIED => ScNotModified}
 import javax.servlet.http.HttpServletResponse.{SC_OK => ScOk}
 import scala.util.{Try, Success, Failure}
 
+
 import com.rojoma.json.v3.ast._
-import com.rojoma.json.v3.codec.JsonEncode.toJValue
 import com.rojoma.json.v3.interpolation._
 import com.rojoma.json.v3.io.JsonReader
 import com.rojoma.json.v3.io.JsonReaderException
@@ -30,7 +30,7 @@ import com.socrata.soql.types._
 import com.socrata.soql.{SoQLPackIterator, SoQLGeoRow}
 import com.socrata.thirdparty.curator.CuratedServiceClient
 import com.socrata.thirdparty.geojson.GeoJson._
-import com.socrata.thirdparty.geojson.{FeatureCollectionJson, FeatureJson}
+import com.socrata.thirdparty.geojson.{FeatureCollectionJson, FeatureJson, GeoJsonBase}
 
 import TileService._
 import exceptions._
@@ -43,6 +43,7 @@ import util.{CartoRenderer, GeoProvider, HeaderFilter, QuadTile, TileEncoder}
   * @constructor This should only be called once, by the main application.
   * @param client The client to talk to the upstream geo-json service.
   */
+
 class TileService(renderer: CartoRenderer,
                   provider: GeoProvider) extends SimpleResource {
   /** Type of callback we will be passing to `client`. */
@@ -52,8 +53,8 @@ class TileService(renderer: CartoRenderer,
   val types: Set[String] = Set("pbf", "bpbf", "json", "txt", "png")
 
   private val handleErrors: PartialFunction[Throwable, HttpResponse] = {
-    case soqlPackEx: InvalidSoqlPackException =>
-      fatal("Invalid SoQLPack returned from underlying service", soqlPackEx)
+    case packEx @ (_: InvalidSoqlPackException | _: InvalidMsgPackDataException) =>
+      fatal("Invalid or corrupt data returned from underlying service", packEx)
     case unknown: Throwable =>
       fatal("Unknown error", unknown)
   }
@@ -64,7 +65,7 @@ class TileService(renderer: CartoRenderer,
                                         requestId: String,
                                         rs: ResourceScope): Callback = { resp: Response =>
     def createResponse(features: Iterator[FeatureJson]): HttpResponse = {
-      val enc = TileEncoder(provider.rollup(tile, features))
+      lazy val enc = TileEncoder(provider.rollup(tile, features))
       val respOk = OK ~> HeaderFilter.extract(resp)
 
       ext match {
@@ -75,7 +76,7 @@ class TileService(renderer: CartoRenderer,
         case "txt" =>
           respOk ~> Content("text/plain", enc.toString)
         case "json" =>
-          respOk ~> Json(FeatureCollectionJson(features.toSeq))
+          respOk ~> Json(FeatureCollectionJson(features.toSeq): GeoJsonBase)
         case "png" =>
           cartoCss.map(style =>
             renderer.renderPng(enc.base64, tile.zoom, style, requestId)(rs).map {
@@ -93,7 +94,14 @@ class TileService(renderer: CartoRenderer,
 
     lazy val result = resp.resultCode match {
       case ScOk =>
-        provider.unpackFeatures(rs)(resp).map(createResponse).recover(handleErrors).get
+        val features = try {
+          provider.unpackFeatures(rs)(resp)
+        } catch {
+          case e: Exception => // TODO: Push error handling up into a base class.
+            Failure(e)
+        }
+
+        features.map(createResponse).recover(handleErrors).get
       case ScNotModified => NotModified
       case _ => echoResponse(resp)
     }
@@ -188,14 +196,14 @@ object TileService {
     def rootCause(t: Throwable): Throwable =
       if (t.getCause != null) rootCause(t.getCause) else t // scalastyle:ignore
 
-    val payload = rootCause(cause) match {
-      case e: Throwable =>
-        val root = rootCause(cause)
-        if (root.getMessage != null) { // scalastyle:ignore
-          json"""{message: $message, cause: ${root.getMessage}}"""
-        } else {
-          json"""{message: $message, cause: ${root.getClass.getName}}"""
-        }
+    val root = rootCause(cause)
+    val payload = if (cause.getMessage != null) { // scalastyle:ignore
+      json"""{message: $message, cause: ${cause.getMessage}}"""
+    } else if (root.getMessage != null) { // scalastyle:ignore
+      logger.warn(root.getMessage, root.getStackTrace)
+      json"""{message: $message, cause: ${root.getMessage}}"""
+    } else {
+      json"""{message: $message}"""
     }
 
     InternalServerError ~>

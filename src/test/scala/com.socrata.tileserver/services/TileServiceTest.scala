@@ -8,7 +8,7 @@ import scala.util.control.NoStackTrace
 import scala.util.{Failure, Success}
 
 import com.rojoma.json.v3.ast.{JValue, JObject, JString, JNull}
-import com.rojoma.json.v3.codec.JsonEncode
+import com.rojoma.json.v3.util.JsonUtil
 import com.rojoma.json.v3.interpolation._
 import com.rojoma.simplearm.v2.ResourceScope
 import com.socrata.http.server.util.RequestId.ReqIdHeader
@@ -21,8 +21,8 @@ import com.socrata.http.client.{RequestBuilder, Response}
 import com.socrata.http.server.HttpRequest
 import com.socrata.http.server.HttpRequest.AugmentedHttpServletRequest
 import com.socrata.http.server.routing.TypedPathComponent
-import com.socrata.thirdparty.geojson.FeatureJson
-import com.socrata.thirdparty.geojson.GeoJson
+import com.socrata.thirdparty.geojson.GeoJson._
+import com.socrata.thirdparty.geojson.{FeatureCollectionJson, FeatureJson, GeoJsonBase}
 
 import util.{CartoRenderer, GeoProvider, TileEncoder}
 
@@ -85,7 +85,6 @@ class TileServiceTest extends TestBase with UnusedSugar with MockitoSugar {
         case BPbf =>
           outputStream.getString must include (TileEncoder(expected).base64)
         case Json =>
-          // TODO: Json logic (either the test, or the actual code) is broken.
           outputStream.getString must equal (upstream.toString)
         // ".txt" should be supported, but its output format is unspecified.
         case Png =>
@@ -157,8 +156,8 @@ class TileServiceTest extends TestBase with UnusedSugar with MockitoSugar {
     import gen.Points._
 
     forAll { (pt: ValidPoint, ext: Extension) =>
-      val s = GeoJson.codec.encode(fJson(pt)).toString.replaceAll("\\s*", "")
-      val upstream = mocks.StringResponse(s)
+      val expected = FeatureCollectionJson(Seq(fJson(pt)))
+      val upstream = mocks.SeqResponse(fJson(pt))
       val client = mocks.StaticCuratedClient(upstream)
       val outputStream = new mocks.ByteArrayServletOutputStream
       val resp = outputStream.responseFor
@@ -172,7 +171,12 @@ class TileServiceTest extends TestBase with UnusedSugar with MockitoSugar {
       verify(resp).setStatus(SC_OK)
 
       if (ext == Json) {
-        outputStream.getString must include (s.toString)
+        val actual = JsonUtil.parseJson[GeoJsonBase](outputStream.getString) match {
+          case Right(jVal) => jVal
+          case _ => fail("Decoding Json Failed!")
+        }
+
+        actual must equal (expected)
       }
     }
   }
@@ -363,15 +367,17 @@ class TileServiceTest extends TestBase with UnusedSugar with MockitoSugar {
   }
 
   test("Augmenting parameters adds to where and select") {
+    import gen.AsciiStrings._
+
     val otherKey = "$other"
     val whereKey = "$where"
     val selectKey = "$select"
 
-    forAll { (rawOtherValue: String,
-              rawWhereBase: String,
-              rawWhereValue: String,
-              rawSelectBase: String,
-              rawSelectValue: String) =>
+    forAll { (rawOtherValue: AsciiString,
+              rawWhereBase: AsciiString,
+              rawWhereValue: AsciiString,
+              rawSelectBase: AsciiString,
+              rawSelectValue: AsciiString) =>
       val otherValue = encode(rawOtherValue) filter (_.isLetterOrDigit)
       val whereBase = encode(rawWhereBase) filter (_.isLetterOrDigit)
       val whereValue = encode(rawWhereValue) filter (_.isLetterOrDigit)
@@ -471,7 +477,8 @@ class TileServiceTest extends TestBase with UnusedSugar with MockitoSugar {
 
       verify(resp).setStatus(SC_INTERNAL_SERVER_ERROR)
 
-      outputStream.getLowStr must include ("non-geom soql type")
+      outputStream.getLowStr must include ("invalid")
+      outputStream.getLowStr must include ("underlying")
     }
   }
 
@@ -489,8 +496,8 @@ class TileServiceTest extends TestBase with UnusedSugar with MockitoSugar {
 
         verify(resp).setStatus(SC_INTERNAL_SERVER_ERROR)
 
-        outputStream.getLowStr must include ("soqlpack")
-        outputStream.getLowStr must include ("unable to parse binary stream")
+        outputStream.getLowStr must include ("invalid")
+        outputStream.getLowStr must include ("underlying")
       } catch {
         case _: OutOfMemoryError => // Do nothing.
       }
@@ -512,7 +519,8 @@ class TileServiceTest extends TestBase with UnusedSugar with MockitoSugar {
 
       verify(resp).setStatus(SC_INTERNAL_SERVER_ERROR)
 
-      outputStream.getLowStr must include ("unable to parse binary stream")
+      outputStream.getLowStr must include ("invalid")
+      outputStream.getLowStr must include ("underlying")
     }
   }
 
@@ -530,7 +538,8 @@ class TileServiceTest extends TestBase with UnusedSugar with MockitoSugar {
 
         verify(resp).setStatus(SC_INTERNAL_SERVER_ERROR)
 
-        outputStream.getLowStr must include ("header error")
+        outputStream.getLowStr must include ("invalid")
+        outputStream.getLowStr must include ("underlying")
       }
     }
   }

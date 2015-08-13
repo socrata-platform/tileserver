@@ -10,6 +10,19 @@ import util.CoordinateMapper.Size
 
 // scalastyle:off import.grouping
 package object gen {
+  object AsciiStrings {
+    case class AsciiString(val underlying: String)
+    implicit def shortStringToString(s: AsciiString): String = s.underlying
+
+    private val asciiChars = Range(32, 127).map(_.toChar)
+    private val asciiGen = for {
+      length <- Gen.choose(0, 10)
+      chars <- Gen.pick(length, asciiChars)
+    } yield AsciiString(chars.mkString(""))
+
+    implicit val asciiString: Arbitrary[AsciiString] = Arbitrary(asciiGen)
+  }
+
   object StatusCodes {
     case class KnownStatusCode(val underlying: Int) {
       override val toString: String = underlying.toString
