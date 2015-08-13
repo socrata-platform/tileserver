@@ -11,20 +11,25 @@ import com.socrata.soql.types.SoQLText
 class GeoProviderTest extends TestBase with UnusedSugar with MockitoSugar {
   test("Headers and parameters are correct") {
     import gen.Headers._
+    import gen.Alphanumerics._
+    import gen.ShortStrings._
 
-    forAll { (reqId: RequestId,
-              id: String,
-              param: (String, String),
+    val resp = mock[Response]
+    val base = RequestBuilder("mock.socrata.com")
+
+    forAll { (reqId: Alphanumeric,
+              id: Alphanumeric,
+              param: (ShortString, ShortString),
               knownHeader: IncomingHeader,
               unknownHeader: UnknownHeader) =>
-      val base = RequestBuilder("mock.socrata.com")
       val request = mocks.StaticRequest(param, Map(knownHeader, unknownHeader))
 
       val expected = base.
-        path(Seq("id", s"$id.soqlpack")).
+        addPath("id").
+        addPath(s"${id: String}.soqlpack").
         addHeader(ReqIdHeader -> reqId).
         addHeader(knownHeader).
-        query(Map(param)).
+        addParameter(param).
         get.builder
 
       val client = mocks.StaticCuratedClient.withReq { request =>
@@ -35,7 +40,7 @@ class GeoProviderTest extends TestBase with UnusedSugar with MockitoSugar {
         actual.query.toSet must equal (expected.query.toSet)
         actual.headers.toSet must equal (expected.headers.toSet)
 
-        mock[Response]
+        resp
       }
 
       GeoProvider(client).

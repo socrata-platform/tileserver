@@ -10,31 +10,55 @@ import util.CoordinateMapper.Size
 
 // scalastyle:off import.grouping
 package object gen {
-  object AsciiStrings {
-    case class AsciiString(val underlying: String)
-    implicit def shortStringToString(s: AsciiString): String = s.underlying
+  object ShortStrings {
+    case class ShortString(underlying: String)
 
-    private val asciiChars = Range(32, 127).map(_.toChar)
-    private val asciiGen = for {
+    implicit def sstrToString(a: ShortString): String = a.underlying
+    implicit def sstrStringPair(p: (ShortString, ShortString)): (String, String) = {
+      val (a, b) = p
+      (a.underlying, b.underlying)
+    }
+
+    private val shortGen = for {
       length <- Gen.choose(0, 10)
-      chars <- Gen.pick(length, asciiChars)
-    } yield AsciiString(chars.mkString(""))
+      chars <- Gen.listOfN(length, Arbitrary.arbitrary[Char])
+    } yield ShortString(chars.mkString(""))
 
-    implicit val asciiString: Arbitrary[AsciiString] = Arbitrary(asciiGen)
+    implicit val shortStr: Arbitrary[ShortString] = Arbitrary(shortGen)
+  }
+
+  object Alphanumerics {
+    case class Alphanumeric(underlying: String)
+
+    implicit def alnumToString(a: Alphanumeric): String = a.underlying
+    implicit def alnumToStringPair(p: (Alphanumeric, Alphanumeric)): (String, String) = {
+      val (a, b) = p
+      (a.underlying, b.underlying)
+    }
+
+    private val alnumChars = (Range(48, 58) ++ Range(65, 91) ++ Range(97, 123)).
+      map(_.toChar).toArray
+
+    private val alnumGen = for {
+      length <- Gen.choose(0, 10)
+      chars <- Gen.pick(length, alnumChars)
+    } yield Alphanumeric(chars.mkString(""))
+
+    implicit val alnum: Arbitrary[Alphanumeric] = Arbitrary(alnumGen)
   }
 
   object StatusCodes {
-    case class KnownStatusCode(val underlying: Int) {
+    case class KnownStatusCode(underlying: Int) {
       override val toString: String = underlying.toString
     }
     implicit def knownStatusCodeToInt(k: KnownStatusCode): Int = k.underlying
 
-    case class UnknownStatusCode(val underlying: Int) {
+    case class UnknownStatusCode(underlying: Int) {
       override val toString: String = underlying.toString
     }
     implicit def unknownStatusCodeToInt(u: UnknownStatusCode): Int = u.underlying
 
-    case class NotOkStatusCode(val underlying: Int) {
+    case class NotOkStatusCode(underlying: Int) {
       override val toString: String = underlying.toString
     }
     implicit def notOkStatusCodeToInt(u: NotOkStatusCode): Int = u.underlying
@@ -90,23 +114,27 @@ package object gen {
                                "Last-Modified",
                                socrata)
 
-    private val incomingGen = for {
-      k <- Gen.oneOf(incoming.toSeq)
-      k2 <- Arbitrary.arbString.arbitrary
-      v <- Arbitrary.arbString.arbitrary
-    } yield if (k == socrata) IncomingHeader(k + k2, v) else IncomingHeader(k, v)
+    private val incomingGen = {
+      Gen.oneOf(incoming.toSeq).flatMap { k =>
+        if (k == socrata) ShortStrings.shortStr.arbitrary.map(k + _) else k
+      }.flatMap { k =>
+        ShortStrings.shortStr.arbitrary.map(IncomingHeader(k, _))
+      }
+    }
 
-    private val outgoingGen = for {
-      k <- Gen.oneOf(outgoing.toSeq)
-      k2 <- Arbitrary.arbString.arbitrary
-      v <- Arbitrary.arbString.arbitrary
-    } yield if (k == socrata) OutgoingHeader(k + k2, v) else OutgoingHeader(k, v)
+    private val outgoingGen = {
+      Gen.oneOf(outgoing.toSeq).flatMap { k =>
+        if (k == socrata) ShortStrings.shortStr.arbitrary.map(k + _) else k
+      }.flatMap { k =>
+        ShortStrings.shortStr.arbitrary.map(OutgoingHeader(k, _))
+      }
+    }
 
     private val unknownGen = for {
-      k <- Arbitrary.arbString.arbitrary suchThat { k =>
+      k <- ShortStrings.shortStr.arbitrary suchThat { k =>
         !(k.startsWith(socrata) || incoming(k) || outgoing(k))
       }
-      v <- Arbitrary.arbString.arbitrary
+      v <- ShortStrings.shortStr.arbitrary
     } yield UnknownHeader(k, v)
 
     implicit val incomingHeader: Arbitrary[IncomingHeader] = Arbitrary(incomingGen)

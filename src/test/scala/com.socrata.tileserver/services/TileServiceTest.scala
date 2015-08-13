@@ -367,22 +367,18 @@ class TileServiceTest extends TestBase with UnusedSugar with MockitoSugar {
   }
 
   test("Augmenting parameters adds to where and select") {
-    import gen.AsciiStrings._
+    import gen.Alphanumerics._
 
     val otherKey = "$other"
     val whereKey = "$where"
     val selectKey = "$select"
 
-    forAll { (rawOtherValue: AsciiString,
-              rawWhereBase: AsciiString,
-              rawWhereValue: AsciiString,
-              rawSelectBase: AsciiString,
-              rawSelectValue: AsciiString) =>
-      val otherValue = encode(rawOtherValue) filter (_.isLetterOrDigit)
-      val whereBase = encode(rawWhereBase) filter (_.isLetterOrDigit)
-      val whereValue = encode(rawWhereValue) filter (_.isLetterOrDigit)
-      val selectBase = encode(rawSelectBase) filter (_.isLetterOrDigit)
-      val selectValue = encode(rawSelectValue) filter (_.isLetterOrDigit)
+    forAll {(rawOtherValue: Alphanumeric,
+             whereParam: (Alphanumeric, Alphanumeric),
+             selectParam: (Alphanumeric, Alphanumeric)) =>
+      val otherValue: String = rawOtherValue
+      val (whereBase, whereValue) = whereParam: (String, String)
+      val (selectBase, selectValue) = selectParam: (String, String)
 
       val neither = mocks.StaticRequest(otherKey -> otherValue)
       val where = mocks.StaticRequest(whereKey -> whereBase)
