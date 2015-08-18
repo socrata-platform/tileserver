@@ -13,6 +13,6 @@ class BinaryResponse(payload: Array[Byte],
 }
 
 object BinaryResponse {
-  def apply(payload: Array[Byte], resultCode: Int = ScOk) =
+  def apply(payload: Array[Byte], resultCode: Int = ScOk): BinaryResponse =
     new BinaryResponse(payload, resultCode)
 }

@@ -50,6 +50,9 @@ case class GeoProvider(client: CuratedServiceClient) {
 }
 
 object GeoProvider {
+  /** Type of callback we will be passing to `client`. */
+  type Callback = Response => HttpResponse
+
   private[util] val logger: Logger = LoggerFactory.getLogger(getClass)
 
   private[util] def rollup(tile: QuadTile,
@@ -68,7 +71,7 @@ object GeoProvider {
     } (collection.breakOut) // Build `Set` not `Seq`.
   }
 
-  private[util] def unpackFeatures(rs: ResourceScope):
+  def unpackFeatures(rs: ResourceScope):
       Response => Try[Iterator[FeatureJson]] = { resp: Response =>
     val dis = rs.open(new DataInputStream(resp.inputStream(Long.MaxValue)))
 

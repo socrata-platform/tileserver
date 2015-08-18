@@ -13,6 +13,8 @@ import MsgPackResponse._
 import gen.Points.PointLike
 import util.TileEncoder.Feature
 
+// ScalaStyle seems to think that constructor overloading is procedure declaration.
+// scalastyle:off procedure.declaration
 class MsgPackResponse(header: Map[String, Any] = EmptyHeader,
                       rows: Seq[Seq[Any]] = Seq.empty,
                       junk: Option[Array[Byte]] = None)

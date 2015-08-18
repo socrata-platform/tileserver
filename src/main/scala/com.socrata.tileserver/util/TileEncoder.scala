@@ -14,7 +14,11 @@ import TileEncoder._
   *
   * Lazily calls `maybeFeatures.get` lazily when a field is evaluated.
   */
-case class TileEncoder(features: Set[TileEncoder.Feature]) {
+class TileEncoder(rollups: => Set[TileEncoder.Feature],
+                  // TODO: Remove, hacks for this one refactor.
+                  val rawFeatures: JValue) {
+
+  lazy val features = rollups
   /** Create a vector tile encoded as a protocol-buffer. */
   lazy val bytes: Array[Byte] = {
     val underlying = new VectorTileEncoder(ZoomFactor * CoordinateMapper.Size,

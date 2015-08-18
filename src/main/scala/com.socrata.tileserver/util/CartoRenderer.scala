@@ -17,6 +17,7 @@ import exceptions.FailedRenderException
 
 // scalastyle:off multiple.string.literals
 case class CartoRenderer(http: HttpClient, baseUrl: RequestBuilder) {
+  // TODO: Use RequestInfo + Option
   def renderPng(pbf: String,
                 zoom: Int,
                 cartoCss: String,

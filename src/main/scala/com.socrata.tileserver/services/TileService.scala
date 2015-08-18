@@ -8,8 +8,8 @@ import javax.servlet.http.HttpServletResponse.{SC_NOT_MODIFIED => ScNotModified}
 import javax.servlet.http.HttpServletResponse.{SC_OK => ScOk}
 import scala.util.{Try, Success, Failure}
 
-
 import com.rojoma.json.v3.ast._
+import com.rojoma.json.v3.codec.JsonEncode
 import com.rojoma.json.v3.interpolation._
 import com.rojoma.json.v3.io.JsonReader
 import com.rojoma.json.v3.io.JsonReaderException
@@ -34,8 +34,9 @@ import com.socrata.thirdparty.geojson.{FeatureCollectionJson, FeatureJson, GeoJs
 
 import TileService._
 import exceptions._
+import handlers._
 import util.TileEncoder.Feature
-import util.{CartoRenderer, GeoProvider, HeaderFilter, QuadTile, TileEncoder}
+import util._
 
 // scalastyle:off multiple.string.literals
 /** Service that provides the actual tiles.
@@ -46,50 +47,35 @@ import util.{CartoRenderer, GeoProvider, HeaderFilter, QuadTile, TileEncoder}
 
 class TileService(renderer: CartoRenderer,
                   provider: GeoProvider) extends SimpleResource {
-  /** Type of callback we will be passing to `client`. */
-  type Callback = Response => HttpResponse
+  /** The `Handler`s that this service is backed by. */
+  val baseHandlers: Seq[BaseHandler] = Seq(PbfHandler,
+                                           BpbfHandler,
+                                           PngHandler(renderer),
+                                           JsonHandler,
+                                           TxtHandler,
+                                           UnfashionablePngHandler)
+  val handler: Handler = baseHandlers.map(h => h: Handler).reduce(_.orElse(_))
 
   /** The types (file extensions) supported by this endpoint. */
-  val types: Set[String] = Set("pbf", "bpbf", "json", "txt", "png")
+  val types: Set[String] = baseHandlers.foldLeft(Set[String]())(_ + _.extension)
 
   private val handleErrors: PartialFunction[Throwable, HttpResponse] = {
     case packEx @ (_: InvalidSoqlPackException | _: InvalidMsgPackDataException) =>
       fatal("Invalid or corrupt data returned from underlying service", packEx)
-    case unknown: Throwable =>
-      fatal("Unknown error", unknown)
   }
 
   private[services] def processResponse(tile: QuadTile,
                                         ext: String,
                                         cartoCss: Option[String],
                                         requestId: String,
-                                        rs: ResourceScope): Callback = { resp: Response =>
+                                        rs: ResourceScope): GeoProvider.Callback = { resp: Response =>
     def createResponse(features: Iterator[FeatureJson]): HttpResponse = {
-      lazy val enc = TileEncoder(provider.rollup(tile, features))
-      val respOk = OK ~> HeaderFilter.extract(resp)
-
-      ext match {
-        case "pbf" =>
-          respOk ~> ContentType("application/octet-stream") ~> ContentBytes(enc.bytes)
-        case "bpbf" =>
-          respOk ~> Content("text/plain", enc.base64)
-        case "txt" =>
-          respOk ~> Content("text/plain", enc.toString)
-        case "json" =>
-          respOk ~> Json(FeatureCollectionJson(features.toSeq): GeoJsonBase)
-        case "png" =>
-          cartoCss.map(style =>
-            renderer.renderPng(enc.base64, tile.zoom, style, requestId)(rs).map {
-              respOk ~> ContentType("image/png") ~> Stream(_)
-            }.getOrElse {
-              BadRequest ~>
-                Content("text/plain", "Failed to render png; check your $style parameter.")
-            }
-          ).getOrElse(
-            BadRequest ~>
-              Content("text/plain", "Cannot render png without '$style' query parameter.")
-          )
-      }
+      val (rollups, raw) = features.duplicate
+      val jValue = JsonEncode.toJValue(FeatureCollectionJson(raw.toSeq): GeoJsonBase)
+      val enc = new TileEncoder(provider.rollup(tile, rollups), jValue)
+      val base = OK ~> HeaderFilter.extract(resp)
+      val info = RequestInfo(ext, requestId, tile, cartoCss, rs)
+      handler(info)(base, enc)
     }
 
     lazy val result = resp.resultCode match {
@@ -97,11 +83,16 @@ class TileService(renderer: CartoRenderer,
         val features = try {
           provider.unpackFeatures(rs)(resp)
         } catch {
-          case e: Exception => // TODO: Push error handling up into a base class.
+          case e: Exception =>
             Failure(e)
         }
 
-        features.map(createResponse).recover(handleErrors).get
+        features.
+          map(createResponse).
+          recover(handleErrors).
+          recover { case unknown: Exception =>
+            fatal("Unknown error", unknown)
+          }.get
       case ScNotModified => NotModified
       case _ => echoResponse(resp)
     }
@@ -121,8 +112,6 @@ class TileService(renderer: CartoRenderer,
       val style = req.queryParameters.get("$style")
       val params = augmentParams(req, intersects, pointColumn)
       val requestId = extractRequestId(req)
-
-      val binaryQuery = !req.queryParameters.contains("$select") && ext != "json"
 
       provider.doQuery(requestId,
                        req,
@@ -177,7 +166,7 @@ object TileService {
     val body = try {
       JsonReader.fromString(IOUtils.toString(resp.inputStream(), UTF_8))
     } catch {
-      case e: Throwable =>
+      case e: Exception =>
         json"""{ message: "Failed to open inputStream", cause: ${e.getMessage}}"""
     }
 
