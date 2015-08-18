@@ -8,6 +8,7 @@ import scala.util.{Failure, Success, Try}
 
 import com.rojoma.json.v3.codec.JsonEncode.toJValue
 import com.rojoma.simplearm.v2.ResourceScope
+import com.vividsolutions.jts.geom.Geometry
 import org.slf4j.{Logger, LoggerFactory}
 import org.velvia.InvalidMsgPackDataException
 
@@ -24,15 +25,14 @@ import exceptions._
 
 case class GeoProvider(client: CuratedServiceClient) {
   // TODO: Remove these forwarding methods, hide them behind a nice API.
+  def unpackFeatures(rs: ResourceScope) = GeoProvider.unpackFeatures(rs)
   def rollup(tile: QuadTile,
              features: => Iterator[FeatureJson]) = GeoProvider.rollup(tile, features)
-  def unpackFeatures(rs: ResourceScope) = GeoProvider.unpackFeatures(rs)
 
   def doQuery(requestId: RequestId,
               req: HttpRequest,
               id: String,
-              params: Map[String, String],
-              callback: Response => HttpResponse): HttpResponse = {
+              params: Map[String, String]): Response = {
     val headers = HeaderFilter.headers(req)
 
     val jsonReq = { base: RequestBuilder =>
@@ -45,7 +45,7 @@ case class GeoProvider(client: CuratedServiceClient) {
       req
     }
 
-    client.execute(jsonReq, callback)
+    client.execute(jsonReq, identity)
   }
 }
 
@@ -55,11 +55,12 @@ object GeoProvider {
 
   private[util] val logger: Logger = LoggerFactory.getLogger(getClass)
 
+  // TODO: Remove the .clone() call here when this is combined with unpackFeatures.
   private[util] def rollup(tile: QuadTile,
                            features: => Iterator[FeatureJson]): Set[Feature] = {
     val pxCounts = new collection.mutable.HashMap[Feature, Int].withDefaultValue(0)
     features.foreach { f =>
-      val geom = f.geometry
+      val geom = f.geometry.clone().asInstanceOf[Geometry]
       geom.apply(tile)
       geom.geometryChanged()
 

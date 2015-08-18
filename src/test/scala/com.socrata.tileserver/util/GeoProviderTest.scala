@@ -35,6 +35,7 @@ class GeoProviderTest extends TestBase with UnusedSugar with MockitoSugar {
       val client = mocks.StaticCuratedClient.withReq { request =>
         val actual = request(base).builder
 
+        // Assertions are in here, since we only care about what the client sees.
         actual.url must equal (expected.url)
         actual.method must equal (expected.method)
         actual.query.toSet must equal (expected.query.toSet)
@@ -44,7 +45,7 @@ class GeoProviderTest extends TestBase with UnusedSugar with MockitoSugar {
       }
 
       GeoProvider(client).
-        doQuery(reqId, request, id, Map(param), Unused): Unit
+        doQuery(reqId, request, id, Map(param)): Unit
     }
   }
 

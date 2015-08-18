@@ -64,40 +64,18 @@ class TileService(renderer: CartoRenderer,
       fatal("Invalid or corrupt data returned from underlying service", packEx)
   }
 
-  private[services] def processResponse(tile: QuadTile,
-                                        ext: String,
-                                        cartoCss: Option[String],
-                                        requestId: String,
-                                        rs: ResourceScope): GeoProvider.Callback = { resp: Response =>
-    def createResponse(features: Iterator[FeatureJson]): HttpResponse = {
-      val (rollups, raw) = features.duplicate
-      val jValue = JsonEncode.toJValue(FeatureCollectionJson(raw.toSeq): GeoJsonBase)
-      val enc = new TileEncoder(provider.rollup(tile, rollups), jValue)
-      val base = OK ~> HeaderFilter.extract(resp)
-      val info = RequestInfo(ext, requestId, tile, cartoCss, rs)
-      handler(info)(base, enc)
-    }
+  private def createResponse(base: HttpResponse,
+                             tile: QuadTile,
+                             ext: String,
+                             cartoCss: Option[String],
+                             requestId: String,
+                             rs: ResourceScope)
+                            (features: Iterator[FeatureJson]): HttpResponse = {
+    val (rollups, raw) = features.duplicate
+    val enc = TileEncoder(provider.rollup(tile, rollups), raw)
 
-    lazy val result = resp.resultCode match {
-      case ScOk =>
-        val features = try {
-          provider.unpackFeatures(rs)(resp)
-        } catch {
-          case e: Exception =>
-            Failure(e)
-        }
-
-        features.
-          map(createResponse).
-          recover(handleErrors).
-          recover { case unknown: Exception =>
-            fatal("Unknown error", unknown)
-          }.get
-      case ScNotModified => NotModified
-      case _ => echoResponse(resp)
-    }
-
-    Header("Access-Control-Allow-Origin", "*") ~> result
+    val info = RequestInfo(ext, requestId, tile, cartoCss, rs)
+    handler(info)(base, enc)
   }
 
   // Do the actual heavy lifting for the request handling.
@@ -113,11 +91,33 @@ class TileService(renderer: CartoRenderer,
       val params = augmentParams(req, intersects, pointColumn)
       val requestId = extractRequestId(req)
 
-      provider.doQuery(requestId,
-                       req,
-                       identifier,
-                       params,
-                       processResponse(tile, ext, style, requestId, req.resourceScope))
+      val resp = provider.doQuery(requestId,
+                                  req,
+                                  identifier,
+                                  params)
+
+      lazy val result = resp.resultCode match {
+        case ScOk =>
+          val features = try {
+            provider.unpackFeatures(req.resourceScope)(resp)
+          } catch {
+            case e: Exception =>
+              Failure(e)
+          }
+
+          val base = OK ~> HeaderFilter.extract(resp)
+
+          features.
+            map(createResponse(base, tile, ext, style, requestId, req.resourceScope)).
+            recover(handleErrors).
+            recover { case unknown: Exception =>
+              fatal("Unknown error", unknown)
+            }.get
+        case ScNotModified => NotModified
+        case _ => echoResponse(resp)
+      }
+
+      Header("Access-Control-Allow-Origin", "*") ~> result
     } catch {
       case e: Exception => fatal("Unknown error", e)
     }

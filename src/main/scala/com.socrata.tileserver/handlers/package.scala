@@ -38,7 +38,7 @@ package object handlers {
     override def createResponse(reqInfo: RequestInfo,
                                 base: HttpResponse,
                                 encoder: TileEncoder): HttpResponse =
-      base ~> Json(encoder.rawFeatures)
+      base ~> Json(FeatureCollectionJson(encoder.rawFeatures.toSeq): GeoJsonBase)
   }
 
   // When you try to render a png, but have no style.
