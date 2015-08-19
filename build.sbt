@@ -54,4 +54,4 @@ enablePlugins(sbtbuildinfo.BuildInfoPlugin)
 Revolver.settings
 
 // Require full coverage.
-ScoverageSbtPlugin.ScoverageKeys.coverageMinimum := 96
+ScoverageSbtPlugin.ScoverageKeys.coverageMinimum := 100
