@@ -45,8 +45,8 @@ import util._
   * @param client The client to talk to the upstream geo-json service.
   */
 
-class TileService(renderer: CartoRenderer,
-                  provider: GeoProvider) extends SimpleResource {
+case class TileService(renderer: CartoRenderer,
+                       provider: GeoProvider) extends SimpleResource {
   /** The `Handler`s that this service is backed by. */
   val baseHandlers: Seq[BaseHandler] = Seq(PbfHandler,
                                            BpbfHandler,
@@ -78,17 +78,30 @@ class TileService(renderer: CartoRenderer,
     handler(info)(base, enc)
   }
 
-  // Do the actual heavy lifting for the request handling.
-  private[services] def handleRequest(req: HttpRequest,
-                                      identifier: String,
-                                      pointColumn: String,
-                                      tile: QuadTile,
-                                      ext: String) : HttpResponse = {
-    val intersects = tile.intersects(pointColumn)
+  /** Process a request to this service.
+    *
+    * @param req The request
+    * @param identifier The dataset's identifier (aka 4x4)
+    * @param geoColumn The name of the dataset column that we should be processing.
+    * @param tile The QuadTile that corresponds to this zoom level.
+    * @param ext The file extension that's being requested.
+    */
+  def handleRequest(req: HttpRequest,
+                    identifier: String,
+                    geoColumn: String,
+                    tile: QuadTile,
+                    ext: String) : HttpResponse = {
+    // def processResponse(tile: QuadTile,           = Unused
+    //                     ext: String,              = ext
+    //                     cartoCss: Option[String], = style
+    //                     requestId: String,        = Unused
+    //                     rs: ResourceScope)        = Unused
+
+    val intersects = tile.intersects(geoColumn)
 
     try {
       val style = req.queryParameters.get("$style")
-      val params = augmentParams(req, intersects, pointColumn)
+      val params = augmentParams(req, intersects, geoColumn)
       val requestId = extractRequestId(req)
 
       val resp = provider.doQuery(requestId,
@@ -109,7 +122,7 @@ class TileService(renderer: CartoRenderer,
 
           features.
             map(createResponse(base, tile, ext, style, requestId, req.resourceScope)).
-            recover(handleErrors).
+            recover(handleErrors). // TODO: Hook into the individual error handlers.
             recover { case unknown: Exception =>
               fatal("Unknown error", unknown)
             }.get
@@ -126,14 +139,14 @@ class TileService(renderer: CartoRenderer,
   /** Handle the request.
     *
     * @param identifier unique identifier for this set
-    * @param pointColumn the column in the dataset that contains the
+    * @param geoColumn the column in the dataset that contains the
     *                    location information.
     * @param zoom the zoom level, 1 is zoomed all the way out.
     * @param x the x coordinate of the tile.
     * @param typedY the y coordinate of the tile, and the type (extension).
     */
   def service(identifier: String,
-              pointColumn: String,
+              geoColumn: String,
               zoom: Int,
               x: Int,
               typedY: TypedPathComponent[Int]): SimpleResource =
@@ -143,7 +156,7 @@ class TileService(renderer: CartoRenderer,
       override def get: HttpService = {
         MDC.put("X-Socrata-Resource", identifier)
 
-        req => handleRequest(req, identifier, pointColumn, QuadTile(x, y, zoom), ext)
+        req => handleRequest(req, identifier, geoColumn, QuadTile(x, y, zoom), ext)
       }
     }
 }
@@ -158,9 +171,6 @@ object TileService {
                             HttpServletResponse.SC_INTERNAL_SERVER_ERROR,
                             HttpServletResponse.SC_NOT_IMPLEMENTED,
                             HttpServletResponse.SC_SERVICE_UNAVAILABLE)
-
-  def apply(renderer: CartoRenderer, provider: GeoProvider): TileService =
-    new TileService(renderer, provider)
 
   private[services] def echoResponse(resp: Response): HttpResponse = {
     val body = try {

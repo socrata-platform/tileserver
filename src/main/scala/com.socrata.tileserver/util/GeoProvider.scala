@@ -1,7 +1,7 @@
 package com.socrata.tileserver
 package util
 
-import java.io.DataInputStream
+import java.io.{ByteArrayInputStream, DataInputStream}
 import java.net.URLDecoder
 import java.nio.charset.StandardCharsets.UTF_8
 import scala.util.{Failure, Success, Try}
@@ -9,10 +9,11 @@ import scala.util.{Failure, Success, Try}
 import com.rojoma.json.v3.codec.JsonEncode.toJValue
 import com.rojoma.simplearm.v2.ResourceScope
 import com.vividsolutions.jts.geom.Geometry
+import org.apache.commons.io.IOUtils
 import org.slf4j.{Logger, LoggerFactory}
 import org.velvia.InvalidMsgPackDataException
 
-import com.socrata.http.client.{RequestBuilder, Response}
+import com.socrata.http.client.{RequestBuilder, Response, StandardResponse}
 import com.socrata.http.server.util.RequestId.{RequestId, ReqIdHeader}
 import com.socrata.http.server.{HttpRequest, HttpResponse}
 import com.socrata.soql.{SoQLPackIterator, SoQLGeoRow}
@@ -45,7 +46,14 @@ case class GeoProvider(client: CuratedServiceClient) {
       req
     }
 
-    client.execute(jsonReq, identity)
+    // TODO: Hacks!  Ideally would use unpackFeatures as the callback.
+    val cb = { raw: Response =>
+      val is = Option(raw.inputStream())
+      val bytes = is.map(IOUtils.toByteArray(_)).getOrElse(Array.empty)
+      new StandardResponse(raw, new ByteArrayInputStream(bytes))
+    }
+
+    client.execute(jsonReq, cb)
   }
 }
 

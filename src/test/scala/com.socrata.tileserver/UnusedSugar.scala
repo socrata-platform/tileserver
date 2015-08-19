@@ -14,12 +14,13 @@ import com.socrata.thirdparty.geojson.FeatureJson
 
 import util.{CartoRenderer, GeoProvider}
 
+import UnusedSugar.UnusedValue
+
 trait UnusedSugar {
-  trait UnusedValue
-  object Unused extends UnusedValue
+  val Unused: UnusedValue = UnusedSugar.UnusedObj
 
   implicit def unusedToInt(u: UnusedValue): Int = 0
-  implicit def unusedToString(u: UnusedValue): String = "unused"
+  implicit def unusedToString(u: UnusedValue): String = u.toString
 
   // Can't be Map[K, V] because then it matches K => V.
   implicit def unusedToMap[T](u: UnusedValue): Map[String, T] = Map.empty
@@ -52,5 +53,11 @@ trait UnusedSugar {
 }
 
 object UnusedSugar extends UnusedSugar {
+  trait UnusedValue {
+    override val toString = "unused"
+  }
+
+  private object UnusedObj extends UnusedValue // There's lots of magic going on here.
+
   val rs = new ResourceScope()
 }
