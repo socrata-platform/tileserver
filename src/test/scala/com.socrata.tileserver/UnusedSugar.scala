@@ -2,7 +2,6 @@ package com.socrata.tileserver
 
 import java.io.{ByteArrayInputStream, InputStream}
 import scala.language.implicitConversions
-import scala.util.{Success, Try}
 
 import com.rojoma.simplearm.v2.ResourceScope
 import org.mockito.Mockito.mock

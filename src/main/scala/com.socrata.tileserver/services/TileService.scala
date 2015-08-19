@@ -6,7 +6,6 @@ import java.nio.charset.StandardCharsets.UTF_8
 import javax.servlet.http.HttpServletResponse
 import javax.servlet.http.HttpServletResponse.{SC_NOT_MODIFIED => ScNotModified}
 import javax.servlet.http.HttpServletResponse.{SC_OK => ScOk}
-import scala.util.{Try, Success, Failure}
 
 import com.rojoma.json.v3.ast._
 import com.rojoma.json.v3.codec.JsonEncode
@@ -45,8 +44,7 @@ import util._
   * @param client The client to talk to the upstream geo-json service.
   */
 
-case class TileService(renderer: CartoRenderer,
-                       provider: GeoProvider) extends SimpleResource {
+case class TileService(renderer: CartoRenderer, provider: GeoProvider)  {
   /** The `Handler`s that this service is backed by. */
   val baseHandlers: Seq[BaseHandler] = Seq(PbfHandler,
                                            BpbfHandler,
@@ -58,11 +56,6 @@ case class TileService(renderer: CartoRenderer,
 
   /** The types (file extensions) supported by this endpoint. */
   val types: Set[String] = baseHandlers.foldLeft(Set[String]())(_ + _.extension)
-
-  private val handleErrors: PartialFunction[Throwable, HttpResponse] = {
-    case packEx @ (_: InvalidSoqlPackException | _: InvalidMsgPackDataException) =>
-      fatal("Invalid or corrupt data returned from underlying service", packEx)
-  }
 
   private def createResponse(base: HttpResponse, info: RequestInfo)
                             (features: Iterator[FeatureJson]): HttpResponse = {
@@ -94,16 +87,18 @@ case class TileService(renderer: CartoRenderer,
             provider.unpackFeatures(info.req.resourceScope)(resp)
           } catch {
             case e: Exception =>
-              Failure(e)
+              scala.util.Failure(e)
           }
 
           val base = OK ~> HeaderFilter.extract(resp)
 
           features.
             map(createResponse(base, info)).
-            recover(handleErrors). // TODO: Hook into the individual error handlers.
-            recover { case unknown: Exception =>
-              fatal("Unknown error", unknown)
+            recover {
+              case packEx @ (_: InvalidSoqlPackException | _: InvalidMsgPackDataException) =>
+                fatal("Invalid or corrupt data returned from underlying service", packEx)
+              case unknown: Exception =>
+                fatal("Unknown error", unknown)
             }.get
         case ScNotModified => NotModified
         case _ => echoResponse(resp)

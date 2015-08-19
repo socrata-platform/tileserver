@@ -3,7 +3,6 @@ package util
 
 import java.nio.charset.StandardCharsets.UTF_8
 import javax.servlet.http.HttpServletResponse.{SC_OK => ScOk}
-import scala.util.{Failure, Success}
 
 import com.rojoma.json.v3.ast._
 import com.rojoma.json.v3.io.JsonReader
@@ -14,32 +13,32 @@ import com.socrata.http.client.{exceptions => _, _}
 
 import exceptions.FailedRenderException
 
-// scalastyle:off import.grouping
+// scalastyle:off import.grouping, no.whitespace.before.left.bracket
 class CartoRendererTest extends TestBase with UnusedSugar {
   implicit val rs: ResourceScope = Unused
 
   test("handleResponse unpacks payload") {
     forAll { payload: String =>
-      val expected = Success(payload)
+      val expected = payload
 
       val resp = mocks.StringResponse(payload)
       val client = mocks.StaticHttpClient(resp)
-      val actual = CartoRenderer.handleResponse(resp).map {
-        IOUtils.toString(_, UTF_8)
-      }
+      val actual = IOUtils.toString(CartoRenderer.handleResponse(resp), UTF_8)
 
       actual must equal (expected)
     }
   }
 
+
   test("handleResponse fails on non-200 responses") {
     import gen.StatusCodes._
 
     forAll { (payload: String, sc: NotOkStatusCode) =>
-      val expected = Failure(FailedRenderException(payload))
+      val expected = FailedRenderException(payload)
 
       val resp = mocks.StringResponse(payload, sc)
-      val actual = CartoRenderer.handleResponse(resp)
+      val actual =
+        the [FailedRenderException] thrownBy CartoRenderer.handleResponse(resp)
       actual must equal (expected)
     }
   }
@@ -84,9 +83,9 @@ class CartoRendererTest extends TestBase with UnusedSugar {
       val renderer = CartoRenderer(client, Unused)
 
       val expected = payload.getBytes(UTF_8)
-      val actual = renderer.renderPng(pbf, zoom, css, Unused).get
+      val actual = IOUtils.toByteArray(renderer.renderPng(pbf, zoom, css, Unused))
 
-      IOUtils.toByteArray(actual) must equal (expected)
+      actual must equal (expected)
     }
   }
 

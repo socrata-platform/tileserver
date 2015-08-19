@@ -4,7 +4,6 @@ package util
 import java.io.InputStream
 import java.nio.charset.StandardCharsets.UTF_8
 import javax.servlet.http.HttpServletResponse.{SC_OK => ScOk}
-import scala.util.{Failure, Try, Success}
 
 import com.rojoma.json.v3.interpolation._
 import com.rojoma.simplearm.v2.ResourceScope
@@ -17,11 +16,11 @@ import exceptions.FailedRenderException
 
 // scalastyle:off multiple.string.literals
 case class CartoRenderer(http: HttpClient, baseUrl: RequestBuilder) {
-  // TODO: Use RequestInfo + Option
+  // TODO: Use RequestInfo
   def renderPng(pbf: String,
                 zoom: Int,
                 cartoCss: String,
-                requestId: String)(implicit rs: ResourceScope): Try[InputStream] = {
+                requestId: String)(implicit rs: ResourceScope): InputStream = {
     val content = json"{ bpbf: ${pbf}, zoom: ${zoom}, style: ${cartoCss} }"
     val req = baseUrl.
       addPath("render").
@@ -37,12 +36,11 @@ case class CartoRenderer(http: HttpClient, baseUrl: RequestBuilder) {
 object CartoRenderer {
   private val logger: Logger = LoggerFactory.getLogger(getClass)
 
-  private[util] def handleResponse(resp: Response): Try[InputStream] = {
+  private[util] def handleResponse(resp: Response): InputStream = {
     if (resp.resultCode == ScOk) {
-      Success(resp.inputStream())
+      resp.inputStream()
     } else {
-      Failure(
-        FailedRenderException(IOUtils.toString(resp.inputStream(), UTF_8)))
+        throw FailedRenderException(IOUtils.toString(resp.inputStream(), UTF_8))
     }
   }
 }
