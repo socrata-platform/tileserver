@@ -64,17 +64,11 @@ case class TileService(renderer: CartoRenderer,
       fatal("Invalid or corrupt data returned from underlying service", packEx)
   }
 
-  private def createResponse(base: HttpResponse,
-                             tile: QuadTile,
-                             ext: String,
-                             cartoCss: Option[String],
-                             requestId: String,
-                             rs: ResourceScope)
+  private def createResponse(base: HttpResponse, info: RequestInfo)
                             (features: Iterator[FeatureJson]): HttpResponse = {
     val (rollups, raw) = features.duplicate
-    val enc = TileEncoder(provider.rollup(tile, rollups), raw)
+    val enc = TileEncoder(provider.rollup(info.tile, rollups), raw)
 
-    val info = RequestInfo(ext, requestId, tile, cartoCss, rs)
     handler(info)(base, enc)
   }
 
@@ -86,33 +80,18 @@ case class TileService(renderer: CartoRenderer,
     * @param tile The QuadTile that corresponds to this zoom level.
     * @param ext The file extension that's being requested.
     */
-  def handleRequest(req: HttpRequest,
-                    identifier: String,
-                    geoColumn: String,
-                    tile: QuadTile,
-                    ext: String) : HttpResponse = {
-    // def processResponse(tile: QuadTile,           = Unused
-    //                     ext: String,              = ext
-    //                     cartoCss: Option[String], = style
-    //                     requestId: String,        = Unused
-    //                     rs: ResourceScope)        = Unused
-
-    val intersects = tile.intersects(geoColumn)
+  def handleRequest(info: RequestInfo) : HttpResponse = {
+    val intersects = info.tile.intersects(info.geoColumn)
 
     try {
-      val style = req.queryParameters.get("$style")
-      val params = augmentParams(req, intersects, geoColumn)
-      val requestId = extractRequestId(req)
+      val params = augmentParams(info.req, intersects, info.geoColumn)
 
-      val resp = provider.doQuery(requestId,
-                                  req,
-                                  identifier,
-                                  params)
+      val resp = provider.doQuery(info, params)
 
       lazy val result = resp.resultCode match {
         case ScOk =>
           val features = try {
-            provider.unpackFeatures(req.resourceScope)(resp)
+            provider.unpackFeatures(info.req.resourceScope)(resp)
           } catch {
             case e: Exception =>
               Failure(e)
@@ -121,7 +100,7 @@ case class TileService(renderer: CartoRenderer,
           val base = OK ~> HeaderFilter.extract(resp)
 
           features.
-            map(createResponse(base, tile, ext, style, requestId, req.resourceScope)).
+            map(createResponse(base, info)).
             recover(handleErrors). // TODO: Hook into the individual error handlers.
             recover { case unknown: Exception =>
               fatal("Unknown error", unknown)
@@ -156,7 +135,11 @@ case class TileService(renderer: CartoRenderer,
       override def get: HttpService = {
         MDC.put("X-Socrata-Resource", identifier)
 
-        req => handleRequest(req, identifier, geoColumn, QuadTile(x, y, zoom), ext)
+        req => {
+          val info =
+            RequestInfo(req, identifier, geoColumn, QuadTile(x, y, zoom), ext)
+          handleRequest(info)
+        }
       }
     }
 }
@@ -209,9 +192,6 @@ object TileService {
       Header("Access-Control-Allow-Origin", "*") ~>
       Json(payload)
   }
-
-  private[services] def extractRequestId(req: HttpRequest): RequestId =
-    getFromRequest(req.servletRequest)
 
   private[services] def augmentParams(req: HttpRequest,
                                       where: String,

@@ -10,6 +10,8 @@ import com.socrata.soql.types.SoQLText
 
 class GeoProviderTest extends TestBase with UnusedSugar with MockitoSugar {
   test("Headers and parameters are correct") {
+    implicit val generatorDrivenConfig = PropertyCheckConfig(minSuccessful = 5)
+
     import gen.Headers._
     import gen.Alphanumerics._
     import gen.ShortStrings._
@@ -23,11 +25,12 @@ class GeoProviderTest extends TestBase with UnusedSugar with MockitoSugar {
               knownHeader: IncomingHeader,
               unknownHeader: UnknownHeader) =>
       val request = mocks.StaticRequest(param, Map(knownHeader, unknownHeader))
+      val info = RequestInfo(request, id, Unused, Unused, Unused)
 
       val expected = base.
         addPath("id").
         addPath(s"${id: String}.soqlpack").
-        addHeader(ReqIdHeader -> reqId).
+        addHeader(ReqIdHeader -> info.requestId).
         addHeader(knownHeader).
         addParameter(param).
         get.builder
@@ -44,8 +47,7 @@ class GeoProviderTest extends TestBase with UnusedSugar with MockitoSugar {
         resp
       }
 
-      GeoProvider(client).
-        doQuery(reqId, request, id, Map(param)): Unit
+      GeoProvider(client).doQuery(info, Map(param)): Unit
     }
   }
 

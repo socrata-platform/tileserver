@@ -50,6 +50,9 @@ trait UnusedSugar {
     new util.QuadTile(0, 0, 0) {
       override def px(lon: Double, lat: Double): (Int, Int) = (lon.toInt, lat.toInt)
     }
+
+  implicit def unusedToRequestINfo(u: UnusedValue): util.RequestInfo =
+    util.RequestInfo(Unused, Unused, Unused, Unused, Unused)
 }
 
 object UnusedSugar extends UnusedSugar {

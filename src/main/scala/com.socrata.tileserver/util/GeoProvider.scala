@@ -30,17 +30,14 @@ case class GeoProvider(client: CuratedServiceClient) {
   def rollup(tile: QuadTile,
              features: => Iterator[FeatureJson]) = GeoProvider.rollup(tile, features)
 
-  def doQuery(requestId: RequestId,
-              req: HttpRequest,
-              id: String,
-              params: Map[String, String]): Response = {
-    val headers = HeaderFilter.headers(req)
+  def doQuery(info: RequestInfo, params: Map[String, String]): Response = {
+    val headers = HeaderFilter.headers(info.req)
 
     val jsonReq = { base: RequestBuilder =>
       val req = base.
-        addPaths(Seq("id", s"$id.soqlpack")).
+        addPaths(Seq("id", s"${info.datasetId}.soqlpack")).
         addHeaders(headers).
-        addHeader(ReqIdHeader -> requestId).
+        addHeader(ReqIdHeader -> info.requestId).
         query(params).get
       logger.info(URLDecoder.decode(req.toString, UTF_8.name))
       req
