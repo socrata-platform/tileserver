@@ -1,35 +1,20 @@
 package com.socrata.tileserver
 package services
 
-import java.io.DataInputStream
 import java.nio.charset.StandardCharsets.UTF_8
 import javax.servlet.http.HttpServletResponse
 import javax.servlet.http.HttpServletResponse.{SC_NOT_MODIFIED => ScNotModified}
 import javax.servlet.http.HttpServletResponse.{SC_OK => ScOk}
 
-import com.rojoma.json.v3.ast._
-import com.rojoma.json.v3.codec.JsonEncode
 import com.rojoma.json.v3.interpolation._
 import com.rojoma.json.v3.io.JsonReader
-import com.rojoma.json.v3.io.JsonReaderException
-import com.rojoma.simplearm.v2.{using, ResourceScope}
-import com.vividsolutions.jts.geom.{Geometry, GeometryFactory}
-import com.vividsolutions.jts.io.ParseException
-import org.apache.commons.io.IOUtils
 import org.slf4j.{Logger, LoggerFactory, MDC}
 import org.velvia.InvalidMsgPackDataException
 
-import com.socrata.http.client.Response
 import com.socrata.http.server.implicits._
 import com.socrata.http.server.responses._
 import com.socrata.http.server.routing.{SimpleResource, TypedPathComponent}
-import com.socrata.http.server.util.RequestId.{RequestId, getFromRequest}
 import com.socrata.http.server.{HttpRequest, HttpResponse, HttpService}
-import com.socrata.soql.types._
-import com.socrata.soql.{SoQLPackIterator, SoQLGeoRow}
-import com.socrata.thirdparty.curator.CuratedServiceClient
-import com.socrata.thirdparty.geojson.GeoJson._
-import com.socrata.thirdparty.geojson.{FeatureCollectionJson, FeatureJson, GeoJsonBase}
 
 import TileService._
 import exceptions._
@@ -45,25 +30,17 @@ import util._
   */
 
 case class TileService(renderer: CartoRenderer, provider: GeoProvider)  {
-  /** The `Handler`s that this service is backed by. */
-  val baseHandlers: Seq[BaseHandler] = Seq(PbfHandler,
-                                           BpbfHandler,
-                                           PngHandler(renderer),
-                                           JsonHandler,
-                                           TxtHandler,
-                                           UnfashionablePngHandler)
-  val handler: Handler = baseHandlers.map(h => h: Handler).reduce(_.orElse(_))
+  // The `Handler`s that this service is backed by.
+  private val baseHandlers: Seq[BaseHandler] = Seq(PbfHandler,
+                                                   BpbfHandler,
+                                                   PngHandler(renderer),
+                                                   JsonHandler,
+                                                   TxtHandler,
+                                                   UnfashionablePngHandler)
+  private val handler: Handler = baseHandlers.map(h => h: Handler).reduce(_.orElse(_))
 
   /** The types (file extensions) supported by this endpoint. */
   val types: Set[String] = baseHandlers.foldLeft(Set[String]())(_ + _.extension)
-
-  private def createResponse(base: HttpResponse, info: RequestInfo)
-                            (features: Iterator[FeatureJson]): HttpResponse = {
-    val (rollups, raw) = features.duplicate
-    val enc = TileEncoder(provider.rollup(info.tile, rollups), raw)
-
-    handler(info)(base, enc)
-  }
 
   /** Process a request to this service.
     *
@@ -81,32 +58,21 @@ case class TileService(renderer: CartoRenderer, provider: GeoProvider)  {
 
       val resp = provider.doQuery(info, params)
 
-      lazy val result = resp.resultCode match {
+      val result = resp.resultCode match {
         case ScOk =>
-          val features = try {
-            provider.unpackFeatures(info.req.resourceScope)(resp)
-          } catch {
-            case e: Exception =>
-              scala.util.Failure(e)
-          }
-
           val base = OK ~> HeaderFilter.extract(resp)
 
-          features.
-            map(createResponse(base, info)).
-            recover {
-              case packEx @ (_: InvalidSoqlPackException | _: InvalidMsgPackDataException) =>
-                fatal("Invalid or corrupt data returned from underlying service", packEx)
-              case unknown: Exception =>
-                fatal("Unknown error", unknown)
-            }.get
+          handler(info)(base, resp)
         case ScNotModified => NotModified
         case _ => echoResponse(resp)
       }
 
       Header("Access-Control-Allow-Origin", "*") ~> result
     } catch {
-      case e: Exception => fatal("Unknown error", e)
+      case packEx @ (_: InvalidSoqlPackException | _: InvalidMsgPackDataException) =>
+        fatal("Invalid or corrupt data returned from underlying service", packEx)
+      case unknown: Exception =>
+        fatal("Unknown error", unknown)
     }
   }
 
@@ -141,7 +107,6 @@ case class TileService(renderer: CartoRenderer, provider: GeoProvider)  {
 
 object TileService {
   private val logger: Logger = LoggerFactory.getLogger(getClass)
-  private val geomFactory = new GeometryFactory()
   private val allowed = Set(HttpServletResponse.SC_BAD_REQUEST,
                             HttpServletResponse.SC_FORBIDDEN,
                             HttpServletResponse.SC_NOT_FOUND,
@@ -150,12 +115,12 @@ object TileService {
                             HttpServletResponse.SC_NOT_IMPLEMENTED,
                             HttpServletResponse.SC_SERVICE_UNAVAILABLE)
 
-  private[services] def echoResponse(resp: Response): HttpResponse = {
+  def echoResponse(resp: GeoResponse): HttpResponse = {
     val body = try {
-      JsonReader.fromString(IOUtils.toString(resp.inputStream(), UTF_8))
+      JsonReader.fromString(new String(resp.payload, UTF_8))
     } catch {
       case e: Exception =>
-        json"""{ message: "Failed to open inputStream", cause: ${e.getMessage}}"""
+        json"""{ message: "Failed to parse underlying JSON", cause: ${e.getMessage}}"""
     }
 
     val code = resp.resultCode
@@ -165,7 +130,7 @@ object TileService {
       Json(json"""{underlying: {resultCode:${resp.resultCode}, body: $body}}""")
   }
 
-  private[services] def fatal(message: String, cause: Throwable): HttpResponse = {
+  def fatal(message: String, cause: Throwable): HttpResponse = {
     logger.warn(message)
     logger.warn(cause.getMessage, cause.getStackTrace)
 

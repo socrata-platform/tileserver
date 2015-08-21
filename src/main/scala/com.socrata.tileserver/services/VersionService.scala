@@ -6,9 +6,9 @@ import com.rojoma.json.v3.codec.JsonEncode
 import org.slf4j.LoggerFactory
 import buildinfo.BuildInfo
 
-import com.socrata.http.server.implicits.httpResponseToChainedResponse
 import com.socrata.http.server.HttpService
-import com.socrata.http.server.responses.{OK, Json}
+import com.socrata.http.server.implicits._
+import com.socrata.http.server.responses._
 import com.socrata.http.server.routing.SimpleResource
 
 object VersionService extends SimpleResource {

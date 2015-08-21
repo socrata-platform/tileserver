@@ -29,7 +29,6 @@ class CartoRendererTest extends TestBase with UnusedSugar {
     }
   }
 
-
   test("handleResponse fails on non-200 responses") {
     import gen.StatusCodes._
 

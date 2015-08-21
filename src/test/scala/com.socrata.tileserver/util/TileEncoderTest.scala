@@ -43,12 +43,8 @@ class TileEncoderTest extends TestBase with MockitoSugar {
       val valid = Set(feature(pt0, 1, Map(attr0)),
                       feature(pt1, 2, Map(attr1)))
       val invalid = Set(feature(pt2))
-      val rawFeatures = Seq(fJson(pt0, Map(attr0)),
-                            fJson(pt1, Map(attr1)),
-                            fJson(pt1, Map(attr1)),
-                            fJson(pt2))
 
-      val bytes = TileEncoder(invalid ++ valid, rawFeatures).bytes
+      val bytes = TileEncoder(invalid ++ valid).bytes
 
       val decoded = decoder.decode(bytes)
       decoded.getLayerNames must equal (Set("main").asJava)
@@ -72,12 +68,8 @@ class TileEncoderTest extends TestBase with MockitoSugar {
       val valid = Set(feature(pt0, 1, Map(attr0)),
                       feature(pt1, 2, Map(attr1)))
       val invalid = Set(feature(pt2))
-      val rawFeatures = Seq(fJson(pt0, Map(attr0)),
-                            fJson(pt1, Map(attr1)),
-                            fJson(pt1, Map(attr1)),
-                            fJson(pt2))
 
-      val base64 = TileEncoder(invalid ++ valid, rawFeatures).base64
+      val base64 = TileEncoder(invalid ++ valid).base64
       val bytes = Base64.decodeBase64(base64)
 
       val decoded = decoder.decode(bytes)
@@ -104,12 +96,8 @@ class TileEncoderTest extends TestBase with MockitoSugar {
       val features = Set(feature(pt0, 1, Map(attr0)),
                          feature(pt1, 2, Map(attr1)),
                          feature(pt2, 1))
-      val rawFeatures = Seq(fJson(pt0, Map(attr0)),
-                            fJson(pt1, Map(attr1)),
-                            fJson(pt1, Map(attr1)),
-                            fJson(pt2))
 
-      val str = TileEncoder(features, rawFeatures).toString
+      val str = TileEncoder(features).toString
 
       features foreach { case (geom, _) =>
         str must include (geom.toString)

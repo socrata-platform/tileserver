@@ -98,7 +98,7 @@ class TileServiceTest extends TestBase with UnusedSugar with MockitoSugar {
 
       verify(resp).setStatus(SC_OK)
 
-      val enc = TileEncoder(expected, expectedJson)
+      val enc = TileEncoder(expected)
 
       ext match {
         case Pbf =>

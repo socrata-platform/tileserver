@@ -8,12 +8,13 @@ import com.socrata.http.server.HttpResponse
 import com.socrata.http.server.implicits._
 import com.socrata.http.server.responses._
 
-import util.{RequestInfo, TileEncoder}
+import util.{GeoResponse, RequestInfo, TileEncoder}
 
 abstract class BaseHandler(val extension: String) extends Handler {
   /** Return a ResponseBuilder for this `extension` type. */
-  def apply(reqInfo: RequestInfo): ResponseBuilder = { (base: HttpResponse, enc: TileEncoder) =>
+  def apply(reqInfo: RequestInfo): ResponseBuilder = { (base: HttpResponse, resp) =>
     try {
+      val enc = TileEncoder(resp.features(reqInfo.tile))
       createResponse(reqInfo, base, enc)
     } catch recover
   }
@@ -26,5 +27,5 @@ abstract class BaseHandler(val extension: String) extends Handler {
 
   protected def createResponse(reqInfo: RequestInfo,
                                base: HttpResponse,
-                               encoder: TileEncoder): HttpResponse
+                               enc: TileEncoder): HttpResponse
 }
