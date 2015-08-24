@@ -10,7 +10,7 @@ import com.socrata.http.server.responses._
 
 import util.{GeoResponse, RequestInfo, TileEncoder}
 
-abstract class BaseHandler(val extension: String) extends Handler {
+abstract class BaseHandler(val extension: String) extends Handler with FileType {
   /** Return a ResponseBuilder for this `extension` type. */
   def apply(reqInfo: RequestInfo): ResponseBuilder = { (base: HttpResponse, resp) =>
     try {
@@ -22,8 +22,7 @@ abstract class BaseHandler(val extension: String) extends Handler {
   /** Can we handle this combination of `extension` and `reqInfo`? */
   def isDefinedAt(reqInfo: RequestInfo): Boolean = reqInfo.extension == extension
 
-  /** Recover from errors specific to this Handler. */
-  def recover: PartialFunction[Throwable, HttpResponse] = PartialFunction.empty
+  protected def recover: PartialFunction[Throwable, HttpResponse] = PartialFunction.empty
 
   protected def createResponse(reqInfo: RequestInfo,
                                base: HttpResponse,

@@ -1,8 +1,12 @@
 package com.socrata.tileserver
 package util
 
-import com.rojoma.json.v3.ast.JString
+import javax.servlet.http.HttpServletResponse.{SC_OK => ScOk}
 
+import com.rojoma.json.v3.ast.JString
+import com.rojoma.simplearm.v2.ResourceScope
+
+// scalastyle:off no.whitespace.before.left.bracket
 class GeoResponseTest extends TestBase with UnusedSugar {
   test("An empty list of coordinates rolls up correctly") {
     val resp = mocks.StaticGeoResponse(Iterator.empty)
@@ -109,6 +113,22 @@ class GeoResponseTest extends TestBase with UnusedSugar {
 
       features must have length (pts.size)
       features must equal (pts.map(fJson(_)))
+    }
+  }
+
+  test("Retrieving features from a failed result throws") {
+    forAll { rc: Int =>
+      whenever (rc != ScOk) {
+        val resp = new GeoResponse {
+          val headerNames: Set[String] = Set.empty
+          def headers(name: String): Array[String] = Array.empty
+          val payload: Array[Byte] = Array.empty
+          val resourceScope: ResourceScope = Unused
+          val resultCode: Int = rc
+        }
+
+        an [IllegalStateException] must be thrownBy (resp.rawFeatures)
+      }
     }
   }
 }

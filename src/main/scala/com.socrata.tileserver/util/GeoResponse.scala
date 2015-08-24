@@ -69,7 +69,7 @@ trait GeoResponse extends ResponseInfo {
 }
 
 object GeoResponse {
-  def apply(underlying: Response, rs: ResourceScope) =
+  def apply(underlying: Response, rs: ResourceScope): GeoResponse =
     new GeoResponseImpl(underlying, rs)
 
   class GeoResponseImpl private[GeoResponse] (underlying: Response, rs: ResourceScope)
@@ -78,11 +78,11 @@ object GeoResponse {
 
     val payload: Array[Byte] = {
       val is = underlying.inputStream()
-      if (is != null) IOUtils.toByteArray(is) else Array.empty
+      if (is != null) IOUtils.toByteArray(is) else Array.empty // scalastyle:ignore
     }
 
     val resultCode = underlying.resultCode
-    def headers(name: String) = underlying.headers(name)
+    def headers(name: String): Array[String] = underlying.headers(name)
     val headerNames: Set[String] = underlying.headerNames
   }
 }

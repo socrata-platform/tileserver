@@ -10,11 +10,12 @@ import com.socrata.thirdparty.geojson.FeatureJson
 import UnusedSugar._
 import util.GeoResponse
 
-case class StaticGeoResponse(override val rawFeatures: Iterator[FeatureJson]) extends GeoResponse {
-  def headers(name: String) = Array[String]()
+case class StaticGeoResponse(override val rawFeatures: Iterator[FeatureJson])
+    extends GeoResponse {
+  def headers(name: String): Array[String] = Array.empty
 
-  val resultCode = ScOk
-  val headerNames = Set[String]()
-  val payload = Array[Byte]()
-  val resourceScope = Unused: ResourceScope
+  val resultCode: Int = ScOk
+  val headerNames: Set[String] = Set.empty
+  val payload: Array[Byte] = Array.empty
+  val resourceScope: ResourceScope = Unused
 }

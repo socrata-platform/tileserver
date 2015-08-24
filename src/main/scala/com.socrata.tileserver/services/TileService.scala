@@ -31,16 +31,18 @@ import util._
 
 case class TileService(renderer: CartoRenderer, provider: GeoProvider)  {
   // The `Handler`s that this service is backed by.
-  private val baseHandlers: Seq[BaseHandler] = Seq(PbfHandler,
-                                                   BpbfHandler,
-                                                   PngHandler(renderer),
-                                                   JsonHandler,
-                                                   TxtHandler,
-                                                   UnfashionablePngHandler)
-  private val handler: Handler = baseHandlers.map(h => h: Handler).reduce(_.orElse(_))
+  private val typedHandlers: Seq[Handler with FileType] = Seq(PbfHandler,
+                                                              BpbfHandler,
+                                                              PngHandler(renderer),
+                                                              UnfashionablePngHandler,
+                                                              JsonHandler,
+                                                              TxtHandler)
+  private val handler: Handler = typedHandlers.
+    map(h => h: Handler).
+    reduce(_.orElse(_))
 
   /** The types (file extensions) supported by this endpoint. */
-  val types: Set[String] = baseHandlers.foldLeft(Set[String]())(_ + _.extension)
+  val types: Set[String] = typedHandlers.foldLeft(Set[String]())(_ + _.extension)
 
   /** Process a request to this service.
     *

@@ -6,8 +6,14 @@ import scala.util.control.NoStackTrace
 
 import com.socrata.http.common.util.Acknowledgeable
 
-case class ThrowsResponse(message: String, override val resultCode: Int = ScOk)
+case class ThrowsResponse(ex: Exception, override val resultCode: Int)
     extends EmptyResponse {
   override def inputStream(ignored: Long = 0): InputStream with Acknowledgeable =
-    throw new RuntimeException(message)
+    throw ex
+}
+
+object ThrowsResponse {
+  def apply(ex: Exception): ThrowsResponse = new ThrowsResponse(ex, ScOk)
+  def apply(message: String, resultCode: Int = ScOk): ThrowsResponse =
+    new ThrowsResponse(new RuntimeException(message), resultCode)
 }

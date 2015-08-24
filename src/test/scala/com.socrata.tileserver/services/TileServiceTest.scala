@@ -17,7 +17,7 @@ import org.mockito.Matchers.{anyInt, anyString, anyObject, eq => matcher}
 import org.mockito.Mockito.{verify, when}
 import org.scalatest.mock.MockitoSugar
 
-import com.socrata.http.client.{RequestBuilder, Response}
+import com.socrata.http.client.Response
 import com.socrata.http.server.HttpRequest
 import com.socrata.http.server.HttpRequest.AugmentedHttpServletRequest
 import com.socrata.http.server.routing.TypedPathComponent
@@ -26,7 +26,7 @@ import com.socrata.thirdparty.geojson.{FeatureCollectionJson, FeatureJson, GeoJs
 
 import util.{CartoRenderer, GeoProvider, QuadTile, RequestInfo, TileEncoder}
 
-// scalastyle:off import.grouping
+// scalastyle:off import.grouping, null
 class TileServiceTest extends TestBase with UnusedSugar with MockitoSugar {
   def reqInfo(req: HttpRequest, ext: String): util.RequestInfo =
     RequestInfo(req, Unused, Unused, Unused, ext)
@@ -78,7 +78,7 @@ class TileServiceTest extends TestBase with UnusedSugar with MockitoSugar {
     import gen.Extensions._
     import gen.Points._
 
-    forAll { (pt: ValidPoint, ext: Extension) =>
+    forAll { (pt: ValidPoint, ext: Extension, fashionable: Boolean) =>
       val upstream = mocks.SeqResponse(fJson(pt))
       val client = mocks.StaticCuratedClient(upstream)
       val expected = Set(feature(pt))
@@ -87,7 +87,7 @@ class TileServiceTest extends TestBase with UnusedSugar with MockitoSugar {
       val resp = outputStream.responseFor
 
       val style: Map[String, String] =
-        if (ext == Png) Map("$style" -> Unused) else Map.empty
+        if (ext == Png && fashionable) Map("$style" -> Unused) else Map.empty
       val req = mocks.StaticRequest(style)
 
       val renderer = CartoRenderer(mocks.StaticHttpClient(expected.toString),
@@ -96,7 +96,11 @@ class TileServiceTest extends TestBase with UnusedSugar with MockitoSugar {
       TileService(renderer, util.GeoProvider(client)).
         handleRequest(reqInfo(req, ext))(resp)
 
-      verify(resp).setStatus(SC_OK)
+      if (ext != Png || fashionable) {
+        verify(resp).setStatus(SC_OK)
+      } else {
+        verify(resp).setStatus(SC_BAD_REQUEST)
+      }
 
       val enc = TileEncoder(expected)
 
@@ -108,7 +112,11 @@ class TileServiceTest extends TestBase with UnusedSugar with MockitoSugar {
         case Json =>
           outputStream.getString must equal (upstream.toString)
         case Png =>
-          outputStream.getString must equal (expected.toString)
+          if (fashionable) {
+            outputStream.getString must equal (expected.toString)
+          } else {
+            outputStream.getString must include ("$style")
+          }
         // ".txt" should be supported, but its output format is unspecified.
         case Txt => ()
       }
@@ -354,7 +362,7 @@ class TileServiceTest extends TestBase with UnusedSugar with MockitoSugar {
     }
   }
 
-  test("Fatal errors must include message and cause") {
+  test("Fatal errors must include message and cause message") {
     forAll { (message: String, causeMessage: String) =>
       val outputStream = new mocks.ByteArrayServletOutputStream
       val resp = outputStream.responseFor
@@ -371,6 +379,42 @@ class TileServiceTest extends TestBase with UnusedSugar with MockitoSugar {
       outputStream.getString must include (encode(message))
       outputStream.getLowStr must include ("cause")
       outputStream.getString must include (encode(causeMessage))
+    }
+  }
+
+  test("Fatal errors must include rootCause if cause has no message") {
+    forAll { (message: String, causeMessage: String) =>
+      val outputStream = new mocks.ByteArrayServletOutputStream
+      val resp = outputStream.responseFor
+      val cause = new NoStackTrace {
+        override def getMessage: String = causeMessage
+      }
+
+      TileService.fatal(message, new RuntimeException(null, cause))(resp)
+
+      verify(resp).setStatus(SC_INTERNAL_SERVER_ERROR)
+      verify(resp).setContentType("application/json; charset=UTF-8")
+
+      outputStream.getLowStr must include ("message")
+      outputStream.getString must include (encode(message))
+      outputStream.getLowStr must include ("cause")
+      outputStream.getString must include (encode(causeMessage))
+    }
+  }
+
+  test("Fatal errors must still include message if cause has none") {
+    forAll { (message: String) =>
+      val outputStream = new mocks.ByteArrayServletOutputStream
+      val resp = outputStream.responseFor
+      val cause = new RuntimeException()
+
+      TileService.fatal(message, new RuntimeException(null, cause))(resp)
+
+      verify(resp).setStatus(SC_INTERNAL_SERVER_ERROR)
+      verify(resp).setContentType("application/json; charset=UTF-8")
+
+      outputStream.getLowStr must include ("message")
+      outputStream.getString must include (encode(message))
     }
   }
 
