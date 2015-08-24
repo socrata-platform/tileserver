@@ -11,9 +11,11 @@ import com.socrata.http.server.implicits._
 import com.socrata.http.server.responses._
 import com.socrata.http.server.routing.SimpleResource
 
+/** Returns the version of this service. */
 object VersionService extends SimpleResource {
-  val logger = LoggerFactory.getLogger(getClass)
+  private val logger = LoggerFactory.getLogger(getClass)
 
+  /** Handle the request. */
   override def get: HttpService = { req =>
     logger.info("Alive!")
 

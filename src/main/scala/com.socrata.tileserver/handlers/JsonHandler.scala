@@ -10,12 +10,11 @@ import com.socrata.thirdparty.geojson.{FeatureCollectionJson, GeoJsonBase}
 import util.{GeoResponse, RequestInfo, TileEncoder}
 
 object JsonHandler extends Handler with FileType {
-  val extension = "json"
+  override val extension = "json"
 
   override def apply(reqInfo: RequestInfo): ResponseBuilder = { (base: HttpResponse, resp) =>
       base ~> Json(FeatureCollectionJson(resp.rawFeatures.toSeq): GeoJsonBase)
   }
 
-  /** Can we handle this combination of `extension` and `reqInfo`? */
-  def isDefinedAt(reqInfo: RequestInfo): Boolean = reqInfo.extension == extension
+  override def isDefinedAt(reqInfo: RequestInfo): Boolean = reqInfo.extension == extension
 }

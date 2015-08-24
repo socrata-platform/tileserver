@@ -25,19 +25,19 @@ import util._
 // scalastyle:off multiple.string.literals
 /** Service that provides the actual tiles.
   *
-  * @constructor This should only be called once, by the main application.
-  * @param client The client to talk to the upstream geo-json service.
+  * @constructor This only needs to be called once, by the main application.
+  * @param renderer talks to the underlying carto-renderer service.
+  * @param provider talks to the upstream geo-json service.
   */
-
 case class TileService(renderer: CartoRenderer, provider: GeoProvider)  {
   // The `Handler`s that this service is backed by.
-  private val typedHandlers: Seq[Handler with FileType] = Seq(PbfHandler,
-                                                              BpbfHandler,
-                                                              PngHandler(renderer),
-                                                              UnfashionablePngHandler,
-                                                              JsonHandler,
-                                                              TxtHandler)
-  private val handler: Handler = typedHandlers.
+  private[this] val typedHandlers: Seq[Handler with FileType] = Seq(PbfHandler,
+                                                                    BpbfHandler,
+                                                                    PngHandler(renderer),
+                                                                    UnfashionablePngHandler,
+                                                                    JsonHandler,
+                                                                    TxtHandler)
+  private[this] val handler: Handler = typedHandlers.
     map(h => h: Handler).
     reduce(_.orElse(_))
 
@@ -46,11 +46,7 @@ case class TileService(renderer: CartoRenderer, provider: GeoProvider)  {
 
   /** Process a request to this service.
     *
-    * @param req The request
-    * @param identifier The dataset's identifier (aka 4x4)
-    * @param geoColumn The name of the dataset column that we should be processing.
-    * @param tile The QuadTile that corresponds to this zoom level.
-    * @param ext The file extension that's being requested.
+    * @param info the incoming request + metadata.
     */
   def handleRequest(info: RequestInfo) : HttpResponse = {
     val intersects = info.tile.intersects(info.geoColumn)
@@ -116,7 +112,10 @@ object TileService {
                             HttpServletResponse.SC_INTERNAL_SERVER_ERROR,
                             HttpServletResponse.SC_NOT_IMPLEMENTED,
                             HttpServletResponse.SC_SERVICE_UNAVAILABLE)
-
+  /** Http response representing the underlying response.
+    *
+    * @param resp the underlying response.
+    */
   def echoResponse(resp: GeoResponse): HttpResponse = {
     val body = try {
       JsonReader.fromString(new String(resp.payload, UTF_8))
@@ -132,6 +131,11 @@ object TileService {
       Json(json"""{underlying: {resultCode:${resp.resultCode}, body: $body}}""")
   }
 
+  /** Http response representing a fatal error.
+    *
+    * @param message the message for the payload.
+    * @param cause the cause of the error.
+    */
   def fatal(message: String, cause: Throwable): HttpResponse = {
     logger.warn(message)
     logger.warn(cause.getMessage, cause.getStackTrace)
@@ -155,9 +159,14 @@ object TileService {
       Json(payload)
   }
 
-  private[services] def augmentParams(req: HttpRequest,
-                                      where: String,
-                                      select: String): Map[String, String] = {
+  /** Adds `where` and `select` to the parameters in `req`.
+    *
+    * @param where the "$where" parameter to add.
+    * @param select the "$select" parameter to add.
+    */
+  def augmentParams(req: HttpRequest,
+                    where: String,
+                    select: String): Map[String, String] = {
     val params = req.queryParameters
     val whereParam =
       if (params.contains("$where")) params("$where") + s" and $where" else where

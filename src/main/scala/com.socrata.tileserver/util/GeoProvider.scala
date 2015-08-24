@@ -13,7 +13,16 @@ import com.socrata.thirdparty.curator.CuratedServiceClient
 
 import GeoProvider._
 
+/** Wraps calling the upstream service.
+  *
+  * @param client the upstream client.
+  */
 case class GeoProvider(client: CuratedServiceClient) {
+  /** Query the upstream service.
+    *
+    * @param info the incoming request.
+    * @param params the query parameters for the request.
+    */
   def doQuery(info: RequestInfo, params: Map[String, String]): GeoResponse = {
     val headers = HeaderFilter.headers(info.req)
 
@@ -32,5 +41,5 @@ case class GeoProvider(client: CuratedServiceClient) {
 }
 
 object GeoProvider {
-  private[util] val logger: Logger = LoggerFactory.getLogger(getClass)
+  private val logger: Logger = LoggerFactory.getLogger(getClass)
 }

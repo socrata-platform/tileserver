@@ -16,13 +16,19 @@ import com.socrata.thirdparty.geojson.FeatureJson
 import TileEncoder.Feature
 import exceptions._
 
+/** Wraps a geometry response from the underlying service. */
 trait GeoResponse extends ResponseInfo {
-  protected def resourceScope: ResourceScope
-  def payload: Array[Byte]
-  def resultCode: Int
-  def headers(name: String): Array[String]
-  def headerNames: Set[String]
+  override def resultCode: Int
+  override def headers(name: String): Array[String]
+  override def headerNames: Set[String]
 
+  /** The resource scope to use when processing the response. */
+  protected def resourceScope: ResourceScope
+
+  /** The (binary) payload from the underlying response. */
+  def payload: Array[Byte]
+
+  /** The unpacked features without any processing. */
   def rawFeatures: Iterator[FeatureJson] = {
     if (resultCode != ScOk) {
       throw new IllegalStateException("Tried to unpack failed response!")
@@ -50,6 +56,10 @@ trait GeoResponse extends ResponseInfo {
     }
   }
 
+  /** The features after they have been processed (de-duplicated).
+    *
+    * @param tile which `QuadTile` we are mapping features onto.
+    */
   def features(tile: QuadTile): Set[Feature] = {
     val pairs: Iterator[Feature] = rawFeatures.map { f =>
       f.geometry.apply(tile)
@@ -69,6 +79,11 @@ trait GeoResponse extends ResponseInfo {
 }
 
 object GeoResponse {
+  /** Create a `GeoResponse` from an underlying response.
+    *
+    * @param underlying the underlying response.
+    * @param rs the resource scope to use when processing the response.
+    */
   def apply(underlying: Response, rs: ResourceScope): GeoResponse =
     new GeoResponseImpl(underlying, rs)
 

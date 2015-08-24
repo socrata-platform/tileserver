@@ -14,7 +14,6 @@ import org.slf4j.{Logger, LoggerFactory}
 import CartoRenderer._
 import exceptions.FailedRenderException
 
-// scalastyle:off multiple.string.literals
 case class CartoRenderer(http: HttpClient, baseUrl: RequestBuilder) {
   // TODO: Use RequestInfo
   def renderPng(pbf: String,
