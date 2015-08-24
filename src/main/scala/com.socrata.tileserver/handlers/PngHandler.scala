@@ -10,6 +10,11 @@ import com.socrata.http.server.responses._
 import exceptions.FailedRenderException
 import util.{CartoRenderer, RequestInfo, TileEncoder}
 
+/** Produce a png.
+  *
+  * @constructor Produce a handler that uses renderer.
+  * @param renderer the underlying renderer.
+  */
 case class PngHandler(val renderer: CartoRenderer) extends BaseHandler("png") {
   override def isDefinedAt(reqInfo: RequestInfo): Boolean =
     reqInfo.extension == extension && reqInfo.style.isDefined

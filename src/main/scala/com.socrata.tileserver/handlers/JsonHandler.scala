@@ -9,6 +9,7 @@ import com.socrata.thirdparty.geojson.{FeatureCollectionJson, GeoJsonBase}
 
 import util.{GeoResponse, RequestInfo, TileEncoder}
 
+/** Provide JSON passthrough for debugging/fallback. */
 object JsonHandler extends Handler with FileType {
   override val extension = "json"
 

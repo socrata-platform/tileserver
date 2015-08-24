@@ -15,15 +15,17 @@ import exceptions.FailedRenderException
 
 // scalastyle:off import.grouping, no.whitespace.before.left.bracket
 class CartoRendererTest extends TestBase with UnusedSugar {
-  implicit val rs: ResourceScope = Unused
+  val styleInfo = new RequestInfo(Unused, Unused, Unused, Unused, Unused) {
+    override val style = Some(Unused: String)
+  }
 
   test("handleResponse unpacks payload") {
     forAll { payload: String =>
       val expected = payload
-
       val resp = mocks.StringResponse(payload)
       val client = mocks.StaticHttpClient(resp)
-      val actual = IOUtils.toString(CartoRenderer.handleResponse(resp), UTF_8)
+      val actual = IOUtils.toString(
+        CartoRenderer(client, Unused).renderPng(Unused, styleInfo), UTF_8)
 
       actual must equal (expected)
     }
@@ -36,8 +38,10 @@ class CartoRendererTest extends TestBase with UnusedSugar {
       val expected = FailedRenderException(payload)
 
       val resp = mocks.StringResponse(payload, sc)
+      val client = mocks.StaticHttpClient(resp)
+      val renderer = CartoRenderer(client, Unused)
       val actual =
-        the [FailedRenderException] thrownBy CartoRenderer.handleResponse(resp)
+        the [FailedRenderException] thrownBy renderer.renderPng(Unused, styleInfo)
       actual must equal (expected)
     }
   }
