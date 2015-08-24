@@ -1,5 +1,8 @@
 package com.socrata.tileserver.exceptions
 
-import scala.util.control.NoStackTrace
-
-case class FailedRenderException(override val getMessage: String) extends NoStackTrace
+/** Rendering failed.
+  *
+  * @constructor build the exception.
+  * @param message the error message.
+  */
+case class FailedRenderException(message: String) extends Exception(message)

@@ -1,14 +1,15 @@
 package com.socrata.tileserver.util
 
-import com.socrata.http.client.Response
+import com.socrata.http.client.ResponseInfo
 import com.socrata.http.server.implicits._
 import com.socrata.http.server.responses._
 import com.socrata.http.server.{HttpRequest, HttpResponse}
 
+/** Removes all headers that aren't known to be safe to duplicate. */
 object HeaderFilter {
-  val inHeaders =
+  private val inHeaders =
     Set("Authorization", "Cookie", "If-Modified-Since", "X-App-Token").map(_.toLowerCase)
-  val outHeaders =
+  private val outHeaders =
     Set("Cache-Control", "Expires", "Last-Modified").map(_.toLowerCase)
 
   private def internal(name: String): Boolean =
@@ -20,6 +21,10 @@ object HeaderFilter {
   private def outgoing(name: String): Boolean =
     outHeaders(name.toLowerCase) || internal(name)
 
+  /** Filter incoming headers.
+    *
+    * @param req the incoming request.
+    */
   def headers(req: HttpRequest): Iterable[(String, String)] = {
     val headerNames = req.headerNames filter { name: String =>
       incoming(name)
@@ -30,16 +35,24 @@ object HeaderFilter {
     }.toIterable
   }
 
-  def headers(resp: Response): Iterable[(String, String)] = {
+  /** Filter outgoing headers.
+    *
+    * @param req the outgoing response.
+    */
+  def headers(resp: ResponseInfo): Iterable[(String, String)] = {
     val headerNames = resp.headerNames filter { name: String =>
       outgoing(name)
     }
 
     headerNames.flatMap { name: String =>
       resp.headers(name) map { (name, _) }
-    }.toIterable
+    }
   }
 
-  def extract(resp: Response): HttpResponse =
+  /** Extract headers for a HttpResponse (filtering them).
+    *
+    * @param resp the underlying response to pull headers from.
+    */
+  def extract(resp: ResponseInfo): HttpResponse =
     headers(resp).map({ case (k, v) => Header(k, v) }).fold(NoOp)(_ ~> _)
 }

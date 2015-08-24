@@ -3,8 +3,6 @@ package util
 
 import java.nio.charset.StandardCharsets.UTF_8
 import javax.servlet.http.HttpServletResponse.{SC_OK => ScOk}
-import scala.util.control.NoStackTrace
-import scala.util.{Failure, Success}
 
 import com.rojoma.json.v3.ast._
 import com.rojoma.json.v3.io.JsonReader
@@ -15,19 +13,19 @@ import com.socrata.http.client.{exceptions => _, _}
 
 import exceptions.FailedRenderException
 
-// scalastyle:off import.grouping
+// scalastyle:off import.grouping, no.whitespace.before.left.bracket
 class CartoRendererTest extends TestBase with UnusedSugar {
-  implicit val rs: ResourceScope = Unused
+  val styleInfo = new RequestInfo(Unused, Unused, Unused, Unused, Unused) {
+    override val style = Some(Unused: String)
+  }
 
   test("handleResponse unpacks payload") {
     forAll { payload: String =>
-      val expected = Success(payload)
-
+      val expected = payload
       val resp = mocks.StringResponse(payload)
       val client = mocks.StaticHttpClient(resp)
-      val actual = CartoRenderer.handleResponse(Success(resp)).map {
-        IOUtils.toString(_, UTF_8)
-      }
+      val actual = IOUtils.toString(
+        CartoRenderer(client, Unused).renderPng(Unused, styleInfo), UTF_8)
 
       actual must equal (expected)
     }
@@ -37,22 +35,29 @@ class CartoRendererTest extends TestBase with UnusedSugar {
     import gen.StatusCodes._
 
     forAll { (payload: String, sc: NotOkStatusCode) =>
-      val expected = Failure(FailedRenderException(payload))
+      val expected = FailedRenderException(payload)
 
       val resp = mocks.StringResponse(payload, sc)
-      val actual = CartoRenderer.handleResponse(Success(resp))
+      val client = mocks.StaticHttpClient(resp)
+      val renderer = CartoRenderer(client, Unused)
+      val actual =
+        the [FailedRenderException] thrownBy renderer.renderPng(Unused, styleInfo)
       actual must equal (expected)
     }
   }
 
   test("renderPng throws on error") {
-    forAll { (pbf: String, zoom: Int, css: String, message: String) =>
+    forAll { (pbf: String, z: Int, css: String, message: String) =>
       val resp = mocks.ThrowsResponse(message)
       val client = mocks.StaticHttpClient(resp)
       val renderer = CartoRenderer(client, Unused)
+      val info = new RequestInfo(Unused, Unused, Unused, Unused, Unused) {
+        override val style = Some(css)
+        override val zoom = z
+      }
 
       val actual =
-        the [NoStackTrace] thrownBy renderer.renderPng(pbf, zoom, css, Unused) // scalastyle:ignore
+        the [Exception] thrownBy renderer.renderPng(pbf, info) // scalastyle:ignore
       actual.getMessage must equal (message)
     }
   }
@@ -78,16 +83,20 @@ class CartoRendererTest extends TestBase with UnusedSugar {
       mocks.StringResponse(salt + pbf + zoom + css)
     }
 
-    forAll { (salt: String, pbf: String, zoom: Int, css: String) =>
-      val payload = salt + pbf + zoom + css
+    forAll { (salt: String, pbf: String, z: Int, css: String) =>
+      val payload = salt + pbf + z + css
 
       val client = mocks.DynamicHttpClient(makeResp(salt))
       val renderer = CartoRenderer(client, Unused)
+      val info = new RequestInfo(Unused, Unused, Unused, Unused, Unused) {
+        override val style = Some(css)
+        override val zoom = z
+      }
 
       val expected = payload.getBytes(UTF_8)
-      val actual = renderer.renderPng(pbf, zoom, css, Unused)
+      val actual = IOUtils.toByteArray(renderer.renderPng(pbf, info))
 
-      IOUtils.toByteArray(actual) must equal (expected)
+      actual must equal (expected)
     }
   }
 
@@ -102,11 +111,15 @@ class CartoRendererTest extends TestBase with UnusedSugar {
       mocks.StringResponse(Unused)
     }
 
-    forAll { requestId: String =>
-      val client = mocks.DynamicHttpClient(requireRequestId(requestId))
+    forAll { reqId: String =>
+      val client = mocks.DynamicHttpClient(requireRequestId(reqId))
+      val info = new RequestInfo(Unused, Unused, Unused, Unused, Unused) {
+        override val style = Some(Unused: String)
+        override val requestId = reqId
+      }
 
       val renderer = CartoRenderer(client, Unused)
-      renderer.renderPng(Unused, Unused, Unused, requestId): Unit
+      renderer.renderPng(Unused, info): Unit
     }
   }
 }
