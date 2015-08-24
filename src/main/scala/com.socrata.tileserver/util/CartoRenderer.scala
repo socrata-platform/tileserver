@@ -16,19 +16,17 @@ import exceptions.FailedRenderException
 
 case class CartoRenderer(http: HttpClient, baseUrl: RequestBuilder) {
   // TODO: Use RequestInfo
-  def renderPng(pbf: String,
-                zoom: Int,
-                cartoCss: String,
-                requestId: String)(implicit rs: ResourceScope): InputStream = {
-    val content = json"{ bpbf: ${pbf}, zoom: ${zoom}, style: ${cartoCss} }"
+  def renderPng(pbf: String, info: RequestInfo): InputStream = {
+    val style = info.style.get
+    val content = json"{ bpbf: ${pbf}, zoom: ${info.zoom}, style: ${style} }"
     val req = baseUrl.
       addPath("render").
-      addHeader("X-Socrata-RequestID" -> requestId).
+      addHeader("X-Socrata-RequestID" -> info.requestId).
       jsonBody(content)
 
     logger.info(content.toString)
 
-    handleResponse(http.execute(req, rs))
+    handleResponse(http.execute(req, info.rs))
   }
 }
 

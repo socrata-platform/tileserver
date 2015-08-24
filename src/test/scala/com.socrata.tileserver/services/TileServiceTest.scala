@@ -624,17 +624,23 @@ class TileServiceTest extends TestBase with UnusedSugar with MockitoSugar {
     import gen.Points._
 
     forAll { requestId: String =>
-      val renderer = mock[CartoRenderer]
+      val http = mocks.DynamicHttpClient { req =>
+        val headers = req.builder.headers.toMap
+        headers.contains("X-Socrata-RequestId") must be (true)
+        headers("X-Socrata-RequestId") must equal (requestId)
+
+        mocks.EmptyResponse()
+      }
+
+      val renderer = CartoRenderer(http, Unused)
+
       val upstream = mocks.SeqResponse(fJson())
       val client = mocks.StaticCuratedClient(upstream)
       val req = mocks.StaticRequest("$style" -> (Unused: String),
                                     "X-Socrata-RequestId" -> requestId)
 
       TileService(renderer, GeoProvider(client)).
-        handleRequest(reqInfo(req, Png))
-
-      verify(renderer).
-        renderPng(anyString, anyInt, anyString, matcher(requestId))(anyObject[ResourceScope]): Unit
+        handleRequest(reqInfo(req, Png)): Unit
     }
   }
 }

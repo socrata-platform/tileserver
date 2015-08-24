@@ -22,12 +22,8 @@ case class PngHandler(val renderer: CartoRenderer) extends BaseHandler("png") {
   override def createResponse(reqInfo: RequestInfo,
                               base: HttpResponse,
                               encoder: TileEncoder): HttpResponse = {
-    val style = reqInfo.style.get
-    val png = renderer.renderPng(encoder.base64,
-                                 reqInfo.zoom,
-                                 style,
-                                 reqInfo.requestId)(reqInfo.rs)
-
-    base ~> ContentType("image/png") ~> Stream(png)
+    base ~>
+      ContentType("image/png") ~>
+      Stream(renderer.renderPng(encoder.base64, reqInfo))
   }
 }

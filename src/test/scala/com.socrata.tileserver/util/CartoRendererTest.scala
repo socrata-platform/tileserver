@@ -43,13 +43,17 @@ class CartoRendererTest extends TestBase with UnusedSugar {
   }
 
   test("renderPng throws on error") {
-    forAll { (pbf: String, zoom: Int, css: String, message: String) =>
+    forAll { (pbf: String, z: Int, css: String, message: String) =>
       val resp = mocks.ThrowsResponse(message)
       val client = mocks.StaticHttpClient(resp)
       val renderer = CartoRenderer(client, Unused)
+      val info = new RequestInfo(Unused, Unused, Unused, Unused, Unused) {
+        override val style = Some(css)
+        override val zoom = z
+      }
 
       val actual =
-        the [Exception] thrownBy renderer.renderPng(pbf, zoom, css, Unused) // scalastyle:ignore
+        the [Exception] thrownBy renderer.renderPng(pbf, info) // scalastyle:ignore
       actual.getMessage must equal (message)
     }
   }
@@ -75,14 +79,18 @@ class CartoRendererTest extends TestBase with UnusedSugar {
       mocks.StringResponse(salt + pbf + zoom + css)
     }
 
-    forAll { (salt: String, pbf: String, zoom: Int, css: String) =>
-      val payload = salt + pbf + zoom + css
+    forAll { (salt: String, pbf: String, z: Int, css: String) =>
+      val payload = salt + pbf + z + css
 
       val client = mocks.DynamicHttpClient(makeResp(salt))
       val renderer = CartoRenderer(client, Unused)
+      val info = new RequestInfo(Unused, Unused, Unused, Unused, Unused) {
+        override val style = Some(css)
+        override val zoom = z
+      }
 
       val expected = payload.getBytes(UTF_8)
-      val actual = IOUtils.toByteArray(renderer.renderPng(pbf, zoom, css, Unused))
+      val actual = IOUtils.toByteArray(renderer.renderPng(pbf, info))
 
       actual must equal (expected)
     }
@@ -99,11 +107,15 @@ class CartoRendererTest extends TestBase with UnusedSugar {
       mocks.StringResponse(Unused)
     }
 
-    forAll { requestId: String =>
-      val client = mocks.DynamicHttpClient(requireRequestId(requestId))
+    forAll { reqId: String =>
+      val client = mocks.DynamicHttpClient(requireRequestId(reqId))
+      val info = new RequestInfo(Unused, Unused, Unused, Unused, Unused) {
+        override val style = Some(Unused: String)
+        override val requestId = reqId
+      }
 
       val renderer = CartoRenderer(client, Unused)
-      renderer.renderPng(Unused, Unused, Unused, requestId): Unit
+      renderer.renderPng(Unused, info): Unit
     }
   }
 }
