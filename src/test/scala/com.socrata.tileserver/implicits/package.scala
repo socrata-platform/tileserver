@@ -36,12 +36,9 @@ package object gen {
       (a.underlying, b.underlying)
     }
 
-    private val alnumChars = (Range(48, 58) ++ Range(65, 91) ++ Range(97, 123)).
-      map(_.toChar).toArray
-
     private val alnumGen = for {
       length <- Gen.choose(0, 10)
-      chars <- Gen.pick(length, alnumChars)
+      chars <- Gen.listOfN(length, Gen.alphaNumChar)
     } yield Alphanumeric(chars.mkString(""))
 
     implicit val alnum: Arbitrary[Alphanumeric] = Arbitrary(alnumGen)

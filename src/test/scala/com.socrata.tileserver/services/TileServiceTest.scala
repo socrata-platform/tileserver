@@ -30,6 +30,7 @@ import util.{CartoRenderer, GeoProvider, QuadTile, RequestInfo, TileEncoder}
 class TileServiceTest extends TestBase with UnusedSugar with MockitoSugar {
   def reqInfo(req: HttpRequest, ext: String): util.RequestInfo =
     RequestInfo(req, Unused, Unused, Unused, ext)
+
   def reqInfo(ext: String): util.RequestInfo =
     RequestInfo(Unused, Unused, Unused, Unused, ext)
 
@@ -362,7 +363,7 @@ class TileServiceTest extends TestBase with UnusedSugar with MockitoSugar {
     }
   }
 
-  test("Fatal errors must include message and cause message") {
+  test("If cause has a message, fatal errors must include it") {
     forAll { (message: String, causeMessage: String) =>
       val outputStream = new mocks.ByteArrayServletOutputStream
       val resp = outputStream.responseFor
@@ -382,7 +383,7 @@ class TileServiceTest extends TestBase with UnusedSugar with MockitoSugar {
     }
   }
 
-  test("Fatal errors must include rootCause if cause has no message") {
+  test("If only the root cause has a message fatal errors must still  include it") {
     forAll { (message: String, causeMessage: String) =>
       val outputStream = new mocks.ByteArrayServletOutputStream
       val resp = outputStream.responseFor
@@ -402,7 +403,7 @@ class TileServiceTest extends TestBase with UnusedSugar with MockitoSugar {
     }
   }
 
-  test("Fatal errors must still include message if cause has none") {
+  test("Fatal errors must include the provided message; even if the cause has no message") {
     forAll { (message: String) =>
       val outputStream = new mocks.ByteArrayServletOutputStream
       val resp = outputStream.responseFor

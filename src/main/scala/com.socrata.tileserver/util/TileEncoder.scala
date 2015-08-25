@@ -15,7 +15,7 @@ import TileEncoder._
   * @constructor create a new encoder for the given features.
   * @param features the features to encode.
   */
-case class TileEncoder (features: Set[TileEncoder.Feature]) {
+case class TileEncoder(features: Set[TileEncoder.Feature]) {
   /** Create a vector tile encoded as a protocol-buffer. */
   lazy val bytes: Array[Byte] = {
     val underlying = new VectorTileEncoder(ZoomFactor * CoordinateMapper.Size,

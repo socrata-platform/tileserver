@@ -3,9 +3,10 @@ package mocks
 
 import java.io.{ByteArrayOutputStream, DataOutputStream}
 
+import com.rojoma.simplearm.util.using
+import com.vividsolutions.jts.geom.{Coordinate, GeometryFactory}
 import com.vividsolutions.jts.io.WKBWriter
 import org.velvia.MsgPack
-import com.vividsolutions.jts.geom.{Coordinate, GeometryFactory}
 
 import com.socrata.soql.types._
 
@@ -19,11 +20,6 @@ class MsgPackResponse(header: Map[String, Any] = EmptyHeader,
                       rows: Seq[Seq[Any]] = Seq.empty,
                       junk: Option[Array[Byte]] = None)
     extends BinaryResponse(buildPayload(header, rows) ++ junk.getOrElse(Array[Byte]())) {
-
-  def this(args: (Map[String, Any], Seq[Seq[Any]], Option[Array[Byte]])) {
-    this(args._1, args._2, args._3)
-  }
-
   def this(args: (Map[String, Any], Seq[Seq[Any]])) {
     this(args._1, args._2, None)
   }
@@ -78,21 +74,22 @@ object MsgPackResponse {
 
   def buildPayload(header: Map[String, Any],
                    rows: Seq[Seq[Any]]): Array[Byte] = {
-    val baos = new ByteArrayOutputStream
-    val dos = new DataOutputStream(baos)
-    MsgPack.pack(header, dos)
-    rows.foreach(MsgPack.pack(_, dos))
-    dos.flush()
-    baos.toByteArray
+    using(new ByteArrayOutputStream) { baos =>
+      val dos = new DataOutputStream(baos)
+      MsgPack.pack(header, dos)
+      rows.foreach(MsgPack.pack(_, dos))
+      dos.flush()
+      baos.toByteArray
+    }
   }
 
   def headerMap(geoIndex: Int,
                 extraCols: Iterable[(String, SoQLType)] = Iterable.empty): Map[String, Any] = {
     assert(geoIndex <= 0)
-    val schema: Seq[Map[String, String]] = if (geoIndex < 0) Nil else {
-      (Seq("geo" -> SoQLPoint) ++ extraCols).map { case (col, typ) =>
-        Map("c" -> col, "t" -> typ.toString)
-      }
+
+    val cols = Seq("geo" -> SoQLPoint) ++ extraCols
+    val schema = cols.map { case (col, typ) =>
+      Map("c" -> col, "t" -> typ.toString)
     }
 
     Map(GeoIndexKey -> geoIndex, "schema" -> schema)

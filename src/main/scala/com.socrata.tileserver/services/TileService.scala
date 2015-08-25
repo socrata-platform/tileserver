@@ -42,7 +42,7 @@ case class TileService(renderer: CartoRenderer, provider: GeoProvider)  {
     reduce(_.orElse(_))
 
   /** The types (file extensions) supported by this endpoint. */
-  val types: Set[String] = typedHandlers.foldLeft(Set[String]())(_ + _.extension)
+  val types: Set[String] = typedHandlers.map(_.extension).toSet
 
   /** Process a request to this service.
     *

@@ -25,7 +25,7 @@ trait TestBase
   def fJson(): FeatureJson = fJson((Unused, Unused): (Int, Int))
 
   def fJson(pt: (Int, Int),
-           attributes: Map[String, String] = Map.empty): FeatureJson = {
+            attributes: Map[String, String] = Map.empty): FeatureJson = {
     val attributesAsJvalues = attributes map { case (k, v) => (k, toJValue(v)) }
     FeatureJson(attributesAsJvalues, point(pt))
   }
