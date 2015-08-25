@@ -443,7 +443,7 @@ class TileServiceTest extends TestBase with UnusedSugar with MockitoSugar {
                                               selectValue)
       nParams must have size (3)
       nParams(otherKey) must equal (otherValue)
-      nParams(whereKey) must equal (whereValue)
+      nParams(whereKey) must equal (s"(${whereValue})")
       nParams(selectKey) must equal (selectValue)
 
       val wParams = TileService.augmentParams(neither ++ where,
@@ -452,8 +452,8 @@ class TileServiceTest extends TestBase with UnusedSugar with MockitoSugar {
       wParams must have size (3)
       wParams(otherKey) must equal (otherValue)
 
-      wParams(whereKey) must startWith (whereBase)
-      wParams(whereKey) must endWith (whereValue)
+      wParams(whereKey) must startWith (s"(${whereBase})")
+      wParams(whereKey) must endWith (s"(${whereValue})")
       wParams(whereKey) must include regex ("\\s+and\\s+")
 
       wParams(selectKey) must equal (selectValue)
@@ -463,7 +463,7 @@ class TileServiceTest extends TestBase with UnusedSugar with MockitoSugar {
                                               selectValue)
       sParams must have size (3)
       sParams(otherKey) must equal (otherValue)
-      sParams(whereKey) must equal (whereValue)
+      sParams(whereKey) must equal (s"(${whereValue})")
 
       sParams(selectKey) must startWith (selectBase)
       sParams(selectKey) must endWith (selectValue)
@@ -475,8 +475,8 @@ class TileServiceTest extends TestBase with UnusedSugar with MockitoSugar {
       sParams must have size (3)
       sParams(otherKey) must equal (otherValue)
 
-      wParams(whereKey) must startWith (whereBase)
-      wParams(whereKey) must endWith (whereValue)
+      wParams(whereKey) must startWith (s"(${whereBase})")
+      wParams(whereKey) must endWith (s"(${whereValue})")
       wParams(whereKey) must include regex ("\\s+and\\s+")
 
       sParams(selectKey) must startWith (selectBase)
