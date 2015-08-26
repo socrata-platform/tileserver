@@ -58,5 +58,9 @@ case class CoordinateMapper(val zoom: Int) {
 }
 
 object CoordinateMapper {
-  val Size = 256 // Underlying VectorTileEncoder only supports size = 256
+  /** The size of the tile.
+    *
+    * NOTE: Underlying VectorTileEncoder only supports size = 256
+    */
+  val Size = 256
 }

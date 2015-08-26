@@ -7,15 +7,15 @@ import javax.servlet.http.HttpServletResponse.{SC_OK => ScOk}
 import com.rojoma.json.v3.ast.JValue
 import com.socrata.http.common.util.Acknowledgeable
 
-class StringResponse(val payload: String,
+class StringResponse(val message: String,
                      override val resultCode: Int = ScOk) extends EmptyResponse {
   override def inputStream(maxBetween: Long): InputStream with Acknowledgeable =
-    StringInputStream(payload)
+    StringInputStream(message)
 }
 
 object StringResponse {
-  def apply(payload: String, resultCode: Int = ScOk): StringResponse =
-    new StringResponse(payload, resultCode)
-  def apply(payload: JValue): StringResponse =
-    new StringResponse(payload.toString)
+  def apply(message: String, resultCode: Int = ScOk): StringResponse =
+    new StringResponse(message, resultCode)
+  def apply(message: JValue): StringResponse =
+    new StringResponse(message.toString)
 }

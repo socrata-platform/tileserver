@@ -40,22 +40,30 @@ case class QuadTile(rawX: Int, rawY: Int, zoom: Int) extends CoordinateFilter {
       s"$pointColumn, 'MULTIPOLYGON((($west $north, $east $north, $east $south, $west $south, $west $north)))')"
   }
 
-  /** The pixel (x, y) corresponding * to "lon" and "lat" in 256x256 space. */
+  /** The point (x, y) in tile (256x256) space.
+    *
+    * @param lon the longitude of the point.
+    * @param lat the latitude of the point.
+    */
   def px(lon: Double, lat: Double): (Int, Int) = {
     val (lonX, latY) = mapper.px(lon, lat)
 
     (lonX - (rawX * Size), latY - (rawY * Size))
   }
 
-  /** Map a (lon, lat) coordinate into (x, y) in 256x256 space. */
+  /** The point (x, y) in tile (256x256) space.
+    *
+    * @param c the lat and lon of the point.
+    */
   def px(c: Coordinate): Coordinate = {
     val (x, y) = px(c.x, c.y)
     new Coordinate(x, y)
   }
 
-  /** Map a (lon, lat) coordinate into (x, y) in 256x256 space.
+  /** The point (x, y) in tile (256x256) space.
     *
-    * NOTE: This mutates the provided coordinate. */
+    * @param coordinate (MUTATED) the lat and lon of the point.
+    */
   def filter(c: Coordinate): Unit = {
     val mapped = px(c)
     c.setCoordinate(mapped)

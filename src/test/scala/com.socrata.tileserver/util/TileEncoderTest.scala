@@ -52,7 +52,7 @@ class TileEncoderTest extends TestBase with MockitoSugar {
       val features = decoded.asScala.map(convert)
 
       features must have size (valid.size)
-      valid foreach { features must contain (_)}
+      valid foreach { features must contain (_) }
     }
   }
 

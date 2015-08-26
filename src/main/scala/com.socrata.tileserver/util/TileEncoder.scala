@@ -10,9 +10,10 @@ import org.apache.commons.codec.binary.Base64
 
 import TileEncoder._
 
-/** Encodes `maybeFeatures` in a variety of formats.
+/** Encodes features in a variety of formats.
   *
-  * Lazily calls `maybeFeatures.get` lazily when a field is evaluated.
+  * @constructor create a new encoder for the given features.
+  * @param features the features to encode.
   */
 case class TileEncoder(features: Set[TileEncoder.Feature]) {
   /** Create a vector tile encoded as a protocol-buffer. */
@@ -45,7 +46,4 @@ object TileEncoder {
 
   /** (geometry, attributes) */
   type Feature = (Geometry, Map[String, JValue])
-
-  case class InvalidGeoJsonException(jValue: JValue)
-      extends RuntimeException(jValue.toString)
 }

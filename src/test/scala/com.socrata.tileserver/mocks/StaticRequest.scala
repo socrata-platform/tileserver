@@ -1,4 +1,5 @@
-package com.socrata.tileserver.mocks
+package com.socrata.tileserver
+package mocks
 
 import java.util.Collections
 import java.util.Enumeration
@@ -66,14 +67,22 @@ class StaticRequest(val params: Map[String, String],
 object StaticRequest {
   val httpServletRequest: HttpServletRequest = mock(classOf[HttpServletRequest])
 
+  def apply(params: Map[String, String], headers: Map[String, String]): StaticRequest =
+    new StaticRequest(params, headers)
+
+  def apply(params: Map[String, String]): StaticRequest =
+    apply(params, Map[String, String]())
+
   def apply(): StaticRequest = new StaticRequest(Map.empty, Map.empty)
 
-  def apply(param: (String, String)): StaticRequest =
-    new StaticRequest(Map(param), Map.empty)
+  def apply(param: (String, Any)): StaticRequest = {
+    val (k, v) = param
+    new StaticRequest(Map(k -> v.toString), Map.empty)
+  }
 
   def apply(param: (String, String), header: (String, String)): StaticRequest =
     new StaticRequest(Map(param), Map(header))
 
   def apply(param: (String, String), headers: Map[String, String]): StaticRequest =
-    new StaticRequest(Map(param), headers)
+    apply(Map(param), headers)
 }

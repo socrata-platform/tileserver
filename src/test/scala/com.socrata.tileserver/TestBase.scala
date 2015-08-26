@@ -12,13 +12,14 @@ import com.socrata.thirdparty.geojson.FeatureJson
 
 import UnusedSugar._
 import util.TileEncoder.Feature
+import gen.Points.PointLike
 
 // scalastyle:off import.grouping
 trait TestBase
     extends FunSuite
     with org.scalatest.MustMatchers
     with PropertyChecks
-    with BeforeAndAfterAll {
+    with BeforeAndAfterEach {
   val GeomFactory = new GeometryFactory()
 
   def fJson(): FeatureJson = fJson((Unused, Unused): (Int, Int))
@@ -59,8 +60,8 @@ trait TestBase
     }
   }
 
-  // If need be rename to includeSlice.
   def includeSlice[T](expected: Array[T]): Matcher[Array[T]] = new ArraySliceIncludeMatcher(expected)
 
-  override def afterAll: Unit = UnusedSugar.rs.close()
+  override def beforeEach: Unit = UnusedSugar.rs.close()
+  override def afterEach: Unit = UnusedSugar.rs.close()
 }

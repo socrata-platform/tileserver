@@ -4,7 +4,6 @@ package util
 import java.io.InputStream
 import java.nio.charset.StandardCharsets.UTF_8
 import javax.servlet.http.HttpServletResponse.{SC_OK => ScOk}
-import scala.util.{Failure, Try, Success}
 
 import com.rojoma.json.v3.interpolation._
 import com.rojoma.simplearm.v2.ResourceScope
@@ -15,33 +14,38 @@ import org.slf4j.{Logger, LoggerFactory}
 import CartoRenderer._
 import exceptions.FailedRenderException
 
-// scalastyle:off multiple.string.literals
+/** Calls out to the renderer service to render tiles.
+  *
+  * @constructor create a renderer
+  * @param http the http client to use.
+  * @param baseUrl the base url (host, port, etc) for the service.
+  */
 case class CartoRenderer(http: HttpClient, baseUrl: RequestBuilder) {
-  def renderPng(pbf: String,
-                zoom: Int,
-                cartoCss: String,
-                requestId: String)(implicit rs: ResourceScope): InputStream = {
-    val content = json"{ bpbf: ${pbf}, zoom: ${zoom}, style: ${cartoCss} }"
+  /** Render the provided tile using the provided request info.
+    *
+    * @param pbf the base64 encoded version of the vector tile.
+    * @param info the request info to use while rendering the tile.
+    */
+  def renderPng(pbf: String, info: RequestInfo): InputStream = {
+    val style = info.style.get
+    val content = json"{ bpbf: ${pbf}, zoom: ${info.zoom}, style: ${style} }"
     val req = baseUrl.
       addPath("render").
-      addHeader("X-Socrata-RequestID" -> requestId).
+      addHeader("X-Socrata-RequestID" -> info.requestId).
       jsonBody(content)
 
-    http.execute(req, rs).inputStream()
+    logger.info(content.toString)
+
+    val resp = http.execute(req, info.rs)
+
+    if (resp.resultCode == ScOk) {
+      resp.inputStream()
+    } else {
+      throw FailedRenderException(IOUtils.toString(resp.inputStream(), UTF_8))
+    }
   }
 }
 
 object CartoRenderer {
   private val logger: Logger = LoggerFactory.getLogger(getClass)
-
-  private[util] def handleResponse(response: Try[Response]): Try[InputStream] = {
-    response.flatMap { resp =>
-      if (resp.resultCode == ScOk) {
-        Success(resp.inputStream())
-      } else {
-        Failure(
-          FailedRenderException(IOUtils.toString(resp.inputStream(), UTF_8)))
-      }
-    }
-  }
 }
