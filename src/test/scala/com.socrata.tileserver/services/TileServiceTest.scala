@@ -383,7 +383,7 @@ class TileServiceTest extends TestBase with UnusedSugar with MockitoSugar {
     }
   }
 
-  test("If only the root cause has a message fatal errors must still  include it") {
+  test("If only the root cause has a message fatal errors must still include it") {
     forAll { (message: String, causeMessage: String) =>
       val outputStream = new mocks.ByteArrayServletOutputStream
       val resp = outputStream.responseFor
@@ -443,7 +443,7 @@ class TileServiceTest extends TestBase with UnusedSugar with MockitoSugar {
                                               selectValue)
       nParams must have size (3)
       nParams(otherKey) must equal (otherValue)
-      nParams(whereKey) must equal (s"(${whereValue})")
+      nParams(whereKey) must equal (whereValue)
       nParams(selectKey) must equal (selectValue)
 
       val wParams = TileService.augmentParams(neither ++ where,
@@ -463,7 +463,7 @@ class TileServiceTest extends TestBase with UnusedSugar with MockitoSugar {
                                               selectValue)
       sParams must have size (3)
       sParams(otherKey) must equal (otherValue)
-      sParams(whereKey) must equal (s"(${whereValue})")
+      sParams(whereKey) must equal (whereValue)
 
       sParams(selectKey) must startWith (selectBase)
       sParams(selectKey) must endWith (selectValue)

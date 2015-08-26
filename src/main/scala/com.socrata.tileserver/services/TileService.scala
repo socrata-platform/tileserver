@@ -165,12 +165,11 @@ object TileService {
     * @param select the "$select" parameter to add.
     */
   def augmentParams(req: HttpRequest,
-                    rawWhere: String,
+                    where: String,
                     select: String): Map[String, String] = {
     val params = req.queryParameters
-    val where = s"(${rawWhere})"
     val whereParam =
-      if (params.contains("$where")) s"""(${params("$where")}) and $where""" else where
+      if (params.contains("$where")) s"""(${params("$where")}) and (${where})""" else where
     val selectParam =
       if (params.contains("$select")) params("$select") + s", $select" else select
 
