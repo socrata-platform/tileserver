@@ -10,7 +10,7 @@ import com.socrata.http.client.{HttpClientHttpClient, RequestBuilder}
 import com.socrata.http.server.implicits._
 import com.socrata.http.server.responses._
 import com.socrata.http.server.{HttpRequest, HttpResponse, HttpService, SocrataServerJetty}
-import com.socrata.thirdparty.curator._
+import com.socrata.curator._
 
 import config.TileServerConfig
 import services.{TileService, VersionService}

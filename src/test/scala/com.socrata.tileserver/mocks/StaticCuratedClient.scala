@@ -5,9 +5,8 @@ import org.mockito.Matchers.anyInt
 import org.mockito.Mockito.{verify, when}
 import org.scalatest.mock.MockitoSugar
 
-import com.socrata.thirdparty.curator.{CuratedClientConfig, CuratedServiceClient}
+import com.socrata.curator.{CuratedClientConfig, CuratedServiceClient, ServerProvider}
 import com.socrata.http.client.{RequestBuilder, Response, SimpleHttpRequest}
-import com.socrata.thirdparty.curator.ServerProvider
 
 import StaticCuratedClient._
 

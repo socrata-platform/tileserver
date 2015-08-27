@@ -2,7 +2,7 @@ package com.socrata.tileserver.config
 
 import com.typesafe.config.ConfigFactory
 
-import com.socrata.thirdparty.curator.{CuratedClientConfig, DiscoveryBrokerConfig}
+import com.socrata.curator.{CuratedClientConfig, DiscoveryBrokerConfig}
 
 // $COVERAGE-OFF$ Disabled because this is configuration boilerplate.
 /** Container for global configuration. */

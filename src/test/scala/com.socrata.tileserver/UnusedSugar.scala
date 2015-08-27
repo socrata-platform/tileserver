@@ -6,9 +6,9 @@ import scala.language.implicitConversions
 import com.rojoma.simplearm.v2.ResourceScope
 import org.mockito.Mockito.mock
 
+import com.socrata.curator.CuratedServiceClient
 import com.socrata.http.client.{HttpClient, RequestBuilder, Response}
 import com.socrata.http.server.{HttpRequest, HttpResponse}
-import com.socrata.thirdparty.curator.CuratedServiceClient
 import com.socrata.thirdparty.geojson.FeatureJson
 
 import util.{CartoRenderer, GeoProvider}

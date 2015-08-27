@@ -22,7 +22,7 @@ case class RequestInfo(req: HttpRequest,
   val requestId: RequestId = getFromRequest(req.servletRequest)
 
   /** The CartoCss for the request, if present. */
-  val style: Option[String] = req.queryParameters.get("$style")
+  val style: Option[String] = req.queryParameters.get(s"$$style")
 
   /** The ResourceScope to be used when processing this request. */
   val rs: ResourceScope = req.resourceScope

@@ -9,7 +9,7 @@ import org.slf4j.{Logger, LoggerFactory}
 import com.socrata.http.client.RequestBuilder
 import com.socrata.http.server.util.RequestId.ReqIdHeader
 import com.socrata.http.server.HttpResponse
-import com.socrata.thirdparty.curator.CuratedServiceClient
+import com.socrata.curator.CuratedServiceClient
 
 import GeoProvider._
 

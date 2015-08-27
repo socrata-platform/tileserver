@@ -1,5 +1,10 @@
 name := "tileserver"
 
+scalaVersion := "2.11.7"
+crossScalaVersions := Seq("2.10.4", scalaVersion.value)
+
+scalacOptions ++= Seq("-deprecation", "-feature", "-optimize", "-Xlint")
+
 resolvers ++= Seq(
   "ecc" at "https://github.com/ElectronicChartCentre/ecc-mvn-repo/raw/master/releases",
   "velvia maven" at "http://dl.bintray.com/velvia/maven"
@@ -11,24 +16,24 @@ libraryDependencies ++= Seq(
   "com.rojoma"              %% "rojoma-json-v3-jackson"   % "1.0.0" excludeAll(
     ExclusionRule(organization = "com.rojoma")),
   "com.rojoma"              %% "simple-arm-v2"            % "2.1.0",
-  "com.socrata"             %% "socrata-http-common"      % "3.3.1" excludeAll(
+  "com.socrata"             %% "socrata-curator-utils"    % "1.0.0-SNAPSHOT" excludeAll(
+    ExclusionRule(organization = "com.socrata", name = "socrata-http-client"),
+    ExclusionRule(organization = "com.socrata", name = "socrata-http-jetty")),
+  "com.socrata"             %% "socrata-http-common"      % "3.3.4-SNAPSHOT" excludeAll(
     ExclusionRule(organization = "joda-time"),
     ExclusionRule(organization = "commons-codec"),
     ExclusionRule(organization = "commons-io"),
-    ExclusionRule(organization = "com.rojoma"),
-    ExclusionRule(organization = "com.socrata", name = "socrata-thirdparty-utils_2.10")),
-  "com.socrata"             %% "socrata-http-client"      % "3.3.1" excludeAll(
+    ExclusionRule(organization = "com.rojoma")),
+  "com.socrata"             %% "socrata-http-client"      % "3.3.4-SNAPSHOT" excludeAll(
     ExclusionRule(organization = "commons-codec"),
     ExclusionRule(organization = "com.socrata", name = "socrata-http-common")),
-  "com.socrata"             %% "socrata-http-jetty"       % "3.3.1" excludeAll(
-    ExclusionRule(organization = "com.socrata", name = "socrata-http-common"),
-    ExclusionRule(organization = "com.socrata", name = "socrata-thirdparty-utils_2.10")),
-  "com.socrata"             %% "socrata-thirdparty-utils" % "3.1.5",
-  "com.socrata"             %% "soql-pack"                % "0.6.2" excludeAll(
+  "com.socrata"             %% "socrata-http-jetty"       % "3.3.4-SNAPSHOT" excludeAll(
+    ExclusionRule(organization = "com.socrata", name = "socrata-http-common")),
+  "com.socrata"             %% "soql-pack"                % "0.7.0-SNAPSHOT" excludeAll(
     ExclusionRule(organization = "joda-time"),
     ExclusionRule(organization = "commons-io"),
-    ExclusionRule(organization = "org.slf4j"),
-    ExclusionRule(organization = "com.socrata", name = "socrata-thirdparty-utils_2.10")),
+    ExclusionRule(organization = "org.slf4j")),
+  "com.socrata"             %% "socrata-thirdparty-utils" % "4.0.0-SNAPSHOT",
   "com.typesafe"             % "config"                   % "1.2.1",
   "commons-codec"            % "commons-codec"            % "1.10",
   "commons-io"               % "commons-io"               % "2.4",

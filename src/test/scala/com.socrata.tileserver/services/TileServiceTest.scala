@@ -64,7 +64,7 @@ class TileServiceTest extends TestBase with UnusedSugar with MockitoSugar {
       val resp = new mocks.ByteArrayServletOutputStream().responseFor
 
       val style: Map[String, String] =
-        if (ext == Png) Map("$style" -> Unused) else Map.empty
+        if (ext == Png) Map(s"$$style" -> Unused) else Map.empty
       val req = mocks.StaticRequest(style)
       TileService(Unused, util.GeoProvider(client)).
         handleRequest(reqInfo(req, ext))(resp)
@@ -88,7 +88,7 @@ class TileServiceTest extends TestBase with UnusedSugar with MockitoSugar {
       val resp = outputStream.responseFor
 
       val style: Map[String, String] =
-        if (ext == Png && fashionable) Map("$style" -> Unused) else Map.empty
+        if (ext == Png && fashionable) Map(s"$$style" -> Unused) else Map.empty
       val req = mocks.StaticRequest(style)
 
       val renderer = CartoRenderer(mocks.StaticHttpClient(expected.toString),
@@ -116,7 +116,7 @@ class TileServiceTest extends TestBase with UnusedSugar with MockitoSugar {
           if (fashionable) {
             outputStream.getString must equal (expected.toString)
           } else {
-            outputStream.getString must include ("$style")
+            outputStream.getString must include (s"$$style")
           }
         // ".txt" should be supported, but its output format is unspecified.
         case Txt => ()
@@ -495,7 +495,7 @@ class TileServiceTest extends TestBase with UnusedSugar with MockitoSugar {
       val resp = outputStream.responseFor
 
       val style: Map[String, String] =
-        if (ext == Png) Map("$style" -> Unused) else Map.empty
+        if (ext == Png) Map(s"$$style" -> Unused) else Map.empty
       val req = mocks.StaticRequest(style)
 
       val renderer = CartoRenderer(mocks.StaticHttpClient(""), Unused)
