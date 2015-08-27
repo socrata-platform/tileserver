@@ -19,7 +19,6 @@ import com.socrata.http.server.{HttpRequest, HttpResponse, HttpService}
 import TileService._
 import exceptions._
 import handlers._
-import util.TileEncoder.Feature
 import util._
 
 // scalastyle:off multiple.string.literals

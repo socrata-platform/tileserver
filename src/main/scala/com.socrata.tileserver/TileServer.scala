@@ -3,13 +3,10 @@ package com.socrata.tileserver
 import java.util.concurrent.Executors
 import javax.servlet.http.HttpServletRequest
 
-import com.rojoma.simplearm.v2.conversions._
 import com.rojoma.simplearm.v2.{Resource, managed}
 
 import com.socrata.http.client.{HttpClientHttpClient, RequestBuilder}
-import com.socrata.http.server.implicits._
-import com.socrata.http.server.responses._
-import com.socrata.http.server.{HttpRequest, HttpResponse, HttpService, SocrataServerJetty}
+import com.socrata.http.server.{HttpRequest, SocrataServerJetty}
 import com.socrata.curator._
 
 import config.TileServerConfig
