@@ -19,7 +19,6 @@ import org.scalatest.mock.MockitoSugar
 
 import com.socrata.http.client.Response
 import com.socrata.http.server.HttpRequest
-import com.socrata.http.server.HttpRequest.AugmentedHttpServletRequest
 import com.socrata.http.server.routing.TypedPathComponent
 import com.socrata.thirdparty.geojson.GeoJson._
 import com.socrata.thirdparty.geojson.{FeatureCollectionJson, FeatureJson, GeoJsonBase}
@@ -622,7 +621,6 @@ class TileServiceTest extends TestBase with UnusedSugar with MockitoSugar {
 
   test("X-Socrata-RequestId is passed to CartoRenderer") {
     import gen.Extensions.Png
-    import gen.Points._
 
     forAll { requestId: String =>
       val http = mocks.DynamicHttpClient { req =>

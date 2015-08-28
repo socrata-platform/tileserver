@@ -12,7 +12,6 @@ import com.socrata.soql.types._
 
 import MsgPackResponse._
 import gen.Points.PointLike
-import util.TileEncoder.Feature
 
 // ScalaStyle seems to think that constructor overloading is procedure declaration.
 // scalastyle:off procedure.declaration

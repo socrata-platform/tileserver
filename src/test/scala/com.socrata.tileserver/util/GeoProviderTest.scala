@@ -4,7 +4,7 @@ package util
 import org.scalatest.mock.MockitoSugar
 
 import com.socrata.http.client.{RequestBuilder, Response}
-import com.socrata.http.server.util.RequestId.{RequestId, ReqIdHeader}
+import com.socrata.http.server.util.RequestId.ReqIdHeader
 import com.socrata.soql.types.SoQLText
 
 class GeoProviderTest extends TestBase with UnusedSugar with MockitoSugar {
