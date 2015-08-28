@@ -138,7 +138,7 @@ object TileService {
     */
   def fatal(message: String, cause: Throwable): HttpResponse = {
     logger.warn(message)
-    logger.warn(cause.getMessage, cause.getStackTrace)
+    logger.warn(cause.getMessage, cause)
 
     @annotation.tailrec
     def rootCause(t: Throwable): Throwable =
@@ -148,7 +148,7 @@ object TileService {
     val payload = if (cause.getMessage != null) { // scalastyle:ignore
       json"""{message: $message, cause: ${cause.getMessage}}"""
     } else if (root.getMessage != null) { // scalastyle:ignore
-      logger.warn(root.getMessage, root.getStackTrace)
+      logger.warn(root.getMessage, root)
       json"""{message: $message, cause: ${root.getMessage}}"""
     } else {
       json"""{message: $message}"""
