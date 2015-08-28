@@ -5,8 +5,10 @@ import scala.collection.JavaConverters._
 import com.rojoma.json.v3.ast.JValue
 import com.rojoma.json.v3.codec.JsonEncode.toJValue
 import com.vividsolutions.jts.geom.Geometry
+import com.vividsolutions.jts.util.AssertionFailedException
 import no.ecc.vectortile.VectorTileEncoder
 import org.apache.commons.codec.binary.Base64
+import org.slf4j.{Logger, LoggerFactory}
 
 import TileEncoder._
 
@@ -23,7 +25,13 @@ case class TileEncoder(features: Set[TileEncoder.Feature]) {
                                            true)
 
     features foreach { case (geometry, attributes) =>
-      underlying.addFeature("main", attributes.asJava, geometry)
+      try {
+        underlying.addFeature("main", attributes.asJava, geometry)
+      } catch {
+        case e: AssertionFailedException =>
+          logger.warn("Invalid geometry", geometry)
+          logger.warn(e.getMessage, e)
+      }
     }
 
     underlying.encode()
@@ -42,6 +50,7 @@ case class TileEncoder(features: Set[TileEncoder.Feature]) {
 }
 
 object TileEncoder {
+  private val logger: Logger = LoggerFactory.getLogger(getClass)
   private val ZoomFactor: Int = 16
 
   /** (geometry, attributes) */
