@@ -28,9 +28,11 @@ case class TileEncoder(features: Set[TileEncoder.Feature]) {
       try {
         underlying.addFeature("main", attributes.asJava, geometry)
       } catch {
+        // $COVERAGE-OFF$ Not worth injecting the VectorTileEncoder.
         case e: AssertionFailedException =>
           logger.warn("Invalid geometry", geometry)
           logger.warn(e.getMessage, e)
+        // $COVERAGE-ON$
       }
     }
 
