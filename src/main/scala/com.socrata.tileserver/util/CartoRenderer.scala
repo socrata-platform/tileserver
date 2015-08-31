@@ -34,8 +34,6 @@ case class CartoRenderer(http: HttpClient, baseUrl: RequestBuilder) {
       addHeader("X-Socrata-RequestID" -> info.requestId).
       jsonBody(content)
 
-    logger.info(content.toString)
-
     val resp = http.execute(req, info.rs)
 
     if (resp.resultCode == ScOk) {
