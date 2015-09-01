@@ -40,7 +40,7 @@ libraryDependencies ++= Seq(
     ExclusionRule(organization = "joda-time"),
     ExclusionRule(organization = "commons-io"),
     ExclusionRule(organization = "org.slf4j")),
-  "com.socrata"             %% "socrata-thirdparty-utils" % "4.0.0",
+  "com.socrata"             %% "socrata-thirdparty-utils" % "4.0.1",
   "com.typesafe"             % "config"                   % "1.2.1",
   "commons-codec"            % "commons-codec"            % "1.10",
   "commons-io"               % "commons-io"               % "2.4",
