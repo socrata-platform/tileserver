@@ -9,9 +9,7 @@ import com.rojoma.json.v3.interpolation._
 import com.rojoma.simplearm.v2.ResourceScope
 import com.socrata.http.client.{HttpClient, RequestBuilder, Response}
 import org.apache.commons.io.IOUtils
-import org.slf4j.{Logger, LoggerFactory}
 
-import CartoRenderer._
 import exceptions.FailedRenderException
 
 /** Calls out to the renderer service to render tiles.
@@ -42,8 +40,4 @@ case class CartoRenderer(http: HttpClient, baseUrl: RequestBuilder) {
       throw FailedRenderException(IOUtils.toString(resp.inputStream(), UTF_8))
     }
   }
-}
-
-object CartoRenderer {
-  private val logger: Logger = LoggerFactory.getLogger(getClass)
 }
