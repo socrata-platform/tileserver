@@ -22,6 +22,10 @@ The following extensions are supported:
 * .pbf:  proto-buffer / binary vector tile.
 * .bpbf: base 64 encoded proto-buffer.
 * .json: the raw json returned from soda-fountain.
+* .png: renderered vector tile.
+
+NOTE: This requires access to a running instance of 
+[carto-renderer](http://github.com/socrata-platform/carto-renderer)
 
 The following is also supported for debugging purposes,
 do not depend on the output format.
