@@ -1,11 +1,8 @@
 package com.socrata.tileserver.mocks
 
 import java.io.Closeable
-import javax.servlet.http.HttpServletResponse.{SC_OK => ScOk}
 
 import com.socrata.http.client._
-
-import StaticHttpClient._
 
 class DynamicHttpClient(val respBuilder: (SimpleHttpRequest => Response)) extends HttpClient {
   val close: Unit = ()

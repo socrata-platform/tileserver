@@ -6,14 +6,12 @@ import java.nio.charset.{Charset, StandardCharsets}
 import javax.activation.MimeType
 
 import com.rojoma.json.v3.ast.JValue
-import com.rojoma.json.v3.interpolation._
 import com.rojoma.simplearm.v2.ResourceScope
 import org.apache.commons.io.IOUtils
 
 import com.socrata.http.client.Response
 import com.socrata.http.common.util.Acknowledgeable
 
-import EmptyResponse._
 import UnusedSugar._
 import util.GeoResponse
 

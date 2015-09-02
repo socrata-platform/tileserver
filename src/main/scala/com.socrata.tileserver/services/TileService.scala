@@ -19,7 +19,6 @@ import com.socrata.http.server.{HttpRequest, HttpResponse, HttpService}
 import TileService._
 import exceptions._
 import handlers._
-import util.TileEncoder.Feature
 import util._
 
 // scalastyle:off multiple.string.literals
@@ -169,10 +168,10 @@ object TileService {
                     select: String): Map[String, String] = {
     val params = req.queryParameters
     val whereParam =
-      if (params.contains("$where")) s"""(${params("$where")}) and (${where})""" else where
+      if (params.contains(s"$$where")) s"""(${params(s"$$where")}) and (${where})""" else where
     val selectParam =
-      if (params.contains("$select")) params("$select") + s", $select" else select
+      if (params.contains(s"$$select")) s"""${params(s"$$select")}, ${select}""" else select
 
-    params + ("$where" -> whereParam) + ("$select" -> selectParam) - "$style"
+    params + (s"$$where" -> whereParam) + (s"$$select" -> selectParam) - s"$$style"
   }
 }

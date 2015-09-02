@@ -12,7 +12,6 @@ import com.socrata.thirdparty.geojson.FeatureJson
 
 import UnusedSugar._
 import util.TileEncoder.Feature
-import gen.Points.PointLike
 
 // scalastyle:off import.grouping
 trait TestBase

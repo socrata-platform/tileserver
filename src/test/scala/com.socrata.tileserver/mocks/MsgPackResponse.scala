@@ -12,7 +12,6 @@ import com.socrata.soql.types._
 
 import MsgPackResponse._
 import gen.Points.PointLike
-import util.TileEncoder.Feature
 
 // ScalaStyle seems to think that constructor overloading is procedure declaration.
 // scalastyle:off procedure.declaration
@@ -27,7 +26,7 @@ class MsgPackResponse(header: Map[String, Any] = EmptyHeader,
 
 object MsgPackResponse {
   val GeoIndexKey = "geometry_index"
-  val EmptyHeader = Map("geometry_index" -> 0, "schema" -> Seq.empty)
+  val EmptyHeader: Map[String, Any] = Map("geometry_index" -> 0, "schema" -> Seq.empty)
   val GeomFactory = new GeometryFactory()
 
   def apply(header: Map[String, Any] = EmptyHeader,
