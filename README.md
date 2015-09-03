@@ -40,11 +40,11 @@ A valid production value is: dataspace.demo.socrata.com
 
 ## Dependencies ##
 TileServer uses ZooKeeper for service discovery, so it must have
-access to a running instance (there are IPs for the staging ensemble
-in `reference.conf`).
+access to a running instance.
 
 .png rendering requires access to a running instance of 
 [carto-renderer](http://github.com/socrata-platform/carto-renderer)
 
 Both of these are configured in `/src/main/resources/reference.conf`
-and default to `localhost`.
+and default to `localhost` and have commented out lines to point to
+staging.
