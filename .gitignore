@@ -2,4 +2,4 @@
 tests.log
 target
 .idea/
-
+docker/tileserver-assembly.jar

@@ -3,7 +3,7 @@ This service talks to SODA Fountain and converts the geojson it
 returns to vector tiles.
 
 ## Usage ##
-Start the server with ```sbt run```.
+Start the server with `sbt run`.
 
 Hit the server with:
 
@@ -24,14 +24,12 @@ The following extensions are supported:
 * .json: the raw json returned from soda-fountain.
 * .png: renderered vector tile.
 
-NOTE: This requires access to a running instance of 
-[carto-renderer](http://github.com/socrata-platform/carto-renderer)
-
 The following is also supported for debugging purposes,
 do not depend on the output format.
 
 * .txt:  text representation of the proto-buffer.
 
+## X-Socrata-Host ##
 Calling the tileserver requires setting X-Socrata-Host properly.
 
 A valid staging value is: dataspace-demo.test-socrata.com
@@ -39,3 +37,14 @@ A valid staging value is: dataspace-demo.test-socrata.com
 A valid RC value is: dataspace-demo.rc-socrata.com
 
 A valid production value is: dataspace.demo.socrata.com
+
+## Dependencies ##
+TileServer uses ZooKeeper for service discovery, so it must have
+access to a running instance.
+
+.png rendering requires access to a running instance of 
+[carto-renderer](http://github.com/socrata-platform/carto-renderer)
+
+Both of these are configured in `/src/main/resources/reference.conf`
+and default to `localhost` and have commented out lines to point to
+staging.
