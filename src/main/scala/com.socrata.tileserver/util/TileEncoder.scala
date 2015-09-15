@@ -4,7 +4,7 @@ import scala.collection.JavaConverters._
 
 import com.rojoma.json.v3.ast.JValue
 import com.rojoma.json.v3.codec.JsonEncode.toJValue
-import com.vividsolutions.jts.geom.Geometry
+import com.vividsolutions.jts.geom.{Geometry, Point}
 import com.vividsolutions.jts.util.AssertionFailedException
 import no.ecc.vectortile.VectorTileEncoder
 import org.apache.commons.codec.binary.Base64
@@ -26,7 +26,12 @@ case class TileEncoder(features: Set[TileEncoder.Feature]) {
 
     features foreach { case (geometry, attributes) =>
       try {
-        underlying.addFeature("main", attributes.asJava, geometry)
+        val layer = geometry match {
+          case _: Point => "main"
+          case _ => geometry.getGeometryType.toLowerCase
+        }
+        underlying.addFeature(layer, attributes.asJava, geometry)
+
       } catch {
         // $COVERAGE-OFF$ Not worth injecting the VectorTileEncoder.
         case e: AssertionFailedException =>

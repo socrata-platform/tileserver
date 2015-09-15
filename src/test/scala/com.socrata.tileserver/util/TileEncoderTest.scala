@@ -5,7 +5,7 @@ import scala.collection.JavaConverters._
 import scala.language.implicitConversions
 
 import com.rojoma.json.v3.io.JsonReader.fromString
-import com.vividsolutions.jts.geom.Geometry
+import com.vividsolutions.jts.geom.{Coordinate, Geometry, GeometryFactory}
 import no.ecc.vectortile.VectorTileDecoder
 import org.apache.commons.codec.binary.Base64
 import org.mockito.Matchers
@@ -107,6 +107,34 @@ class TileEncoderTest extends TestBase with MockitoSugar {
       str must include (encode(v0))
       str must include (encode(k1))
       str must include (encode(v1))
+    }
+  }
+
+  test("Polygons are encoded on separate layers") {
+    import gen.Points._
+
+    val factory = new GeometryFactory()
+
+    forAll { (pt0: ValidPoint,
+              pt1: ValidPoint,
+              pt2: ValidPoint,
+              pt3: ValidPoint) =>
+      val decoder = new VectorTileDecoder
+
+      val poly = factory.createPolygon(Array(new Coordinate(pt0.x, pt0.y),
+                                             new Coordinate(pt1.x, pt1.y),
+                                             new Coordinate(pt2.x, pt2.y),
+                                             new Coordinate(pt0.x, pt0.y)))
+
+      val bytes: Array[Byte] = TileEncoder(Set(feature(pt3),
+                                               poly -> Map.empty)).bytes
+
+      val decoded = decoder.decode(bytes)
+      decoded.getLayerNames must equal (Set("main", "polygon").asJava)
+
+      val features = decoded.asScala.map(convert)
+
+      features must have size (2)
     }
   }
 }
