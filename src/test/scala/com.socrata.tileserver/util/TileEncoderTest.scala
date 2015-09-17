@@ -115,18 +115,15 @@ class TileEncoderTest extends TestBase with MockitoSugar {
 
     val factory = new GeometryFactory()
 
-    forAll { (pt0: ValidPoint,
-              pt1: ValidPoint,
-              pt2: ValidPoint,
-              pt3: ValidPoint) =>
+    forAll { (top: ValidPoint, pt: ValidPoint) =>
       val decoder = new VectorTileDecoder
 
-      val poly = factory.createPolygon(Array(new Coordinate(pt0.x, pt0.y),
-                                             new Coordinate(pt1.x, pt1.y),
-                                             new Coordinate(pt2.x, pt2.y),
-                                             new Coordinate(pt0.x, pt0.y)))
+      val poly = factory.createPolygon(Array(new Coordinate(top.x, top.y),
+                                             new Coordinate(top.x + 32, top.y - 32),
+                                             new Coordinate(top.x - 32, top.y - 32),
+                                             new Coordinate(top.x, top.y)))
 
-      val bytes: Array[Byte] = TileEncoder(Set(feature(pt3),
+      val bytes: Array[Byte] = TileEncoder(Set(feature(pt),
                                                poly -> Map.empty)).bytes
 
       val decoded = decoder.decode(bytes)

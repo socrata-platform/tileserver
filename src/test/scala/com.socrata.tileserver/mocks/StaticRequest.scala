@@ -15,8 +15,13 @@ import org.mockito.stubbing.Answer
 import com.socrata.http.server.HttpRequest
 import com.socrata.http.server.HttpRequest.AugmentedHttpServletRequest
 
+
 class StaticRequest(val params: Map[String, String],
-                    val headers: Map[String, String]) extends HttpRequest {
+                    rawHeaders: Map[String, String],
+                    addHost: Boolean = true) extends HttpRequest {
+  def headers: Map[String, String] =
+    if (addHost) Map("X-Socrata-Host" -> "localhost") ++ rawHeaders else rawHeaders
+
   // Had to go all the way to HttpServletRequest to mock out queryParameters.
   private val underlyingReq = mock(classOf[HttpServletRequest])
   private val headerNames = headers.keys.toSeq
