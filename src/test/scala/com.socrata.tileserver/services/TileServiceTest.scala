@@ -123,6 +123,24 @@ class TileServiceTest extends TestBase with UnusedSugar with MockitoSugar {
     }
   }
 
+  test("Requests without X-Socrata-Host are rejected") {
+    import gen.Extensions._
+
+    forAll { ext: Extension =>
+      val req = new mocks.StaticRequest(Map.empty, Map.empty, false)
+
+      val outputStream = new mocks.ByteArrayServletOutputStream
+      val resp = outputStream.responseFor
+
+      TileService(Unused, Unused).
+        handleRequest(reqInfo(req, Unused, Unused, Unused, ext))(resp)
+
+      verify(resp).setStatus(SC_BAD_REQUEST)
+      outputStream.getLowStr must include ("missing")
+      outputStream.getLowStr must include ("x-socrata-host")
+    }
+  }
+
   test("Unknown errors are handled") {
     import gen.Extensions._
 

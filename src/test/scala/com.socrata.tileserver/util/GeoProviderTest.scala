@@ -23,13 +23,16 @@ class GeoProviderTest extends TestBase with UnusedSugar with MockitoSugar {
               param: (ShortString, ShortString),
               knownHeader: IncomingHeader,
               unknownHeader: UnknownHeader) =>
-      val request = mocks.StaticRequest(param, Map(knownHeader, unknownHeader))
+      val request = mocks.StaticRequest(param, Map(knownHeader,
+                                                   unknownHeader,
+                                                   "X-Socrata-Host" -> "geo.provider.test"))
       val info = RequestInfo(request, id, Unused, Unused, Unused)
 
       val expected = base.
         addPath("id").
         addPath(s"${id: String}.soqlpack").
         addHeader(ReqIdHeader -> info.requestId).
+        addHeader("X-Socrata-Host" -> "geo.provider.test").
         addHeader(knownHeader).
         addParameter(param).
         get.builder
