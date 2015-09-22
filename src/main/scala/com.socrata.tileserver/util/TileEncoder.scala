@@ -26,18 +26,13 @@ case class TileEncoder(features: Set[TileEncoder.Feature]) {
 
     features foreach { case (geometry, attributes) =>
       try {
-        val layer = geometry match {
-          case _: Point => "main"
-          case _ => geometry.getGeometryType.toLowerCase
-        }
-        underlying.addFeature(layer, attributes.asJava, geometry)
-
+        underlying.addFeature(layerName(geometry), attributes.asJava, geometry)
       } catch {
         // $COVERAGE-OFF$ Not worth injecting the VectorTileEncoder.
         case e: AssertionFailedException =>
           logger.warn("Invalid geometry", geometry)
           logger.warn(e.getMessage, e)
-        // $COVERAGE-ON$
+          // $COVERAGE-ON$
       }
     }
 
@@ -51,7 +46,7 @@ case class TileEncoder(features: Set[TileEncoder.Feature]) {
   override lazy val toString: String = {
     features map {
       case (geometry, attributes) =>
-        s"geometry: $geometry \t attributes: ${toJValue(attributes)}"
+        s"#${layerName(geometry)} \t geometry: $geometry \t attributes: ${toJValue(attributes)}"
     } mkString "\n"
   }
 }
@@ -62,4 +57,9 @@ object TileEncoder {
 
   /** (geometry, attributes) */
   type Feature = (Geometry, Map[String, JValue])
+
+  def layerName(geom: Geometry): String = geom match {
+    case _: Point => "main"
+    case _ => geom.getGeometryType.toLowerCase
+  }
 }
