@@ -51,27 +51,20 @@ case class TileService(renderer: CartoRenderer, provider: GeoProvider)  {
     val intersects = info.tile.intersects(info.geoColumn)
 
     try {
-      val host = info.req.header("X-Socrata-Host")
-      if (host.isDefined) {
-        val params = augmentParams(info.req, intersects, info.geoColumn)
+      val params = augmentParams(info.req, intersects, info.geoColumn)
 
-        val resp = provider.doQuery(info, params)
+      val resp = provider.doQuery(info, params)
 
-        val result = resp.resultCode match {
-          case ScOk =>
-            val base = OK ~> HeaderFilter.extract(resp)
+      val result = resp.resultCode match {
+        case ScOk =>
+          val base = OK ~> HeaderFilter.extract(resp)
 
-            handler(info)(base, resp)
-          case ScNotModified => NotModified
-          case _ => echoResponse(resp)
-        }
-
-        Header("Access-Control-Allow-Origin", "*") ~> result
-      } else {
-        BadRequest ~>
-          Header("Access-Control-Allow-Origin", "*") ~>
-          Json(json"""{message: "Missing X-Socrata-Host header!"}""")
+          handler(info)(base, resp)
+        case ScNotModified => NotModified
+        case _ => echoResponse(resp)
       }
+
+      Header("Access-Control-Allow-Origin", "*") ~> result
     } catch {
       case packEx @ (_: InvalidSoqlPackException | _: InvalidMsgPackDataException) =>
         fatal("Invalid or corrupt data returned from underlying service", packEx)

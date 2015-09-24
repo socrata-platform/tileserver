@@ -30,9 +30,14 @@ object HeaderFilter {
       incoming(name)
     }
 
-    headerNames.flatMap { name: String =>
+    val host = req.header("Host")
+    val socrataHost = req.header("X-Socrata-Host").orElse(host)
+
+    val filtered = headerNames.flatMap { name: String =>
       req.headers(name) map { (name, _) }
-    }.toIterable
+    } ++ socrataHost.map("X-Socrata-Host" -> _)
+
+    filtered.toIterable
   }
 
   /** Filter outgoing headers.
