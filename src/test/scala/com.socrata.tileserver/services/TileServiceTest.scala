@@ -27,6 +27,9 @@ import util.{CartoRenderer, GeoProvider, QuadTile, RequestInfo, TileEncoder}
 
 // scalastyle:off import.grouping, null
 class TileServiceTest extends TestBase with UnusedSugar with MockitoSugar {
+  def reqInfo(req: HttpRequest): util.RequestInfo =
+    RequestInfo(req, Unused, Unused, Unused, Unused)
+
   def reqInfo(req: HttpRequest, ext: String): util.RequestInfo =
     RequestInfo(req, Unused, Unused, Unused, ext)
 
@@ -464,15 +467,15 @@ class TileServiceTest extends TestBase with UnusedSugar with MockitoSugar {
       val select = mocks.StaticRequest(selectKey -> selectBase)
 
       neither.queryParameters must have size (1)
-      val nParams = TileService.augmentParams(neither,
+      val nParams = TileService.augmentParams(reqInfo(neither),
                                               whereValue,
                                               selectValue)
       nParams must have size (3)
       nParams(otherKey) must equal (otherValue)
       nParams(whereKey) must equal (whereValue)
-      nParams(selectKey) must equal (selectValue)
+      nParams(selectKey) must include (selectValue)
 
-      val wParams = TileService.augmentParams(neither ++ where,
+      val wParams = TileService.augmentParams(reqInfo(neither ++ where),
                                               whereValue,
                                               selectValue)
       wParams must have size (3)
@@ -482,9 +485,11 @@ class TileServiceTest extends TestBase with UnusedSugar with MockitoSugar {
       wParams(whereKey) must endWith (s"(${whereValue})")
       wParams(whereKey) must include regex ("\\s+and\\s+")
 
-      wParams(selectKey) must equal (selectValue)
+      wParams(selectKey) must include (selectValue)
+      wParams(selectKey) must include ("simplify")
 
-      val sParams = TileService.augmentParams(neither ++ select,
+
+      val sParams = TileService.augmentParams(reqInfo(neither ++ select),
                                               whereValue,
                                               selectValue)
       sParams must have size (3)
@@ -492,22 +497,23 @@ class TileServiceTest extends TestBase with UnusedSugar with MockitoSugar {
       sParams(whereKey) must equal (whereValue)
 
       sParams(selectKey) must startWith (selectBase)
-      sParams(selectKey) must endWith (selectValue)
+      sParams(selectKey) must include (selectValue)
+      sParams(selectKey) must include ("simplify")
       sParams(selectKey) must include regex (",\\s*")
 
-      val wsParams = TileService.augmentParams(neither ++ where ++ select,
+      val wsParams = TileService.augmentParams(reqInfo(neither ++ where ++ select),
                                                whereValue,
                                                selectValue)
-      sParams must have size (3)
-      sParams(otherKey) must equal (otherValue)
+      wsParams must have size (3)
+      wsParams(otherKey) must equal (otherValue)
 
-      wParams(whereKey) must startWith (s"(${whereBase})")
-      wParams(whereKey) must endWith (s"(${whereValue})")
-      wParams(whereKey) must include regex ("\\s+and\\s+")
+      wsParams(whereKey) must startWith (s"(${whereBase})")
+      wsParams(whereKey) must endWith (s"(${whereValue})")
+      wsParams(whereKey) must include regex ("\\s+and\\s+")
 
-      sParams(selectKey) must startWith (selectBase)
-      sParams(selectKey) must endWith (selectValue)
-      sParams(selectKey) must include regex (",\\s*")
+      wsParams(selectKey) must startWith (selectBase)
+      wsParams(selectKey) must include (selectValue)
+      wsParams(selectKey) must include regex (",\\s*")
     }
   }
 
