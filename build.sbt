@@ -36,7 +36,7 @@ libraryDependencies ++= Seq(
     ExclusionRule(organization = "com.socrata", name = "socrata-http-common")),
   "com.socrata"             %% "socrata-http-jetty"       % "3.4.0" excludeAll(
     ExclusionRule(organization = "com.socrata", name = "socrata-http-common")),
-  "com.socrata"             %% "soql-pack"                % "0.7.2" excludeAll(
+  "com.socrata"             %% "soql-pack"                % "0.8.2" excludeAll(
     ExclusionRule(organization = "joda-time"),
     ExclusionRule(organization = "commons-io"),
     ExclusionRule(organization = "org.slf4j")),

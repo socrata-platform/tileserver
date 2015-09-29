@@ -43,9 +43,10 @@ trait GeoResponse extends ResponseInfo {
           s"No geometry present or other header error: ${soqlIter.headers}")
       }
 
-      soqlIter.map { row =>
-        val soqlRow = new SoQLGeoRow(row, soqlIter)
-        FeatureJson(soqlRow.properties, soqlRow.geometry)
+      val geoRows = soqlIter.map(new SoQLGeoRow(_, soqlIter))
+
+      geoRows.filter(_.geometry.isDefined).map { row =>
+        FeatureJson(row.properties, row.geometry.get)
       }
     } catch {
       case e @ (_: InvalidMsgPackDataException |
