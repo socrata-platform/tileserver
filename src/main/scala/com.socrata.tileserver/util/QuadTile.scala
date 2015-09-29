@@ -31,6 +31,9 @@ case class QuadTile(rawX: Int, rawY: Int, zoom: Int) extends CoordinateFilter {
   /** West edge of the tile (lon). */
   val west:  Double = mapper.lon(x * Size)
 
+  /** The width of pixels in degrees (lat/lon). */
+  val resolution: Double = Math.min(east - west, south - north) / Size
+
   /** Return the within_box SoQL fragment for the given column.
     *
     * @param pointColumn the column to match against.
