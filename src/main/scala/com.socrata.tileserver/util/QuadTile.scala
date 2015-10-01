@@ -34,15 +34,6 @@ case class QuadTile(rawX: Int, rawY: Int, zoom: Int) extends CoordinateFilter {
   /** The width of pixels in degrees (lat/lon). */
   val resolution: Double = Math.min(east - west, south - north) / Size
 
-  /** Return the within_box SoQL fragment for the given column.
-    *
-    * @param pointColumn the column to match against.
-    */
-  def intersects(pointColumn: String): String = {
-    "intersects(" +
-      s"$pointColumn, 'MULTIPOLYGON((($west $north, $east $north, $east $south, $west $south, $west $north)))')"
-  }
-
   /** The point (x, y) in tile (256x256) space.
     *
     * @param lon the longitude of the point.
@@ -71,4 +62,11 @@ case class QuadTile(rawX: Int, rawY: Int, zoom: Int) extends CoordinateFilter {
     val mapped = px(c)
     c.setCoordinate(mapped)
   }
+
+  /** A Seq of the corners (lon, lat) of this tile.
+    *
+    * NOTE: This repeats the first corner at the end of the Seq.
+    */
+  val corners: Seq[(Double, Double)] =
+    Seq(west -> north, east -> north, east -> south, west -> south, west -> north)
 }
