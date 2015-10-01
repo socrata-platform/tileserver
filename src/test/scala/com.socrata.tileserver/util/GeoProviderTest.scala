@@ -28,13 +28,15 @@ class GeoProviderTest extends TestBase with UnusedSugar with MockitoSugar {
                                                    "X-Socrata-Host" -> "geo.provider.test"))
       val info = RequestInfo(request, id, Unused, Unused, Unused)
 
+      val filter = GeoProvider.filter(info.tile, info.geoColumn)
+      val augmented = GeoProvider.augmentParams(info, filter)
       val expected = base.
         addPath("id").
         addPath(s"${id: String}.soqlpack").
         addHeader(ReqIdHeader -> info.requestId).
         addHeader("X-Socrata-Host" -> "geo.provider.test").
         addHeader(knownHeader).
-        addParameter(param).
+        addParameters(augmented).
         get.builder
 
       val client = mocks.StaticCuratedClient.withReq { request =>
@@ -49,7 +51,76 @@ class GeoProviderTest extends TestBase with UnusedSugar with MockitoSugar {
         resp
       }
 
-      GeoProvider(client).doQuery(info, Map(param)): Unit
+      GeoProvider(client).doQuery(info): Unit
+    }
+  }
+
+  test("Augmenting parameters adds to where and select") {
+    import gen.Alphanumerics._
+
+    val otherKey = "$other"
+    val whereKey = "$where"
+    val selectKey = "$select"
+
+    forAll {(rawOtherValue: Alphanumeric,
+             whereParam: (Alphanumeric, Alphanumeric),
+             selectParam: (Alphanumeric, Alphanumeric)) =>
+      val otherValue: String = rawOtherValue
+      val (whereBase, whereValue) = whereParam: (String, String)
+      val (selectBase, selectValue) = selectParam: (String, String)
+
+      val neither = mocks.StaticRequest(otherKey -> otherValue)
+      val where = mocks.StaticRequest(whereKey -> whereBase)
+      val select = mocks.StaticRequest(selectKey -> selectBase)
+
+      neither.queryParameters must have size (1)
+      val nParams = GeoProvider.augmentParams(reqInfo(neither,
+                                                      geoColumn=selectValue),
+                                              whereValue)
+      nParams must have size (3)
+      nParams(otherKey) must equal (otherValue)
+      nParams(whereKey) must equal (whereValue)
+      nParams(selectKey) must include (selectValue)
+
+      val wParams = GeoProvider.augmentParams(reqInfo(neither ++ where,
+                                                      geoColumn=selectValue),
+                                              whereValue)
+      wParams must have size (3)
+      wParams(otherKey) must equal (otherValue)
+
+      wParams(whereKey) must startWith (s"(${whereBase})")
+      wParams(whereKey) must endWith (s"(${whereValue})")
+      wParams(whereKey) must include regex ("\\s+and\\s+")
+
+      wParams(selectKey) must include (selectValue)
+      wParams(selectKey) must include ("simplify")
+
+
+      val sParams = GeoProvider.augmentParams(reqInfo(neither ++ select,
+                                                      geoColumn=selectValue),
+                                              whereValue)
+      sParams must have size (3)
+      sParams(otherKey) must equal (otherValue)
+      sParams(whereKey) must equal (whereValue)
+
+      sParams(selectKey) must startWith (selectBase)
+      sParams(selectKey) must include (selectValue)
+      sParams(selectKey) must include ("simplify")
+      sParams(selectKey) must include regex (",\\s*")
+
+      val wsParams = GeoProvider.augmentParams(reqInfo(neither ++ where ++ select,
+                                                       geoColumn=selectValue),
+                                               whereValue)
+      wsParams must have size (3)
+      wsParams(otherKey) must equal (otherValue)
+
+      wsParams(whereKey) must startWith (s"(${whereBase})")
+      wsParams(whereKey) must endWith (s"(${whereValue})")
+      wsParams(whereKey) must include regex ("\\s+and\\s+")
+
+      wsParams(selectKey) must startWith (selectBase)
+      wsParams(selectKey) must include (selectValue)
+      wsParams(selectKey) must include regex (",\\s*")
     }
   }
 }

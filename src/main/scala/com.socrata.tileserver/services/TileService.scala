@@ -48,12 +48,8 @@ case class TileService(renderer: CartoRenderer, provider: GeoProvider)  {
     * @param info the incoming request + metadata.
     */
   def handleRequest(info: RequestInfo) : HttpResponse = {
-    val intersects = info.tile.intersects(info.geoColumn)
-
     try {
-      val params = augmentParams(info, intersects, info.geoColumn)
-
-      val resp = provider.doQuery(info, params)
+      val resp = provider.doQuery(info)
 
       val result = resp.resultCode match {
         case ScOk =>
@@ -159,24 +155,5 @@ object TileService {
     InternalServerError ~>
       Header("Access-Control-Allow-Origin", "*") ~>
       Json(payload)
-  }
-
-  /** Adds `where` and `select` to the parameters in `req`.
-    *
-    * @param where the "$where" parameter to add.
-    * @param select the "$select" parameter to add.
-    */
-  def augmentParams(info: RequestInfo,
-                    where: String,
-                    select: String): Map[String, String] = {
-    val simplify = s"simplify(${select}, ${info.tile.resolution})"
-
-    val params = info.req.queryParameters
-    val whereParam =
-      if (params.contains(s"$$where")) s"""(${params(s"$$where")}) and (${where})""" else where
-    val selectParam =
-      if (params.contains(s"$$select")) s"""${params(s"$$select")}, ${simplify}""" else simplify
-
-    params + (s"$$where" -> whereParam) + (s"$$select" -> selectParam) - s"$$style"
   }
 }

@@ -27,23 +27,6 @@ import util.{CartoRenderer, GeoProvider, QuadTile, RequestInfo, TileEncoder}
 
 // scalastyle:off import.grouping, null
 class TileServiceTest extends TestBase with UnusedSugar with MockitoSugar {
-  def reqInfo(req: HttpRequest): util.RequestInfo =
-    RequestInfo(req, Unused, Unused, Unused, Unused)
-
-  def reqInfo(req: HttpRequest, ext: String): util.RequestInfo =
-    RequestInfo(req, Unused, Unused, Unused, ext)
-
-  def reqInfo(ext: String): util.RequestInfo =
-    RequestInfo(Unused, Unused, Unused, Unused, ext)
-
-  def reqInfo(req: HttpRequest,
-              datasetId: String,
-              geoColumn: String,
-              tile: QuadTile,
-              ext: String): RequestInfo =
-    RequestInfo(req, datasetId, geoColumn, tile, ext)
-
-
   test("Service supports at least .pbf, .bpbf, .json and .png") {
     val svc = TileService(Unused, GeoProvider(Unused))
 
@@ -445,75 +428,6 @@ class TileServiceTest extends TestBase with UnusedSugar with MockitoSugar {
 
       outputStream.getLowStr must include ("message")
       outputStream.getString must include (encode(message))
-    }
-  }
-
-  test("Augmenting parameters adds to where and select") {
-    import gen.Alphanumerics._
-
-    val otherKey = "$other"
-    val whereKey = "$where"
-    val selectKey = "$select"
-
-    forAll {(rawOtherValue: Alphanumeric,
-             whereParam: (Alphanumeric, Alphanumeric),
-             selectParam: (Alphanumeric, Alphanumeric)) =>
-      val otherValue: String = rawOtherValue
-      val (whereBase, whereValue) = whereParam: (String, String)
-      val (selectBase, selectValue) = selectParam: (String, String)
-
-      val neither = mocks.StaticRequest(otherKey -> otherValue)
-      val where = mocks.StaticRequest(whereKey -> whereBase)
-      val select = mocks.StaticRequest(selectKey -> selectBase)
-
-      neither.queryParameters must have size (1)
-      val nParams = TileService.augmentParams(reqInfo(neither),
-                                              whereValue,
-                                              selectValue)
-      nParams must have size (3)
-      nParams(otherKey) must equal (otherValue)
-      nParams(whereKey) must equal (whereValue)
-      nParams(selectKey) must include (selectValue)
-
-      val wParams = TileService.augmentParams(reqInfo(neither ++ where),
-                                              whereValue,
-                                              selectValue)
-      wParams must have size (3)
-      wParams(otherKey) must equal (otherValue)
-
-      wParams(whereKey) must startWith (s"(${whereBase})")
-      wParams(whereKey) must endWith (s"(${whereValue})")
-      wParams(whereKey) must include regex ("\\s+and\\s+")
-
-      wParams(selectKey) must include (selectValue)
-      wParams(selectKey) must include ("simplify")
-
-
-      val sParams = TileService.augmentParams(reqInfo(neither ++ select),
-                                              whereValue,
-                                              selectValue)
-      sParams must have size (3)
-      sParams(otherKey) must equal (otherValue)
-      sParams(whereKey) must equal (whereValue)
-
-      sParams(selectKey) must startWith (selectBase)
-      sParams(selectKey) must include (selectValue)
-      sParams(selectKey) must include ("simplify")
-      sParams(selectKey) must include regex (",\\s*")
-
-      val wsParams = TileService.augmentParams(reqInfo(neither ++ where ++ select),
-                                               whereValue,
-                                               selectValue)
-      wsParams must have size (3)
-      wsParams(otherKey) must equal (otherValue)
-
-      wsParams(whereKey) must startWith (s"(${whereBase})")
-      wsParams(whereKey) must endWith (s"(${whereValue})")
-      wsParams(whereKey) must include regex ("\\s+and\\s+")
-
-      wsParams(selectKey) must startWith (selectBase)
-      wsParams(selectKey) must include (selectValue)
-      wsParams(selectKey) must include regex (",\\s*")
     }
   }
 

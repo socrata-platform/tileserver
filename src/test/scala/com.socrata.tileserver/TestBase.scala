@@ -8,6 +8,8 @@ import com.rojoma.json.v3.ast.JString
 import com.rojoma.json.v3.codec.JsonEncode.toJValue
 import com.vividsolutions.jts.geom.{Coordinate, GeometryFactory, Point}
 
+
+import com.socrata.http.server.HttpRequest
 import com.socrata.thirdparty.geojson.FeatureJson
 
 import UnusedSugar._
@@ -63,4 +65,19 @@ trait TestBase
 
   override def beforeEach: Unit = UnusedSugar.rs.close()
   override def afterEach: Unit = UnusedSugar.rs.close()
+
+  def reqInfo(req: HttpRequest,
+              ext: String = Unused,
+              geoColumn: String = Unused): util.RequestInfo =
+    util.RequestInfo(req, Unused, geoColumn, Unused, ext)
+
+  def reqInfo(ext: String): util.RequestInfo =
+    util.RequestInfo(Unused, Unused, Unused, Unused, ext)
+
+  def reqInfo(req: HttpRequest,
+              datasetId: String,
+              geoColumn: String,
+              tile: util.QuadTile,
+              ext: String): util.RequestInfo =
+    util.RequestInfo(req, datasetId, geoColumn, tile, ext)
 }
