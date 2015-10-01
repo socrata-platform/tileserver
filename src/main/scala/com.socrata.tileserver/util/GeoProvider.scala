@@ -62,13 +62,15 @@ object GeoProvider {
     params + (s"$$where" -> whereParam) + (s"$$select" -> selectParam) - s"$$style"
   }
 
-  /** Return the intersects SoQL fragment for the given column.
+  /** Return the SoQL fragment for the $where parameter.
     *
-    * @param pointColumn the column to match against.
+    * @param tile the QuadTile we're filtering for.
+    * @param geoColumn the column to match against.
     */
-  def filter(tile: QuadTile, pointColumn: String): String = {
+  def filter(tile: QuadTile, geoColumn: String): String = {
     val corners = tile.corners.map { case (lat, lon) => s"${lat} ${lon}" }.mkString(",")
 
-    s"""intersects($pointColumn, 'MULTIPOLYGON(((${corners})))'))"""
+    s"intersects($geoColumn, 'MULTIPOLYGON(((${corners})))'))" +
+      s"and visible_at($geoColumn, ${tile.resolution})"
   }
 }
