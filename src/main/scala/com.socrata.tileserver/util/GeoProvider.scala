@@ -71,6 +71,6 @@ object GeoProvider {
     val corners = tile.corners.map { case (lat, lon) => s"${lat} ${lon}" }.mkString(",")
 
     s"intersects($geoColumn, 'MULTIPOLYGON(((${corners})))') " +
-      s"and visible_at($geoColumn, ${tile.resolution / 2})"
+      s"and visible_at(simplify($geoColumn), ${tile.resolution / 2})"
   }
 }
