@@ -51,7 +51,7 @@ object GeoProvider {
     * @param geoColName the "$select" parameter to add.
     */
   def augmentParams(info: RequestInfo, filter: String): Map[String, String] = {
-    val simplify = s"simplify(${info.geoColumn}, ${info.tile.resolution})"
+    val simplify = s"simplify_preserve_topology(${info.geoColumn}, ${info.tile.resolution})"
 
     val params = info.req.queryParameters
     val whereParam =
