@@ -68,8 +68,9 @@ object GeoProvider {
     * @param geoColumn the column to match against.
     */
   def filter(tile: QuadTile, geoColumn: String): String = {
+    val simplify = s"simplify(${geoColumn}, ${tile.resolution})"
     val corners = tile.corners.map { case (lat, lon) => s"${lat} ${lon}" }.mkString(",")
 
-    s"intersects($geoColumn, 'MULTIPOLYGON(((${corners})))')"
+    s"intersects($geoColumn, 'MULTIPOLYGON(((${corners})))') and not is_empty($simplify)"
   }
 }
