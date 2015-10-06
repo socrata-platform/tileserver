@@ -51,7 +51,7 @@ object GeoProvider {
     * @param geoColName the "$select" parameter to add.
     */
   def augmentParams(info: RequestInfo, filter: String): Map[String, String] = {
-    val simplify = s"simplify(${info.geoColumn}, ${info.tile.resolution})"
+    val simplify = s"simplify_preserve_topology(${info.geoColumn}, ${info.tile.resolution})"
 
     val params = info.req.queryParameters
     val whereParam =
@@ -68,7 +68,7 @@ object GeoProvider {
     * @param geoColumn the column to match against.
     */
   def filter(tile: QuadTile, geoColumn: String): String = {
-    val simplify = s"simplify(${geoColumn}, ${tile.resolution})"
+    val simplify = s"simplify(${geoColumn}, ${tile.resolution / 4})"
     val corners = tile.corners.map { case (lat, lon) => s"${lat} ${lon}" }.mkString(",")
 
     s"intersects($geoColumn, 'MULTIPOLYGON(((${corners})))') and not is_empty($simplify)"
