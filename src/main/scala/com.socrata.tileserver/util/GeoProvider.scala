@@ -48,18 +48,22 @@ object GeoProvider {
     *
     * @param info the information about this request.
     * @param filter the "$where" parameter to add.
-    * @param geoColName the "$select" parameter to add.
     */
   def augmentParams(info: RequestInfo, filter: String): Map[String, String] = {
-    val simplify = s"simplify_preserve_topology(${info.geoColumn}, ${info.tile.resolution})"
+    // TODO : Make `selectSimplified` produce a smoother shape than it does now.
+    // Returning a single instance of a shape (eg. simplify(min(info.geoColumn))
+    // currently causes holes in large complex polygon datasets, so we're just
+    // selecting the groupBy value for now.
+    val selectSimplified  = s"snap_to_grid(${info.geoColumn}, ${info.tile.resolution * 2})"
+    val groupBy           = s"snap_to_grid(${info.geoColumn}, ${info.tile.resolution * 2})"
 
     val params = info.req.queryParameters
     val whereParam =
-      if (params.contains(s"$$where")) s"""(${params(s"$$where")}) and (${filter})""" else filter
+      if (params.contains(s"$$where")) s"""(${params(s"$$where")}) and ($filter)""" else filter
     val selectParam =
-      if (params.contains(s"$$select")) s"""${params(s"$$select")}, ${simplify}""" else simplify
+      if (params.contains(s"$$select")) s"""${params(s"$$select")}, $selectSimplified""" else selectSimplified
 
-    params + (s"$$where" -> whereParam) + (s"$$select" -> selectParam) - s"$$style"
+    params + (s"$$where" -> whereParam) + (s"$$select" -> selectParam) + (s"$$group" -> groupBy) - s"$$style"
   }
 
   /** Return the SoQL fragment for the $where parameter.
@@ -68,9 +72,7 @@ object GeoProvider {
     * @param geoColumn the column to match against.
     */
   def filter(tile: QuadTile, geoColumn: String): String = {
-    val simplify = s"simplify(${geoColumn}, ${tile.resolution / 4})"
-    val corners = tile.corners.map { case (lat, lon) => s"${lat} ${lon}" }.mkString(",")
-
-    s"intersects($geoColumn, 'MULTIPOLYGON(((${corners})))') and not is_empty($simplify)"
+    val corners = tile.corners.map { case (lat, lon) => s"$lat $lon" }.mkString(",")
+    s"intersects($geoColumn, 'MULTIPOLYGON((($corners)))')"
   }
 }
