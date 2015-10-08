@@ -29,6 +29,6 @@ case class PngHandler(val renderer: CartoRenderer) extends BaseHandler("png") {
                               encoder: TileEncoder): HttpResponse = {
     base ~>
       ContentType("image/png") ~>
-      Stream(renderer.renderPng(encoder.base64, reqInfo))
+      Stream(renderer.renderPng(encoder.wkbs, reqInfo))
   }
 }

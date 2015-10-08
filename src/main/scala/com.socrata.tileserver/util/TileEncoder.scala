@@ -5,6 +5,7 @@ import scala.collection.JavaConverters._
 import com.rojoma.json.v3.ast.JValue
 import com.rojoma.json.v3.codec.JsonEncode.toJValue
 import com.vividsolutions.jts.geom.{Geometry, Point}
+import com.vividsolutions.jts.io.WKBWriter
 import com.vividsolutions.jts.util.AssertionFailedException
 import no.ecc.vectortile.VectorTileEncoder
 import org.apache.commons.codec.binary.Base64
@@ -18,6 +19,8 @@ import TileEncoder._
   * @param features the features to encode.
   */
 case class TileEncoder(features: Set[TileEncoder.Feature]) {
+  private lazy val writer: WKBWriter = new WKBWriter()
+
   /** Create a vector tile encoded as a protocol-buffer. */
   lazy val bytes: Array[Byte] = {
     val underlying = new VectorTileEncoder(ZoomFactor * CoordinateMapper.Size,
@@ -41,6 +44,15 @@ case class TileEncoder(features: Set[TileEncoder.Feature]) {
 
   /** Create a vector tile as a base64 encoded protocol-buffer. */
   lazy val base64: String = Base64.encodeBase64String(bytes)
+
+  /** Create a Seq of Well Known Binary geometries. */
+  lazy val wkbs: Map[String, Seq[Array[Byte]]] = {
+    val grouped = features.toSeq.groupBy { case (geom, _) => layerName(geom) }
+
+    grouped.map { case (layer, features) =>
+      layer -> features.map { case (geom, _) => writer.write(geom) }
+    }
+  }
 
   /** String representation of `features`. */
   override lazy val toString: String = {
