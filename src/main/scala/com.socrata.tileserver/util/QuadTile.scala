@@ -42,7 +42,7 @@ case class QuadTile(rawX: Int, rawY: Int, zoom: Int) extends CoordinateFilter {
   def px(lon: Double, lat: Double): (Int, Int) = {
     val (lonX, latY) = mapper.px(lon, lat)
 
-    (lonX - (rawX * Size), latY - (rawY * Size))
+    (lonX - (rawX * Size), 255 - (latY - (rawY * Size)))
   }
 
   /** The point (x, y) in tile (256x256) space.
