@@ -50,20 +50,28 @@ object GeoProvider {
     * @param filter the "$where" parameter to add.
     */
   def augmentParams(info: RequestInfo, filter: String): Map[String, String] = {
+    // scalastyle:off multiple.string.literals
     // TODO : Make `selectSimplified` produce a smoother shape than it does now.
     // Returning a single instance of a shape (eg. simplify(min(info.geoColumn))
     // currently causes holes in large complex polygon datasets, so we're just
     // selecting the groupBy value for now.
     val selectSimplified  = s"snap_to_grid(${info.geoColumn}, ${info.tile.resolution * 2})"
-    val groupBy           = s"snap_to_grid(${info.geoColumn}, ${info.tile.resolution * 2})"
+    val groupBy = s"snap_to_grid(${info.geoColumn}, ${info.tile.resolution * 2})"
+
+    val selectKey = s"$$select"
+    val whereKey = s"$$where"
+    val groupKey = s"$$group"
+    val styleKey = s"$$style"
 
     val params = info.req.queryParameters
-    val whereParam =
-      if (params.contains(s"$$where")) s"""(${params(s"$$where")}) and ($filter)""" else filter
-    val selectParam =
-      if (params.contains(s"$$select")) s"""${params(s"$$select")}, $selectSimplified""" else selectSimplified
+    val selectParam = selectKey ->
+      params.get(selectKey).map(v => s"$v, $selectSimplified").getOrElse(selectSimplified)
+    val whereParam = whereKey ->
+      params.get(whereKey).map(v => s"($v) and ($filter)").getOrElse(filter)
+    val groupParam = groupKey ->
+      params.get(groupKey).map(v => s"($v), ($groupBy)").getOrElse(groupBy)
 
-    params + (s"$$where" -> whereParam) + (s"$$select" -> selectParam) + (s"$$group" -> groupBy) - s"$$style"
+    params + selectParam + whereParam + groupParam - styleKey
   }
 
   /** Return the SoQL fragment for the $where parameter.
