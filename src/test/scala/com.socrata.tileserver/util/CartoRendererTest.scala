@@ -4,13 +4,15 @@ package util
 import java.nio.charset.StandardCharsets.UTF_8
 import javax.servlet.http.HttpServletResponse.{SC_OK => ScOk}
 
-import com.rojoma.json.v3.ast._
 import com.rojoma.json.v3.io.JsonReader
 import com.rojoma.simplearm.v2.ResourceScope
+import org.apache.commons.codec.binary.Base64
 import org.apache.commons.io.IOUtils
+import org.velvia.MsgPack
 
 import com.socrata.http.client.{exceptions => _, _}
 
+import CartoRenderer.MapTile
 import exceptions.FailedRenderException
 
 // scalastyle:off import.grouping, no.whitespace.before.left.bracket
@@ -47,54 +49,48 @@ class CartoRendererTest extends TestBase with UnusedSugar {
   }
 
   test("renderPng throws on error") {
-    forAll { (pbf: String, z: Int, css: String, message: String) =>
+    forAll { (tile: MapTile, z: Int, css: String, message: String) =>
       val resp = mocks.ThrowsResponse(message)
       val client = mocks.StaticHttpClient(resp)
       val renderer = CartoRenderer(client, Unused)
+
       val info = new RequestInfo(Unused, Unused, Unused, Unused, Unused) {
         override val style = Some(css)
         override val zoom = z
       }
 
       val actual =
-        the [Exception] thrownBy renderer.renderPng(pbf, info) // scalastyle:ignore
+        the [Exception] thrownBy renderer.renderPng(tile, info) // scalastyle:ignore
       actual.getMessage must equal (message)
-    }
-  }
-
-  def extractField(key: String, jVal: JValue): String = {
-    val jObj = jVal.cast[JObject].get
-
-    jObj.get(key) match {
-      case Some(JString(str)) => str
-      case Some(n: JNumber) => n.toString
-      case _ => fail(s"Could not extract ${key}")
     }
   }
 
   test("renderPng returns expected response") {
     def makeResp(salt: String): (SimpleHttpRequest => Response) = req => {
-      val jVal = JsonReader.fromEvents(req.asInstanceOf[JsonHttpRequest].contents)
+      val blob = IOUtils.toByteArray(req.asInstanceOf[BlobHttpRequest].contents)
+      val unpacked = MsgPack.unpack(blob).asInstanceOf[Map[String, Any]]
 
-      val pbf = extractField("bpbf", jVal)
-      val zoom = extractField("zoom", jVal)
-      val css = extractField("style", jVal)
+      val tile =
+        unpacked("tile").asInstanceOf[Map[String, Any]].map(_.toString).toSeq.sorted
+      val z = unpacked("zoom")
+      val css = unpacked("style")
 
-      mocks.StringResponse(salt + pbf + zoom + css)
+      mocks.StringResponse(salt + tile + z + css)
     }
 
-    forAll { (salt: String, pbf: String, z: Int, css: String) =>
-      val payload = salt + pbf + z + css
+    forAll { (salt: String, rawTile: MapTile, z: Int, css: String) =>
+      val tile = rawTile.mapValues(wkbs => wkbs.map(Base64.encodeBase64String(_))).
+          map(_.toString).toSeq.sorted
 
       val client = mocks.DynamicHttpClient(makeResp(salt))
       val renderer = CartoRenderer(client, Unused)
       val info = new RequestInfo(Unused, Unused, Unused, Unused, Unused) {
         override val style = Some(css)
-        override val zoom = z
+        override val zoom: Int = z
       }
 
-      val expected = payload.getBytes(UTF_8)
-      val actual = IOUtils.toByteArray(renderer.renderPng(pbf, info))
+      val expected = salt + tile + z + css
+      val actual = IOUtils.toString(renderer.renderPng(rawTile, info))
 
       actual must equal (expected)
     }
