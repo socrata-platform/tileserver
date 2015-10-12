@@ -55,72 +55,93 @@ class GeoProviderTest extends TestBase with UnusedSugar with MockitoSugar {
     }
   }
 
-  test("Augmenting parameters adds to where and select") {
+  test("Augmenting parameters adds to select, where and group") {
     import gen.Alphanumerics._
 
     val otherKey = "$other"
+    val groupKey = "$group"
     val whereKey = "$where"
     val selectKey = "$select"
 
     forAll {(rawOtherValue: Alphanumeric,
+             selectParam: (Alphanumeric, Alphanumeric),
              whereParam: (Alphanumeric, Alphanumeric),
-             selectParam: (Alphanumeric, Alphanumeric)) =>
+             groupParam: Alphanumeric) =>
       val otherValue: String = rawOtherValue
-      val (whereBase, whereValue) = whereParam: (String, String)
       val (selectBase, selectValue) = selectParam: (String, String)
+      val (whereBase, whereValue) = whereParam: (String, String)
+      val groupBase = groupParam: String
 
       val neither = mocks.StaticRequest(otherKey -> otherValue)
-      val where = mocks.StaticRequest(whereKey -> whereBase)
       val select = mocks.StaticRequest(selectKey -> selectBase)
+      val where = mocks.StaticRequest(whereKey -> whereBase)
+      val group = mocks.StaticRequest(groupKey -> groupBase)
 
       neither.queryParameters must have size (1)
       val nParams = GeoProvider.augmentParams(reqInfo(neither,
                                                       geoColumn=selectValue),
                                               whereValue)
-      nParams must have size (3)
-      nParams(otherKey) must equal (otherValue)
-      nParams(whereKey) must equal (whereValue)
+      nParams must have size (4)
       nParams(selectKey) must include (selectValue)
-
-      val wParams = GeoProvider.augmentParams(reqInfo(neither ++ where,
-                                                      geoColumn=selectValue),
-                                              whereValue)
-      wParams must have size (3)
-      wParams(otherKey) must equal (otherValue)
-
-      wParams(whereKey) must startWith (s"(${whereBase})")
-      wParams(whereKey) must endWith (s"(${whereValue})")
-      wParams(whereKey) must include regex ("\\s+and\\s+")
-
-      wParams(selectKey) must include (selectValue)
-      wParams(selectKey) must include ("simplify")
-
+      nParams(selectKey) must include ("snap_to_grid")
+      nParams(whereKey) must equal (whereValue)
+      nParams(otherKey) must equal (otherValue)
+      nParams(groupKey) must include ("snap_to_grid")
 
       val sParams = GeoProvider.augmentParams(reqInfo(neither ++ select,
                                                       geoColumn=selectValue),
                                               whereValue)
-      sParams must have size (3)
+      sParams must have size (4)
+      sParams(selectKey) must startWith (s"$selectBase,")
+      sParams(selectKey) must include (selectValue)
+      sParams(selectKey) must include ("snap_to_grid")
+
       sParams(otherKey) must equal (otherValue)
       sParams(whereKey) must equal (whereValue)
 
-      sParams(selectKey) must startWith (selectBase)
-      sParams(selectKey) must include (selectValue)
-      sParams(selectKey) must include ("simplify")
-      sParams(selectKey) must include regex (",\\s*")
+      sParams(groupKey) must include ("snap_to_grid")
 
-      val wsParams = GeoProvider.augmentParams(reqInfo(neither ++ where ++ select,
+      val wParams = GeoProvider.augmentParams(reqInfo(neither ++ where,
+                                                      geoColumn=selectValue),
+                                              whereValue)
+      wParams must have size (4)
+      wParams(otherKey) must equal (otherValue)
+
+      wParams(selectKey) must include (selectValue)
+      wParams(selectKey) must include ("snap_to_grid")
+
+      wParams(whereKey) must startWith (s"(${whereBase}) and")
+      wParams(whereKey) must endWith (s"(${whereValue})")
+
+      wParams(groupKey) must include ("snap_to_grid")
+
+      val gParams = GeoProvider.augmentParams(reqInfo(neither ++ group,
+                                                      geoColumn=selectValue),
+                                              whereValue)
+      gParams must have size (4)
+      gParams(otherKey) must equal (otherValue)
+
+      gParams(selectKey) must include (selectValue)
+      gParams(selectKey) must include ("snap_to_grid")
+
+      gParams(groupKey) must startWith (s"(${groupBase}),")
+      gParams(groupKey) must include ("snap_to_grid")
+
+      val allParams = GeoProvider.augmentParams(reqInfo(neither ++ where ++ select ++ group,
                                                        geoColumn=selectValue),
                                                whereValue)
-      wsParams must have size (3)
-      wsParams(otherKey) must equal (otherValue)
+      allParams must have size (4)
+      allParams(otherKey) must equal (otherValue)
 
-      wsParams(whereKey) must startWith (s"(${whereBase})")
-      wsParams(whereKey) must endWith (s"(${whereValue})")
-      wsParams(whereKey) must include regex ("\\s+and\\s+")
+      allParams(selectKey) must startWith (s"$selectBase,")
+      allParams(selectKey) must include (selectValue)
+      allParams(selectKey) must include ("snap_to_grid")
 
-      wsParams(selectKey) must startWith (selectBase)
-      wsParams(selectKey) must include (selectValue)
-      wsParams(selectKey) must include regex (",\\s*")
+      allParams(whereKey) must startWith (s"(${whereBase}) and ")
+      allParams(whereKey) must endWith (s"(${whereValue})")
+
+      allParams(groupKey) must startWith (s"(${groupBase}),")
+      allParams(groupKey) must include ("snap_to_grid")
     }
   }
 }

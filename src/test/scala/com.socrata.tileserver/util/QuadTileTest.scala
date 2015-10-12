@@ -7,6 +7,8 @@ import CoordinateMapper.Size
 
 // scalastyle:off import.grouping
 class QuadTileTest extends TestBase {
+  def flip(n: Int): Int = 255 - n
+
   test("Tile includes point on east edge") {
     val tile = new QuadTile(330, 800, 11)
     val (lon, lat) = (-121.816769, 36.579349)
@@ -15,7 +17,7 @@ class QuadTileTest extends TestBase {
     tile.north must be < lat
     tile.south must be > lat
 
-    tile.px(lon, lat) must equal ((255, 34))
+    tile.px(lon, lat) must equal ((255, flip(34)))
   }
 
   test("Left tile's east edge must touch right tile's west edge") {
@@ -34,16 +36,16 @@ class QuadTileTest extends TestBase {
 
   test("tilePx(lon, lat) maps correctly to pixels") {
     val tile14 = QuadTile(4207, 6101, 14)
-    tile14.px(-87.539383, 41.681059) must equal ((252, 129))
-    tile14.px(-87.545220, 41.683555) must equal ((184, 90))
-    tile14.px(-87.541167, 41.688135) must equal ((231, 19))
-    tile14.px(-87.559501, 41.682697) must equal ((18, 103))
-    tile14.px(-87.557169, 41.688140) must equal ((45, 18))
+    tile14.px(-87.539383, 41.681059) must equal ((252, flip(129)))
+    tile14.px(-87.545220, 41.683555) must equal ((184, flip(90)))
+    tile14.px(-87.541167, 41.688135) must equal ((231, flip(19)))
+    tile14.px(-87.559501, 41.682697) must equal ((18, flip(103)))
+    tile14.px(-87.557169, 41.688140) must equal ((45, flip(18)))
 
     val tile5 = QuadTile(8, 11, 5)
-    tile5.px(-87.676410, 41.776204) must equal ((53, 232))
-    tile5.px(-87.560088, 41.753145) must equal ((56, 233))
-    tile5.px(-87.667603, 42.011423) must equal ((53, 225))
+    tile5.px(-87.676410, 41.776204) must equal ((53, flip(232)))
+    tile5.px(-87.560088, 41.753145) must equal ((56, flip(233)))
+    tile5.px(-87.667603, 42.011423) must equal ((53, flip(225)))
   }
 
   test("tile.px(lon, lat) maps points into pixel space") {
@@ -54,7 +56,7 @@ class QuadTileTest extends TestBase {
       val (lon, lat) = pt.onto(tile)
       val (tx, ty) = tile.mapper.px(lon, lat)
 
-      tile.px(lon, lat) must equal ((tx % Size,ty % Size))
+      tile.px(lon, lat) must equal ((tx % Size, flip(ty % Size)))
     }
   }
 
@@ -82,10 +84,10 @@ class QuadTileTest extends TestBase {
       val offset = Point(c, c)
       val (east, north) = offset.onto(tile)
 
-      tile.px(west, north) must be ((0, c))
-      tile.px(east, north) must be ((c, c))
-      tile.px(east, south) must be ((c, 0))
-      tile.px(west, south) must be ((0, 0))
+      tile.px(west, north) must be ((0, flip(c)))
+      tile.px(east, north) must be ((c, flip(c)))
+      tile.px(east, south) must be ((c, flip(0)))
+      tile.px(west, south) must be ((0, flip(0)))
     }
   }
 }

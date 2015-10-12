@@ -1,16 +1,19 @@
 package com.socrata.tileserver
 package util
 
-import java.io.InputStream
+import java.io.{ByteArrayInputStream, InputStream}
 import java.nio.charset.StandardCharsets.UTF_8
 import javax.servlet.http.HttpServletResponse.{SC_OK => ScOk}
 
-import com.rojoma.json.v3.interpolation._
 import com.rojoma.simplearm.v2.ResourceScope
 import com.socrata.http.client.{HttpClient, RequestBuilder, Response}
+import org.apache.commons.codec.binary.Base64
 import org.apache.commons.io.IOUtils
+import org.velvia.MsgPack
 
 import exceptions.FailedRenderException
+
+import CartoRenderer._
 
 /** Calls out to the renderer service to render tiles.
   *
@@ -21,16 +24,26 @@ import exceptions.FailedRenderException
 case class CartoRenderer(http: HttpClient, baseUrl: RequestBuilder) {
   /** Render the provided tile using the provided request info.
     *
-    * @param pbf the base64 encoded version of the vector tile.
+    * @param rawTile a Map that contains the features as WKB.
     * @param info the request info to use while rendering the tile.
     */
-  def renderPng(pbf: String, info: RequestInfo): InputStream = {
+  def renderPng(rawTile: MapTile, info: RequestInfo): InputStream = {
     val style = info.style.get
-    val content = json"{ bpbf: ${pbf}, zoom: ${info.zoom}, style: ${style} }"
+    val tile: Map[String, Seq[String]] = rawTile.map { case (layer, wkbs) =>
+      layer -> wkbs.map(Base64.encodeBase64String(_))
+    }
+
+    val content: Map[String, Any] = Map("tile" -> tile,
+                                        "zoom" -> info.zoom,
+                                        "style" -> style)
+    val packed: Array[Byte] = MsgPack.pack(content)
+
+    val blob = info.rs.open(new ByteArrayInputStream(packed))
+
     val req = baseUrl.
       addPath("render").
       addHeader("X-Socrata-RequestID" -> info.requestId).
-      jsonBody(content)
+      blob(blob)
 
     val resp = http.execute(req, info.rs)
 
@@ -40,4 +53,8 @@ case class CartoRenderer(http: HttpClient, baseUrl: RequestBuilder) {
       throw FailedRenderException(IOUtils.toString(resp.inputStream(), UTF_8))
     }
   }
+}
+
+object CartoRenderer {
+  type MapTile = Map[String, Seq[Array[Byte]]]
 }
