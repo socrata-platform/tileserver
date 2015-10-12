@@ -58,10 +58,11 @@ object GeoProvider {
     val selectSimplified  = s"snap_to_grid(${info.geoColumn}, ${info.tile.resolution})"
     val groupBy = s"snap_to_grid(${info.geoColumn}, ${info.tile.resolution})"
 
-    val selectKey = s"$$select"
-    val whereKey = s"$$where"
-    val groupKey = s"$$group"
-    val styleKey = s"$$style"
+    val selectKey = '$' + "select"
+    val whereKey = '$' + "where"
+    val groupKey = '$' + "group"
+    val styleKey = '$' + "style"
+    val overscanKey = '$' + "overscan"
 
     val params = info.req.queryParameters
     val selectParam = selectKey ->
@@ -71,7 +72,7 @@ object GeoProvider {
     val groupParam = groupKey ->
       params.get(groupKey).map(v => s"($v), ($groupBy)").getOrElse(groupBy)
 
-    params + selectParam + whereParam + groupParam - styleKey
+    params + selectParam + whereParam + groupParam - styleKey - overscanKey
   }
 
   /** Return the SoQL fragment for the $where parameter.
