@@ -37,16 +37,16 @@ package object handlers {
       base ~> Content("text/plain", encoder.toString)
   }
 
-  // When you try to render a png, but have no style.
-  /** Rejects attempts to render pngs without $style param. */
-  val UnfashionablePngHandler = new BaseHandler("png") {
+  /** Rejects attempts to render pngs without $style or $overscan param(s). */
+  val IncompletePngHandler = new BaseHandler("png") {
     override def isDefinedAt(reqInfo: RequestInfo): Boolean =
-      reqInfo.extension == extension && reqInfo.style.isEmpty
+      reqInfo.extension == extension && (reqInfo.style.isEmpty || reqInfo.overscan.isEmpty)
 
     override def createResponse(reqInfo: RequestInfo,
                                 base: HttpResponse,
                                 encoder: TileEncoder): HttpResponse =
       BadRequest ~>
-        Content("text/plain", "Cannot render png without '$style' query parameter.")
+        Content("text/plain",
+                "Cannot render png with invalid or missing '$style' or '$overscan' query parameter.")
   }
 }

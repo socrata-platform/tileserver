@@ -33,7 +33,7 @@ case class TileService(renderer: CartoRenderer, provider: GeoProvider)  {
   private[this] val typedHandlers: Seq[Handler with FileType] = Seq(PbfHandler,
                                                                     BpbfHandler,
                                                                     PngHandler(renderer),
-                                                                    UnfashionablePngHandler,
+                                                                    IncompletePngHandler,
                                                                     JsonHandler,
                                                                     TxtHandler)
   private[this] val handler: Handler = typedHandlers.

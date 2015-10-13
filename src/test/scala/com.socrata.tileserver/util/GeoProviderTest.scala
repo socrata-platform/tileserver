@@ -150,9 +150,7 @@ class GeoProviderTest extends TestBase with UnusedSugar with MockitoSugar {
     val base = RequestBuilder("mock.socrata.com")
 
     forAll { os: Int =>
-      val info = new RequestInfo(Unused, Unused, Unused, Unused, Unused) {
-        override val overscan: Option[Int] = Some(os)
-      }
+      val info = mocks.PngInfo(os)
       val expected = GeoProvider.filter(info.tile, info.geoColumn, os)
 
       val client = mocks.StaticCuratedClient.withReq { request =>
@@ -173,9 +171,7 @@ class GeoProviderTest extends TestBase with UnusedSugar with MockitoSugar {
     val resp = mock[Response]
     val base = RequestBuilder("mock.socrata.com")
 
-    val info = new RequestInfo(Unused, Unused, Unused, Unused, Unused) {
-      override val overscan: Option[Int] = None
-    }
+    val info = mocks.PngInfo(Unused, None, None)
     val expected = GeoProvider.filter(info.tile, info.geoColumn, 0)
 
     val client = mocks.StaticCuratedClient.withReq { request =>

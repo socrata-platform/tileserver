@@ -50,7 +50,7 @@ trait UnusedSugar {
       override def px(lon: Double, lat: Double): (Int, Int) = (lon.toInt, lat.toInt)
     }
 
-  implicit def unusedToRequestINfo(u: UnusedValue): util.RequestInfo =
+  implicit def unusedToRequestInfo(u: UnusedValue): util.RequestInfo =
     util.RequestInfo(Unused, Unused, Unused, Unused, Unused)
 }
 

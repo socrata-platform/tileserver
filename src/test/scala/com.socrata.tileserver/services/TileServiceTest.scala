@@ -48,11 +48,9 @@ class TileServiceTest extends TestBase with UnusedSugar with MockitoSugar {
       val client = mocks.StaticCuratedClient(upstream)
       val resp = new mocks.ByteArrayServletOutputStream().responseFor
 
-      val style: Map[String, String] =
-        if (ext == Png) Map(s"$$style" -> Unused) else Map.empty
-      val req = mocks.StaticRequest(style)
-      TileService(Unused, util.GeoProvider(client)).
-        handleRequest(reqInfo(req, ext))(resp)
+      val info = mocks.PngInfo(ext)
+
+      TileService(Unused, util.GeoProvider(client)).handleRequest(info)(resp)
 
       verify(resp).setStatus(SC_OK)
       verify(resp).setHeader("Access-Control-Allow-Origin", "*")
@@ -64,7 +62,7 @@ class TileServiceTest extends TestBase with UnusedSugar with MockitoSugar {
     import gen.Extensions._
     import gen.Points._
 
-    forAll { (pt: ValidPoint, ext: Extension, fashionable: Boolean) =>
+    forAll { (pt: ValidPoint, ext: Extension, complete: Boolean) =>
       val upstream = mocks.SeqResponse(fJson(pt))
       val client = mocks.StaticCuratedClient(upstream)
       val expected = Set(feature(pt))
@@ -72,17 +70,15 @@ class TileServiceTest extends TestBase with UnusedSugar with MockitoSugar {
       val outputStream = new mocks.ByteArrayServletOutputStream
       val resp = outputStream.responseFor
 
-      val style: Map[String, String] =
-        if (ext == Png && fashionable) Map(s"$$style" -> Unused) else Map.empty
-      val req = mocks.StaticRequest(style)
-
-      val renderer = CartoRenderer(mocks.StaticHttpClient(expected.toString),
-                                   Unused)
+      val info =
+        if (complete) mocks.PngInfo(ext) else mocks.PngInfo(ext, None, None)
+      val renderer =
+        CartoRenderer(mocks.StaticHttpClient(expected.toString), Unused)
 
       TileService(renderer, util.GeoProvider(client)).
-        handleRequest(reqInfo(req, ext))(resp)
+        handleRequest(info)(resp)
 
-      if (ext != Png || fashionable) {
+      if (ext != Png || complete) {
         verify(resp).setStatus(SC_OK)
       } else {
         verify(resp).setStatus(SC_BAD_REQUEST)
@@ -98,10 +94,11 @@ class TileServiceTest extends TestBase with UnusedSugar with MockitoSugar {
         case Json =>
           outputStream.getString must equal (upstream.toString)
         case Png =>
-          if (fashionable) {
+          if (complete) {
             outputStream.getString must equal (expected.toString)
           } else {
-            outputStream.getString must include (s"$$style")
+            outputStream.getString must include ('$' + "style")
+            outputStream.getString must include ('$' + "overscan")
           }
         // ".txt" should be supported, but its output format is unspecified.
         case Txt => ()
@@ -116,11 +113,17 @@ class TileServiceTest extends TestBase with UnusedSugar with MockitoSugar {
     val client = mocks.StaticCuratedClient(upstream)
     val provider = util.GeoProvider(client)
 
-    forAll { ext: Extension =>
-      val style: Map[String, String] =
-        if (ext == Png) Map(s"$$style" -> Unused) else Map.empty
+    val overscan: Int = Unused
 
-      val req = new mocks.StaticRequest(style,
+    forAll { ext: Extension =>
+      val params: Map[String, String] =
+        if (ext == Png) {
+          Map('$' + "style" -> Unused, '$' + "overscan" -> overscan.toString)
+        } else {
+          Map.empty
+        }
+
+      val req = new mocks.StaticRequest(params,
                                         Map("Host" -> "host.test-socrata.com"),
                                         false)
 
@@ -166,11 +169,9 @@ class TileServiceTest extends TestBase with UnusedSugar with MockitoSugar {
       val outputStream = new mocks.ByteArrayServletOutputStream
       val resp = outputStream.responseFor
 
-      val req: HttpRequest =
-        if (ext == Png) mocks.StaticRequest("$style" -> Unused) else Unused
+      val info = mocks.PngInfo(ext)
 
-      TileService(Unused, GeoProvider(client)).
-        handleRequest(reqInfo(req, ext))(resp)
+      TileService(Unused, GeoProvider(client)).handleRequest(info)(resp)
 
       verify(resp).setStatus(SC_OK)
 
@@ -188,8 +189,37 @@ class TileServiceTest extends TestBase with UnusedSugar with MockitoSugar {
     val outputStream = new mocks.ByteArrayServletOutputStream
     val resp = outputStream.responseFor
 
-    TileService(Unused, GeoProvider(client)).
-      handleRequest(reqInfo(Png))(resp)
+    val info = mocks.PngInfo(Png, None, Some(Unused: Int))
+    TileService(Unused, GeoProvider(client)).handleRequest(info)(resp)
+
+    verify(resp).setStatus(SC_BAD_REQUEST)
+  }
+
+  test("Handle request fails when rendering a `.png` without `$overscan`") {
+    import gen.Extensions._
+
+    val upstream = mocks.SeqResponse(Seq.empty)
+    val client = mocks.StaticCuratedClient(upstream)
+    val outputStream = new mocks.ByteArrayServletOutputStream
+    val resp = outputStream.responseFor
+    val info = mocks.PngInfo(Png, Some(Unused: String), None)
+
+    TileService(Unused, GeoProvider(client)).handleRequest(info)(resp)
+
+    verify(resp).setStatus(SC_BAD_REQUEST)
+  }
+
+  test("Handle request fails when rendering a `.png` invalid `$overscan`") {
+    import gen.Extensions._
+
+    val upstream = mocks.SeqResponse(Seq.empty)
+    val client = mocks.StaticCuratedClient(upstream)
+    val outputStream = new mocks.ByteArrayServletOutputStream
+    val resp = outputStream.responseFor
+    val req = mocks.StaticRequest(Map('$' + "style" -> Unused.toString,
+                                      '$' + "overscan" -> Unused.toString))
+
+    TileService(Unused, GeoProvider(client)).handleRequest(reqInfo(req, ext=Png))(resp)
 
     verify(resp).setStatus(SC_BAD_REQUEST)
   }
@@ -204,12 +234,9 @@ class TileServiceTest extends TestBase with UnusedSugar with MockitoSugar {
       val client = mocks.StaticCuratedClient(upstream)
       val outputStream = new mocks.ByteArrayServletOutputStream
       val resp = outputStream.responseFor
+      val info = mocks.PngInfo(ext)
 
-      val req: HttpRequest =
-        if (ext == Png) mocks.StaticRequest("$style" -> Unused) else Unused
-
-      TileService(Unused, GeoProvider(client)).
-        handleRequest(reqInfo(req, ext))(resp)
+      TileService(Unused, GeoProvider(client)).handleRequest(info)(resp)
 
       verify(resp).setStatus(SC_OK)
 
@@ -316,8 +343,11 @@ class TileServiceTest extends TestBase with UnusedSugar with MockitoSugar {
       val outputStream = new mocks.ByteArrayServletOutputStream
       val resp = outputStream.responseFor
 
+      val overscan: Int = Unused
+      val params: Map[String, String] = Map('$' + "style" -> Unused,
+                                            '$' + "overscan" -> overscan.toString)
       val req: HttpRequest =
-        if (ext == Png) mocks.StaticRequest("$style" -> Unused) else Unused
+        if (ext == Png) mocks.StaticRequest(params) else Unused
 
       TileService(Unused, GeoProvider(client)).
         service(Unused,
@@ -439,15 +469,11 @@ class TileServiceTest extends TestBase with UnusedSugar with MockitoSugar {
       val client = mocks.StaticCuratedClient(upstream)
       val outputStream = new mocks.ByteArrayServletOutputStream
       val resp = outputStream.responseFor
-
-      val style: Map[String, String] =
-        if (ext == Png) Map(s"$$style" -> Unused) else Map.empty
-      val req = mocks.StaticRequest(style)
-
+      val info = mocks.PngInfo(ext)
       val renderer = CartoRenderer(mocks.StaticHttpClient(""), Unused)
 
       TileService(renderer, util.GeoProvider(client)).
-        handleRequest(reqInfo(req, ext))(resp)
+        handleRequest(info)(resp)
 
       verify(resp).setStatus(SC_OK)
 
@@ -543,14 +569,15 @@ class TileServiceTest extends TestBase with UnusedSugar with MockitoSugar {
     }
   }
 
-  test("`$style` is not passed upstream") {
+  test("`$style` and `$overscan` are not passed upstream") {
     import gen.Extensions._
 
     forAll { ext: Extension =>
       val upstream = mocks.StringResponse(Unused)
       val outputStream = new mocks.ByteArrayServletOutputStream
       val resp = outputStream.responseFor
-      val req: HttpRequest = mocks.StaticRequest("$style" -> Unused)
+      val info = mocks.PngInfo(ext, Some(Unused: String), Some(Unused: Int))
+
       val client = mocks.StaticCuratedClient.withReq { request =>
         val actual = request(Unused).builder
         actual.query.toMap.get("$style") must be ('empty)
@@ -560,7 +587,7 @@ class TileServiceTest extends TestBase with UnusedSugar with MockitoSugar {
       }
 
       TileService(Unused, GeoProvider(client)).
-        handleRequest(reqInfo(req, ext))(resp)
+        handleRequest(info)(resp)
 
       verify(resp).setStatus(SC_OK)
     }
