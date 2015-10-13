@@ -23,7 +23,7 @@ case class GeoProvider(client: CuratedServiceClient) {
     * @param params the query parameters for the request.
     */
   def doQuery(info: RequestInfo): GeoResponse = {
-    val intersects = filter(info.tile, info.geoColumn)
+    val intersects = filter(info.tile, info.geoColumn, info.overscan.getOrElse(0))
     val params = augmentParams(info, intersects)
     val headers = HeaderFilter.headers(info.req)
 
@@ -79,9 +79,10 @@ object GeoProvider {
     *
     * @param tile the QuadTile we're filtering for.
     * @param geoColumn the column to match against.
+    * @param overscan the amount of overscan in pixels
     */
-  def filter(tile: QuadTile, geoColumn: String): String = {
-    val corners = tile.corners.map { case (lat, lon) => s"$lat $lon" }.mkString(",")
+  def filter(tile: QuadTile, geoColumn: String, overscan: Int): String = {
+    val corners = tile.corners(overscan).map { case (lat, lon) => s"$lat $lon" }.mkString(",")
     s"intersects($geoColumn, 'MULTIPOLYGON((($corners)))')"
   }
 }

@@ -22,11 +22,20 @@ case class RequestInfo(req: HttpRequest,
   val requestId: RequestId = getFromRequest(req.servletRequest)
 
   /** The CartoCss for the request, if present. */
-  val style: Option[String] = req.queryParameters.get(s"$$style")
+  val style: Option[String] = req.queryParameters.get('$' + "style")
 
   /** The ResourceScope to be used when processing this request. */
   val rs: ResourceScope = req.resourceScope
 
   /** The zoom level of this request. */
   val zoom: Int = tile.zoom
+
+  /** The overscan amount in pixels. */
+  val overscan: Option[Int] = req.queryParameters.get('$' + "overscan").flatMap { s =>
+    try {
+      Some(s.toInt)
+    } catch {
+      case _: NumberFormatException => None
+    }
+  }
 }

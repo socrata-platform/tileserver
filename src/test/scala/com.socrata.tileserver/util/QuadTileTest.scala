@@ -12,10 +12,10 @@ class QuadTileTest extends TestBase {
   test("Tile includes point on east edge") {
     val tile = new QuadTile(330, 800, 11)
     val (lon, lat) = (-121.816769, 36.579349)
-    tile.east must be > lon
-    tile.west must be < lon
-    tile.north must be < lat
-    tile.south must be > lat
+    tile.east(0) must be > lon
+    tile.west(0) must be < lon
+    tile.north(0) must be < lat
+    tile.south(0) must be > lat
 
     tile.px(lon, lat) must equal ((255, flip(34)))
   }
@@ -24,14 +24,14 @@ class QuadTileTest extends TestBase {
     val left = new QuadTile(330, 800, 11)
     val right = new QuadTile(331, 800, 11)
 
-    left.east must equal (right.west)
+    left.east(0) must equal (right.west(0))
   }
 
   test("Upper tile's south edge must touch lower tile's north edge") {
     val upper = new QuadTile(330, 800, 11)
     val lower = new QuadTile(330, 799, 11)
 
-    upper.south must equal (lower.north)
+    upper.south(0) must equal (lower.north(0))
   }
 
   test("tilePx(lon, lat) maps correctly to pixels") {
@@ -80,7 +80,7 @@ class QuadTileTest extends TestBase {
 
     forAll { tile: QuadTile =>
       val mapper = tile.mapper
-      val (west, south) = (tile.west, tile.south)
+      val (west, south) = (tile.west(0), tile.south(0))
       val offset = Point(c, c)
       val (east, north) = offset.onto(tile)
 
