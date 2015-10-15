@@ -35,7 +35,8 @@ case class CartoRenderer(http: HttpClient, baseUrl: RequestBuilder) {
 
     val content: Map[String, Any] = Map("tile" -> tile,
                                         "zoom" -> info.zoom,
-                                        "style" -> style)
+                                        "style" -> style,
+                                        "overscan" -> info.overscan.getOrElse(0))
     val packed: Array[Byte] = MsgPack.pack(content)
 
     val blob = info.rs.open(new ByteArrayInputStream(packed))
