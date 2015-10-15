@@ -28,7 +28,7 @@ class GeoProviderTest extends TestBase with UnusedSugar with MockitoSugar {
                                                    "X-Socrata-Host" -> "geo.provider.test"))
       val info = RequestInfo(request, id, Unused, Unused, Unused)
 
-      val filter = GeoProvider.filter(info.tile, info.geoColumn)
+      val filter = GeoProvider.filter(info.tile, info.geoColumn, Unused)
       val augmented = GeoProvider.augmentParams(info, filter)
       val expected = base.
         addPath("id").
@@ -128,8 +128,8 @@ class GeoProviderTest extends TestBase with UnusedSugar with MockitoSugar {
       gParams(groupKey) must include ("snap_to_grid")
 
       val allParams = GeoProvider.augmentParams(reqInfo(neither ++ where ++ select ++ group,
-                                                       geoColumn=selectValue),
-                                               whereValue)
+                                                        geoColumn=selectValue),
+                                                whereValue)
       allParams must have size (4)
       allParams(otherKey) must equal (otherValue)
 
@@ -142,6 +142,61 @@ class GeoProviderTest extends TestBase with UnusedSugar with MockitoSugar {
 
       allParams(groupKey) must startWith (s"(${groupBase}),")
       allParams(groupKey) must include ("snap_to_grid")
+    }
+  }
+
+  test("GeoProvider adds info.overscan to $where if present") {
+    val resp = mock[Response]
+    val base = RequestBuilder("mock.socrata.com")
+
+    forAll { os: Int =>
+      val info = mocks.PngInfo(os)
+      val expected = GeoProvider.filter(info.tile, info.geoColumn, os)
+
+      val client = mocks.StaticCuratedClient.withReq { request =>
+        val actual = request(base).builder
+        val query = actual.query.toMap
+
+        // Assertions are in here, since we only care about what the client sees.
+        query('$' + "where") must equal (expected)
+
+        resp
+      }
+
+      GeoProvider(client).doQuery(info): Unit
+    }
+  }
+
+  test("GeoProvider adds overscan of zero to $where if absent") {
+    val resp = mock[Response]
+    val base = RequestBuilder("mock.socrata.com")
+
+    val info = mocks.PngInfo(Unused, None, None)
+    val expected = GeoProvider.filter(info.tile, info.geoColumn, 0)
+
+    val client = mocks.StaticCuratedClient.withReq { request =>
+      val actual = request(base).builder
+      val query = actual.query.toMap
+
+      // Assertions are in here, since we only care about what the client sees.
+      query('$' + "where") must equal (expected)
+
+      resp
+    }
+
+    GeoProvider(client).doQuery(info): Unit
+  }
+
+  test("filter uses overscan to adjust corners") {
+    import gen.QuadTiles._
+
+    forAll { (tile: QuadTile, geoColumn: String, os: Int) =>
+      val actual = GeoProvider.filter(tile, geoColumn, os)
+
+      tile.corners(os).foreach { case (lat, lon) =>
+        actual must include (lat.toString)
+        actual must include (lon.toString)
+      }
     }
   }
 }

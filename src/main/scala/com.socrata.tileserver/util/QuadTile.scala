@@ -19,20 +19,32 @@ case class QuadTile(rawX: Int, rawY: Int, zoom: Int) extends CoordinateFilter {
   /** The mapped TMS coordinate. */
   val (x: Int, y: Int) = mapper.tmsCoordinates(rawX, rawY)
 
-  /** North edge of the tile (lat). */
-  val north: Double = mapper.lat(y * Size)
+  /** North edge of the tile (lat).
+    *
+    * @param os overscan amount (in pixels)
+    */
+  def north(os: Int): Double = mapper.lat(y * Size - os)
 
-  /** East edge of the tile (lon). */
-  val east:  Double = mapper.lon(x * Size + Size)
+  /** East edge of the tile (lon).
+    *
+    * @param os overscan amount (in pixels)
+    */
+  def east(os: Int):  Double = mapper.lon(x * Size + Size + os)
 
-  /** South edge of the tile (lat). */
-  val south: Double = mapper.lat(y * Size + Size)
+  /** South edge of the tile (lat).
+    *
+    * @param os overscan amount (in pixels)
+    */
+  def south(os: Int): Double = mapper.lat(y * Size + Size + os)
 
-  /** West edge of the tile (lon). */
-  val west:  Double = mapper.lon(x * Size)
+  /** West edge of the tile (lon).
+    *
+    * @param os overscan amount (in pixels)
+    */
+  def west(os: Int):  Double = mapper.lon(x * Size - os)
 
   /** The width of pixels in degrees (lat/lon). */
-  val resolution: Double = Math.min(east - west, south - north) / Size
+  val resolution: Double = Math.min(east(0) - west(0), south(0) - north(0)) / Size
 
   /** The point (x, y) in tile (256x256) space.
     *
@@ -66,7 +78,12 @@ case class QuadTile(rawX: Int, rawY: Int, zoom: Int) extends CoordinateFilter {
   /** A Seq of the corners (lon, lat) of this tile.
     *
     * NOTE: This repeats the first corner at the end of the Seq.
+    * @param os Overscan amount in pixels
     */
-  val corners: Seq[(Double, Double)] =
-    Seq(west -> north, east -> north, east -> south, west -> south, west -> north)
+  def corners(os: Int): Seq[(Double, Double)] =
+    Seq(west(os) -> north(os),
+        east(os) -> north(os),
+        east(os) -> south(os),
+        west(os) -> south(os),
+        west(os) -> north(os))
 }

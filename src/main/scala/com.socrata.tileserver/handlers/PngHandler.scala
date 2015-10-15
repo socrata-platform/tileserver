@@ -17,7 +17,7 @@ import util.{CartoRenderer, RequestInfo, TileEncoder}
   */
 case class PngHandler(val renderer: CartoRenderer) extends BaseHandler("png") {
   override def isDefinedAt(reqInfo: RequestInfo): Boolean =
-    reqInfo.extension == extension && reqInfo.style.isDefined
+    reqInfo.extension == extension && reqInfo.style.isDefined && reqInfo.overscan.isDefined
 
   override def recover: PartialFunction[Throwable, HttpResponse] = {
     case _: FailedRenderException => BadRequest ~>

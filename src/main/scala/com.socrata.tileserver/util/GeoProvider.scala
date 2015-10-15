@@ -23,7 +23,7 @@ case class GeoProvider(client: CuratedServiceClient) {
     * @param params the query parameters for the request.
     */
   def doQuery(info: RequestInfo): GeoResponse = {
-    val intersects = filter(info.tile, info.geoColumn)
+    val intersects = filter(info.tile, info.geoColumn, info.overscan.getOrElse(0))
     val params = augmentParams(info, intersects)
     val headers = HeaderFilter.headers(info.req)
 
@@ -58,10 +58,11 @@ object GeoProvider {
     val selectSimplified  = s"snap_to_grid(${info.geoColumn}, ${info.tile.resolution})"
     val groupBy = s"snap_to_grid(${info.geoColumn}, ${info.tile.resolution})"
 
-    val selectKey = s"$$select"
-    val whereKey = s"$$where"
-    val groupKey = s"$$group"
-    val styleKey = s"$$style"
+    val selectKey = '$' + "select"
+    val whereKey = '$' + "where"
+    val groupKey = '$' + "group"
+    val styleKey = '$' + "style"
+    val overscanKey = '$' + "overscan"
 
     val params = info.req.queryParameters
     val selectParam = selectKey ->
@@ -71,16 +72,17 @@ object GeoProvider {
     val groupParam = groupKey ->
       params.get(groupKey).map(v => s"($v), ($groupBy)").getOrElse(groupBy)
 
-    params + selectParam + whereParam + groupParam - styleKey
+    params + selectParam + whereParam + groupParam - styleKey - overscanKey
   }
 
   /** Return the SoQL fragment for the $where parameter.
     *
     * @param tile the QuadTile we're filtering for.
     * @param geoColumn the column to match against.
+    * @param overscan the amount of overscan in pixels
     */
-  def filter(tile: QuadTile, geoColumn: String): String = {
-    val corners = tile.corners.map { case (lat, lon) => s"$lat $lon" }.mkString(",")
+  def filter(tile: QuadTile, geoColumn: String, overscan: Int): String = {
+    val corners = tile.corners(overscan).map { case (lat, lon) => s"$lat $lon" }.mkString(",")
     s"intersects($geoColumn, 'MULTIPOLYGON((($corners)))')"
   }
 }
