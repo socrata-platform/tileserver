@@ -4,6 +4,7 @@ package util
 import com.vividsolutions.jts.geom.{Coordinate, CoordinateFilter}
 
 import CoordinateMapper.Size
+import QuadTile._
 
 /** A bounding box (tile) on a map.
   *
@@ -12,7 +13,7 @@ import CoordinateMapper.Size
   * @param rawY raw y coordinate (before mapping to tms)
   * @param zoom zoom level of the map
   */
-case class QuadTile(rawX: Int, rawY: Int, zoom: Int) extends CoordinateFilter {
+case class QuadTile(rawX: Int, rawY: Int, zoom: Int) {
   /** The mapper for this zoom. */
   val mapper = CoordinateMapper(zoom)
 
@@ -51,29 +52,25 @@ case class QuadTile(rawX: Int, rawY: Int, zoom: Int) extends CoordinateFilter {
     * @param lon the longitude of the point.
     * @param lat the latitude of the point.
     */
-  def px(lon: Double, lat: Double): (Int, Int) = {
+  def px(lon: Double, lat: Double, flip: Boolean): (Int, Int) = {
     val (lonX, latY) = mapper.px(lon, lat)
 
-    (lonX - (rawX * Size), 255 - (latY - (rawY * Size)))
+    val unflipped = latY - (rawY * Size)
+    val pxY = if (flip) (Size - 1) - unflipped else unflipped
+    (lonX - (rawX * Size), pxY)
   }
 
   /** The point (x, y) in tile (256x256) space.
     *
     * @param c the lat and lon of the point.
     */
-  def px(c: Coordinate): Coordinate = {
-    val (x, y) = px(c.x, c.y)
+  def px(c: Coordinate, flip: Boolean): Coordinate = {
+    val (x, y) = px(c.x, c.y, flip)
     new Coordinate(x, y)
   }
 
-  /** The point (x, y) in tile (256x256) space.
-    *
-    * @param coordinate (MUTATED) the lat and lon of the point.
-    */
-  def filter(c: Coordinate): Unit = {
-    val mapped = px(c)
-    c.setCoordinate(mapped)
-  }
+  /** A coordinate filter, to map the point (x, y) in tile (256x256) space. */
+  def filter(flip: Boolean): TileFilter = TileFilter(this, flip)
 
   /** A Seq of the corners (lon, lat) of this tile.
     *
@@ -86,4 +83,17 @@ case class QuadTile(rawX: Int, rawY: Int, zoom: Int) extends CoordinateFilter {
         east(os) -> south(os),
         west(os) -> south(os),
         west(os) -> north(os))
+}
+
+object QuadTile {
+  /** The point (x, y) in tile (256x256) space.
+    *
+    * @param coordinate (MUTATED) the lat and lon of the point.
+    */
+  case class TileFilter(tile: QuadTile, flip: Boolean) extends CoordinateFilter {
+    def filter(c: Coordinate): Unit = {
+      val mapped = tile.px(c, flip)
+      c.setCoordinate(mapped)
+    }
+  }
 }

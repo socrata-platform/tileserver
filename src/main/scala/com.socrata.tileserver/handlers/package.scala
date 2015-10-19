@@ -15,6 +15,8 @@ package object handlers {
 
   /** Produce vector tiles. */
   val PbfHandler = new BaseHandler("pbf") {
+    override val flip = false
+
     override def createResponse(reqInfo: RequestInfo,
                                 base: HttpResponse,
                                 encoder: TileEncoder): HttpResponse =
@@ -23,6 +25,8 @@ package object handlers {
 
   /** Produce base64 encoded vector tiles. */
   val BpbfHandler = new BaseHandler("bpbf") {
+    override val flip = false
+
     override def createResponse(reqInfo: RequestInfo,
                                 base: HttpResponse,
                                 encoder: TileEncoder): HttpResponse =
@@ -31,6 +35,8 @@ package object handlers {
 
   /** Produce human readable debugging output. */
   val TxtHandler = new BaseHandler("txt") {
+    override val flip = true
+
     override def createResponse(reqInfo: RequestInfo,
                                 base: HttpResponse,
                                 encoder: TileEncoder): HttpResponse =
@@ -39,6 +45,8 @@ package object handlers {
 
   /** Rejects attempts to render pngs without $style or $overscan param(s). */
   val IncompletePngHandler = new BaseHandler("png") {
+    override val flip = true
+
     override def isDefinedAt(reqInfo: RequestInfo): Boolean =
       reqInfo.extension == extension && (reqInfo.style.isEmpty || reqInfo.overscan.isEmpty)
 

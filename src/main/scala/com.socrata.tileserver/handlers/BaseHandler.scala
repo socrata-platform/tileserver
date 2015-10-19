@@ -13,7 +13,7 @@ abstract class BaseHandler(val extension: String) extends Handler with FileType 
   /** Return a ResponseBuilder for this `extension` type. */
   def apply(reqInfo: RequestInfo): ResponseBuilder = { (base: HttpResponse, resp) =>
     try {
-      val enc = TileEncoder(resp.features(reqInfo.tile))
+      val enc = TileEncoder(resp.features(reqInfo.tile, flip))
       createResponse(reqInfo, base, enc)
     } catch recover
   }
@@ -22,6 +22,9 @@ abstract class BaseHandler(val extension: String) extends Handler with FileType 
 
   /** Recover from errors specific to this handler. */
   protected def recover: PartialFunction[Throwable, HttpResponse] = PartialFunction.empty
+
+  /** Whether or not we should flip the points (don't set this if returning a vector tile). */
+  protected def flip: Boolean
 
   /** Create the response for this handler.
     *
