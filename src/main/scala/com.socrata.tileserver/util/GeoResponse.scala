@@ -61,9 +61,9 @@ trait GeoResponse extends ResponseInfo {
     *
     * @param tile which `QuadTile` we are mapping features onto.
     */
-  def features(tile: QuadTile): Set[Feature] = {
+  def features(tile: QuadTile, flip: Boolean): Set[Feature] = {
     val pairs: Iterator[Feature] = rawFeatures.map { f =>
-      f.geometry.apply(tile)
+      f.geometry.apply(tile.filter(flip))
       f.geometry.geometryChanged()
       f.geometry -> f.properties
     }

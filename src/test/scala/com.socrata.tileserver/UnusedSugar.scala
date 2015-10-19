@@ -18,6 +18,7 @@ import UnusedSugar.UnusedValue
 trait UnusedSugar {
   val Unused: UnusedValue = UnusedSugar.UnusedObj
 
+  implicit def unusedToBoolean(u: UnusedValue): Boolean = false
   implicit def unusedToInt(u: UnusedValue): Int = 0
   implicit def unusedToString(u: UnusedValue): String = u.toString
 
@@ -47,7 +48,7 @@ trait UnusedSugar {
 
   implicit def unusedToQuadTile(u: UnusedValue): util.QuadTile =
     new util.QuadTile(0, 0, 0) {
-      override def px(lon: Double, lat: Double): (Int, Int) = (lon.toInt, lat.toInt)
+      override def px(lon: Double, lat: Double, flip: Boolean): (Int, Int) = (lon.toInt, lat.toInt)
     }
 
   implicit def unusedToRequestInfo(u: UnusedValue): util.RequestInfo =

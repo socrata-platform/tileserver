@@ -11,7 +11,7 @@ class GeoResponseTest extends TestBase with UnusedSugar {
   test("An empty list of coordinates rolls up correctly") {
     val resp = mocks.StaticGeoResponse(Iterator.empty)
 
-    resp.features(Unused) must be (Set.empty)
+    resp.features(Unused, Unused) must be (Set.empty)
   }
 
   test("A single coordinate rolls up correctly") {
@@ -20,7 +20,7 @@ class GeoResponseTest extends TestBase with UnusedSugar {
     forAll { pt: ValidPoint =>
       val resp = mocks.StaticGeoResponse(Iterator.single(fJson(pt)))
 
-      resp.features(Unused) must equal (Set(feature(pt)))
+      resp.features(Unused, Unused) must equal (Set(feature(pt)))
     }
   }
 
@@ -32,7 +32,7 @@ class GeoResponseTest extends TestBase with UnusedSugar {
       val expected = pts.map(feature(_))
       val resp = mocks.StaticGeoResponse(coordinates.toIterator)
 
-      val actual = resp.features(Unused)
+      val actual = resp.features(Unused, Unused)
 
       actual must equal (expected)
     }
@@ -52,7 +52,7 @@ class GeoResponseTest extends TestBase with UnusedSugar {
         mapValues(_.size).map(feature(_)).toSet
       val resp = mocks.StaticGeoResponse(coordinates.toIterator)
 
-      val actual = resp.features(Unused)
+      val actual = resp.features(Unused, Unused)
 
       actual must equal (expected)
     }
@@ -80,7 +80,7 @@ class GeoResponseTest extends TestBase with UnusedSugar {
                            feature(pt1, 2, Map(prop1)))
         val resp = mocks.StaticGeoResponse(coordinates.toIterator)
 
-        val actual = resp.features(Unused)
+        val actual = resp.features(Unused, Unused)
 
         actual must equal (expected)
       }

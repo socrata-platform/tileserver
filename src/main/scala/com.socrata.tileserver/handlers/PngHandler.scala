@@ -16,6 +16,8 @@ import util.{CartoRenderer, RequestInfo, TileEncoder}
   * @param renderer the underlying renderer.
   */
 case class PngHandler(val renderer: CartoRenderer) extends BaseHandler("png") {
+  override val flip = true
+
   override def isDefinedAt(reqInfo: RequestInfo): Boolean =
     reqInfo.extension == extension && reqInfo.style.isDefined && reqInfo.overscan.isDefined
 
