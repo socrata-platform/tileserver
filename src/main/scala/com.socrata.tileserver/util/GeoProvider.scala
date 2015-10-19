@@ -55,8 +55,8 @@ object GeoProvider {
     // Returning a single instance of a shape (eg. simplify(min(info.geoColumn))
     // currently causes holes in large complex polygon datasets, so we're just
     // selecting the groupBy value for now.
-    val selectSimplified  = s"snap_to_grid(${info.geoColumn}, ${info.tile.resolution})"
-    val groupBy = s"snap_to_grid(${info.geoColumn}, ${info.tile.resolution})"
+    val selectSimplified  = s"snap_to_grid(${info.geoColumn}, ${info.tile.resolution * 2})"
+    val groupBy = s"snap_to_grid(${info.geoColumn}, ${info.tile.resolution * 2})"
 
     val selectKey = '$' + "select"
     val whereKey = '$' + "where"
