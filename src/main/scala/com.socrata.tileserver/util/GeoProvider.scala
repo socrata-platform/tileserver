@@ -86,6 +86,14 @@ object GeoProvider {
     val mondaraGroupParam = groupKey ->
       params.get(groupKey).map(v => s"($v), ($groupBy)").getOrElse(groupBy)
 
+    // Using a GroupBy is necessary to avoid having holes in Mondara maps
+    // without running the carto-renderer out of memory.
+    // However, on very large point maps this makes loading all of the points extremely slow.
+    // Thus we don't want this to be the default behavior for TileServer.
+    //
+    // The correct way to fix this would be to implement pagination and render
+    // features ~50k at a time in the carto-renderer and then stitch those
+    // images together.
     if (info.mondaraHack) {
       params + selectParam + whereParam + mondaraGroupParam - styleKey - overscanKey - mondaraKey
     } else {

@@ -40,6 +40,7 @@ case class RequestInfo(req: HttpRequest,
       }
     }
 
+  // Used in GeoProvider to decide whether or not to groupBy.
   val mondaraHack: Boolean =
     req.queryParameters.get('$' + "mondara").exists(_ == "true")
 }
