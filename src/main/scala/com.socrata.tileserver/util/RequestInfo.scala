@@ -31,11 +31,15 @@ case class RequestInfo(req: HttpRequest,
   val zoom: Int = tile.zoom
 
   /** The overscan amount in pixels. */
-  val overscan: Option[Int] = req.queryParameters.get('$' + "overscan").flatMap { s =>
-    try {
-      Some(s.toInt)
-    } catch {
-      case _: NumberFormatException => None
+  val overscan: Option[Int] =
+    req.queryParameters.get('$' + "overscan").flatMap { s =>
+      try {
+        Some(s.toInt)
+      } catch {
+        case _: NumberFormatException => None
+      }
     }
-  }
+
+  val mondaraHack: Boolean =
+    req.queryParameters.get('$' + "mondara").exists(_ == "true")
 }

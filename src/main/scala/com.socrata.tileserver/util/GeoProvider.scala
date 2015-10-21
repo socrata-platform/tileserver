@@ -76,16 +76,21 @@ object GeoProvider {
     val groupKey = '$' + "group"
     val styleKey = '$' + "style"
     val overscanKey = '$' + "overscan"
+    val mondaraKey = '$' + "mondara"
 
     val params = info.req.queryParameters
     val selectParam = selectKey ->
       params.get(selectKey).map(v => s"$v, $selectSimplified").getOrElse(selectSimplified)
     val whereParam = whereKey ->
       params.get(whereKey).map(v => s"($v) and ($filter)").getOrElse(filter)
-    val groupParam = groupKey ->
+    val mondaraGroupParam = groupKey ->
       params.get(groupKey).map(v => s"($v), ($groupBy)").getOrElse(groupBy)
 
-    params + selectParam + whereParam + groupParam - styleKey - overscanKey
+    if (info.mondaraHack) {
+      params + selectParam + whereParam + mondaraGroupParam - styleKey - overscanKey - mondaraKey
+    } else {
+      params + selectParam + whereParam - styleKey - overscanKey - mondaraKey
+    }
   }
 
   /** Return the SoQL fragment for the $where parameter.

@@ -72,13 +72,15 @@ class GeoProviderTest extends TestBase with UnusedSugar with MockitoSugar {
       val (whereBase, whereValue) = whereParam: (String, String)
       val groupBase = groupParam: String
 
+      val mondara = mocks.StaticRequest('$' + "mondara" -> "true")
+
       val neither = mocks.StaticRequest(otherKey -> otherValue)
       val select = mocks.StaticRequest(selectKey -> selectBase)
       val where = mocks.StaticRequest(whereKey -> whereBase)
       val group = mocks.StaticRequest(groupKey -> groupBase)
 
       neither.queryParameters must have size (1)
-      val nParams = GeoProvider.augmentParams(reqInfo(neither,
+      val nParams = GeoProvider.augmentParams(reqInfo(neither ++ mondara,
                                                       geoColumn=selectValue),
                                               whereValue)
       nParams must have size (4)
@@ -88,7 +90,16 @@ class GeoProviderTest extends TestBase with UnusedSugar with MockitoSugar {
       nParams(otherKey) must equal (otherValue)
       nParams(groupKey) must include ("snap_to_grid")
 
-      val sParams = GeoProvider.augmentParams(reqInfo(neither ++ select,
+      val nfParams = GeoProvider.augmentParams(reqInfo(neither,
+                                                       geoColumn=selectValue),
+                                               whereValue)
+      nfParams must have size (3)
+      nfParams(selectKey) must include (selectValue)
+      nfParams(selectKey) must include ("snap_to_grid")
+      nfParams(whereKey) must equal (whereValue)
+      nfParams(otherKey) must equal (otherValue)
+
+      val sParams = GeoProvider.augmentParams(reqInfo(neither ++ select ++ mondara,
                                                       geoColumn=selectValue),
                                               whereValue)
       sParams must have size (4)
@@ -101,7 +112,7 @@ class GeoProviderTest extends TestBase with UnusedSugar with MockitoSugar {
 
       sParams(groupKey) must include ("snap_to_grid")
 
-      val wParams = GeoProvider.augmentParams(reqInfo(neither ++ where,
+      val wParams = GeoProvider.augmentParams(reqInfo(neither ++ where ++ mondara,
                                                       geoColumn=selectValue),
                                               whereValue)
       wParams must have size (4)
@@ -115,7 +126,7 @@ class GeoProviderTest extends TestBase with UnusedSugar with MockitoSugar {
 
       wParams(groupKey) must include ("snap_to_grid")
 
-      val gParams = GeoProvider.augmentParams(reqInfo(neither ++ group,
+      val gParams = GeoProvider.augmentParams(reqInfo(neither ++ group ++ mondara,
                                                       geoColumn=selectValue),
                                               whereValue)
       gParams must have size (4)
@@ -127,9 +138,10 @@ class GeoProviderTest extends TestBase with UnusedSugar with MockitoSugar {
       gParams(groupKey) must startWith (s"(${groupBase}),")
       gParams(groupKey) must include ("snap_to_grid")
 
-      val allParams = GeoProvider.augmentParams(reqInfo(neither ++ where ++ select ++ group,
-                                                        geoColumn=selectValue),
-                                                whereValue)
+      val allParams = GeoProvider.augmentParams(
+        reqInfo(neither ++ where ++ select ++ group ++ mondara, geoColumn=selectValue),
+        whereValue)
+
       allParams must have size (4)
       allParams(otherKey) must equal (otherValue)
 
@@ -142,6 +154,22 @@ class GeoProviderTest extends TestBase with UnusedSugar with MockitoSugar {
 
       allParams(groupKey) must startWith (s"(${groupBase}),")
       allParams(groupKey) must include ("snap_to_grid")
+
+      val allfParams = GeoProvider.augmentParams(
+        reqInfo(neither ++ where ++ select ++ group, geoColumn=selectValue),
+        whereValue)
+
+      allfParams must have size (4)
+      allfParams(otherKey) must equal (otherValue)
+
+      allfParams(selectKey) must startWith (s"$selectBase,")
+      allfParams(selectKey) must include (selectValue)
+      allfParams(selectKey) must include ("snap_to_grid")
+
+      allfParams(whereKey) must startWith (s"(${whereBase}) and ")
+      allfParams(whereKey) must endWith (s"(${whereValue})")
+
+      allfParams(groupKey) must equal (s"${groupBase}")
     }
   }
 
