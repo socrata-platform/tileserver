@@ -3,6 +3,7 @@ package util
 
 import java.net.URLDecoder
 import java.nio.charset.StandardCharsets.UTF_8
+import javax.servlet.http.HttpServletResponse.{SC_OK => ScOk}
 
 import org.slf4j.{Logger, LoggerFactory}
 
@@ -37,7 +38,19 @@ case class GeoProvider(client: CuratedServiceClient) {
       req
     }
 
-    client.execute(jsonReq, GeoResponse(_, info.rs))
+    val before = System.nanoTime()
+    val resp = client.execute(jsonReq, GeoResponse(_, info.rs))
+    val after = System.nanoTime()
+    val duration = (after - before)/1000000
+    val message = s"Upstream response (${resp.resultCode}) took ${duration}ms."
+
+    if (resp.resultCode == ScOk) {
+      logger.info(message)
+    } else {
+      logger.warn(message)
+    }
+
+    resp
   }
 }
 
