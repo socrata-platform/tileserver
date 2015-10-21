@@ -44,17 +44,17 @@ package object handlers {
   }
 
   /** Rejects attempts to render pngs without $style or $overscan param(s). */
-  val IncompletePngHandler = new BaseHandler("png") {
+  val UnfashionablePngHandler = new BaseHandler("png") {
     override val flip = true
 
     override def isDefinedAt(reqInfo: RequestInfo): Boolean =
-      reqInfo.extension == extension && (reqInfo.style.isEmpty || reqInfo.overscan.isEmpty)
+      reqInfo.extension == extension && reqInfo.style.isEmpty
 
     override def createResponse(reqInfo: RequestInfo,
                                 base: HttpResponse,
                                 encoder: TileEncoder): HttpResponse =
       BadRequest ~>
         Content("text/plain",
-                "Cannot render png with invalid or missing '$style' or '$overscan' query parameter.")
+                "Cannot render png with invalid or missing '$style' query parameter.")
   }
 }

@@ -98,7 +98,6 @@ class TileServiceTest extends TestBase with UnusedSugar with MockitoSugar {
             outputStream.getString must equal (expected.toString)
           } else {
             outputStream.getString must include ('$' + "style")
-            outputStream.getString must include ('$' + "overscan")
           }
         // ".txt" should be supported, but its output format is unspecified.
         case Txt => ()
@@ -195,7 +194,7 @@ class TileServiceTest extends TestBase with UnusedSugar with MockitoSugar {
     verify(resp).setStatus(SC_BAD_REQUEST)
   }
 
-  test("Handle request fails when rendering a `.png` without `$overscan`") {
+  test("Handle request succeeds when rendering a `.png` without `$overscan`") {
     import gen.Extensions._
 
     val upstream = mocks.SeqResponse(Seq.empty)
@@ -206,10 +205,10 @@ class TileServiceTest extends TestBase with UnusedSugar with MockitoSugar {
 
     TileService(Unused, GeoProvider(client)).handleRequest(info)(resp)
 
-    verify(resp).setStatus(SC_BAD_REQUEST)
+    verify(resp).setStatus(SC_OK)
   }
 
-  test("Handle request fails when rendering a `.png` invalid `$overscan`") {
+  test("Handle request succeeds when rendering a `.png` with invalid `$overscan`") {
     import gen.Extensions._
 
     val upstream = mocks.SeqResponse(Seq.empty)
@@ -217,11 +216,11 @@ class TileServiceTest extends TestBase with UnusedSugar with MockitoSugar {
     val outputStream = new mocks.ByteArrayServletOutputStream
     val resp = outputStream.responseFor
     val req = mocks.StaticRequest(Map('$' + "style" -> Unused.toString,
-                                      '$' + "overscan" -> Unused.toString))
+                                      '$' + "overscan" -> "Invalid"))
 
     TileService(Unused, GeoProvider(client)).handleRequest(reqInfo(req, ext=Png))(resp)
 
-    verify(resp).setStatus(SC_BAD_REQUEST)
+    verify(resp).setStatus(SC_OK)
   }
 
   test("Handle request returns OK when underlying succeeds for single FeatureJson") {
