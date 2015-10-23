@@ -94,8 +94,7 @@ class GeoProviderTest extends TestBase with UnusedSugar with MockitoSugar {
                                                        geoColumn=selectValue),
                                                whereValue)
       nfParams must have size (3)
-      nfParams(selectKey) must include (selectValue)
-      nfParams(selectKey) must include ("snap_to_grid")
+      nfParams(selectKey) must equal (selectValue)
       nfParams(whereKey) must equal (whereValue)
       nfParams(otherKey) must equal (otherValue)
 
@@ -162,13 +161,8 @@ class GeoProviderTest extends TestBase with UnusedSugar with MockitoSugar {
       allfParams must have size (4)
       allfParams(otherKey) must equal (otherValue)
 
-      allfParams(selectKey) must startWith (s"$selectBase,")
-      allfParams(selectKey) must include (selectValue)
-      allfParams(selectKey) must include ("snap_to_grid")
-
-      allfParams(whereKey) must startWith (s"(${whereBase}) and ")
-      allfParams(whereKey) must endWith (s"(${whereValue})")
-
+      allfParams(selectKey) must equal (s"$selectBase, $selectValue")
+      allfParams(whereKey) must equal (s"(${whereBase}) and (${whereValue})")
       allfParams(groupKey) must equal (s"${groupBase}")
     }
   }

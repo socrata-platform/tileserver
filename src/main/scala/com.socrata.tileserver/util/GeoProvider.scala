@@ -68,7 +68,11 @@ object GeoProvider {
     // Returning a single instance of a shape (eg. simplify(min(info.geoColumn))
     // currently causes holes in large complex polygon datasets, so we're just
     // selecting the groupBy value for now.
+    //
+    // This can cause points to jitter upon zooming,
+    // so we don't want to do it unless we have to.
     val selectSimplified  = s"snap_to_grid(${info.geoColumn}, ${info.tile.resolution * 2})"
+    val select = if (info.mondaraHack) selectSimplified else info.geoColumn
     val groupBy = s"snap_to_grid(${info.geoColumn}, ${info.tile.resolution * 2})"
 
     val selectKey = '$' + "select"
@@ -80,7 +84,7 @@ object GeoProvider {
 
     val params = info.req.queryParameters
     val selectParam = selectKey ->
-      params.get(selectKey).map(v => s"$v, $selectSimplified").getOrElse(selectSimplified)
+      params.get(selectKey).map(v => s"$v, $select").getOrElse(select)
     val whereParam = whereKey ->
       params.get(whereKey).map(v => s"($v) and ($filter)").getOrElse(filter)
     val mondaraGroupParam = groupKey ->
