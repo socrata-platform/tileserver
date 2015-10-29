@@ -2,7 +2,7 @@ package com.socrata.tileserver.util
 
 import com.rojoma.simplearm.v2.ResourceScope
 
-import com.socrata.http.server.util.RequestId.{RequestId, getFromRequest}
+import com.socrata.http.server.util.RequestId.RequestId
 import com.socrata.http.server.HttpRequest
 
 /** Represents the incoming request plus path components.
@@ -19,7 +19,7 @@ case class RequestInfo(req: HttpRequest,
                        tile: QuadTile,
                        extension: String) {
   /** The id for this request (generated if not present). */
-  val requestId: RequestId = getFromRequest(req.servletRequest)
+  val requestId: RequestId = req.requestId
 
   /** The CartoCss for the request, if present. */
   val style: Option[String] = req.queryParameters.get('$' + "style")
