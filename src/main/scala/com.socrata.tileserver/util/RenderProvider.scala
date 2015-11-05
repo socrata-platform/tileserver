@@ -2,6 +2,7 @@ package com.socrata.tileserver
 package util
 
 import java.io.{ByteArrayInputStream, InputStream}
+import java.net.URLDecoder
 import java.nio.charset.StandardCharsets.UTF_8
 import javax.servlet.http.HttpServletResponse.{SC_OK => ScOk}
 
@@ -9,6 +10,7 @@ import com.rojoma.simplearm.v2.ResourceScope
 import com.socrata.http.client.{HttpClient, RequestBuilder, Response}
 import org.apache.commons.codec.binary.Base64
 import org.apache.commons.io.IOUtils
+import org.slf4j.{Logger, LoggerFactory}
 import org.velvia.MsgPack
 
 import exceptions.FailedRenderException
@@ -46,11 +48,19 @@ case class RenderProvider(http: HttpClient, baseUrl: RequestBuilder) {
       addHeader("X-Socrata-RequestID" -> info.requestId).
       blob(blob)
 
+    logger.info(URLDecoder.decode(req.toString, UTF_8.name))
+
+    val before = System.nanoTime()
     val resp = http.execute(req, info.rs)
+    val after = System.nanoTime()
+    val duration = (after - before)/1000000
+    val message = s"Carto Renderer (${resp.resultCode}) took ${duration}ms."
 
     if (resp.resultCode == ScOk) {
+      logger.info(message)
       resp.inputStream()
     } else {
+      logger.warn(message)
       throw FailedRenderException(IOUtils.toString(resp.inputStream(), UTF_8))
     }
   }
@@ -58,4 +68,5 @@ case class RenderProvider(http: HttpClient, baseUrl: RequestBuilder) {
 
 object RenderProvider {
   type MapTile = Map[String, Seq[Array[Byte]]]
+  private val logger: Logger = LoggerFactory.getLogger(getClass)
 }

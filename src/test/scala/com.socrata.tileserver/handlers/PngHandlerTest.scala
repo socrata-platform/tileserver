@@ -13,7 +13,7 @@ import exceptions.FailedRenderException
 import util.{RenderProvider, RequestInfo}
 
 class PngHandlerTest extends TestBase with UnusedSugar {
-  test("Bad Request is returned when renderer fails to render") {
+  test("Internal server error is returned when renderer fails to render") {
     val upstream = mocks.ThrowsResponse(FailedRenderException(Unused))
     val client = mocks.StaticHttpClient(upstream)
     val outputStream = new mocks.ByteArrayServletOutputStream
@@ -26,7 +26,7 @@ class PngHandlerTest extends TestBase with UnusedSugar {
 
     handler(info)(OK, util.GeoResponse(mocks.MsgPackResponse(), Unused))(resp)
 
-    verify(resp).setStatus(SC_BAD_REQUEST)
+    verify(resp).setStatus(SC_INTERNAL_SERVER_ERROR)
     outputStream.getLowStr must include ("failed to render")
   }
 }
