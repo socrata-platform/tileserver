@@ -26,9 +26,9 @@ import util._
   *
   * @constructor This only needs to be called once, by the main application.
   * @param renderer talks to the underlying carto-renderer service.
-  * @param provider talks to the upstream geo-json service.
+  * @param geo talks to the upstream geo-json service.
   */
-case class TileService(renderer: CartoRenderer, provider: GeoProvider)  {
+case class TileService(renderer: RenderProvider, geo: GeoProvider)  {
   // The `Handler`s that this service is backed by.
   private[this] val typedHandlers: Seq[Handler with FileType] = Seq(PbfHandler,
                                                                     BpbfHandler,
@@ -49,7 +49,7 @@ case class TileService(renderer: CartoRenderer, provider: GeoProvider)  {
     */
   def handleRequest(info: RequestInfo) : HttpResponse = {
     try {
-      val resp = provider.doQuery(info)
+      val resp = geo.doQuery(info)
 
       val result = resp.resultCode match {
         case ScOk =>
@@ -89,7 +89,7 @@ case class TileService(renderer: CartoRenderer, provider: GeoProvider)  {
       override def get: HttpService = {
         MDC.put("X-Socrata-Resource", identifier)
 
-        req => {
+        { req =>
           val info =
             RequestInfo(req, identifier, geoColumn, QuadTile(x, y, zoom), ext)
           handleRequest(info)

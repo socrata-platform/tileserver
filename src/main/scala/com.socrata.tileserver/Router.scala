@@ -33,7 +33,7 @@ case class Router(versionService: HttpService,
   )
 
   /** 404 error. */
-  val notFound: HttpService = req => {
+  val notFound: HttpService = { req =>
     logger.warn("path not found: {}", req.requestPathStr)
     NotFound ~>
       Json(json"""{error:"not found"}""")

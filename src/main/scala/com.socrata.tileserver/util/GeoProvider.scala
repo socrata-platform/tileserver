@@ -54,8 +54,14 @@ case class GeoProvider(client: CuratedServiceClient) {
   }
 }
 
+// scalastyle:off multiple.string.literals
 object GeoProvider {
   private val logger: Logger = LoggerFactory.getLogger(getClass)
+  private val selectKey = '$' + "select"
+  private val whereKey = '$' + "where"
+  private val groupKey = '$' + "group"
+  private val styleKey = '$' + "style"
+  private val overscanKey = '$' + "overscan"
 
   /** Adds `where` and `select` to the parameters in `req`.
     *
@@ -63,7 +69,26 @@ object GeoProvider {
     * @param filter the "$where" parameter to add.
     */
   def augmentParams(info: RequestInfo, filter: String): Map[String, String] = {
-    // scalastyle:off multiple.string.literals
+    if (info.mondaraHack) return augmentParamsForMondara(info, filter) // scalastyle:ignore
+
+    val params = info.req.queryParameters
+    val selectParam = selectKey ->
+      params.get(selectKey).map(v => s"$v, ${info.geoColumn}").getOrElse(info.geoColumn)
+    val whereParam = whereKey ->
+      params.get(whereKey).map(v => s"($v) and ($filter)").getOrElse(filter)
+
+    params + selectParam + whereParam - styleKey - overscanKey
+  }
+
+  /** Adds `where` and `select` to the parameters in `req` for Mondara maps.
+    * This is a secondary codepath to compensate for rendering very dense polygon maps.
+    *
+    * This should be removed once we get things working.
+    *
+    * @param info the information about this request.
+    * @param filter the "$where" parameter to add.
+    */
+  def augmentParamsForMondara(info: RequestInfo, filter: String): Map[String, String] = {
     // TODO : Make `selectSimplified` produce a smoother shape than it does now.
     // Returning a single instance of a shape (eg. simplify(min(info.geoColumn))
     // currently causes holes in large complex polygon datasets, so we're just
@@ -71,15 +96,9 @@ object GeoProvider {
     //
     // This can cause points to jitter upon zooming,
     // so we don't want to do it unless we have to.
-    val selectSimplified  = s"snap_to_grid(${info.geoColumn}, ${info.tile.resolution * 2})"
-    val select = if (info.mondaraHack) selectSimplified else info.geoColumn
+    val select  = s"snap_to_grid(${info.geoColumn}, ${info.tile.resolution * 2})"
     val groupBy = s"snap_to_grid(${info.geoColumn}, ${info.tile.resolution * 2})"
 
-    val selectKey = '$' + "select"
-    val whereKey = '$' + "where"
-    val groupKey = '$' + "group"
-    val styleKey = '$' + "style"
-    val overscanKey = '$' + "overscan"
     val mondaraKey = '$' + "mondara"
 
     val params = info.req.queryParameters
@@ -87,7 +106,7 @@ object GeoProvider {
       params.get(selectKey).map(v => s"$v, $select").getOrElse(select)
     val whereParam = whereKey ->
       params.get(whereKey).map(v => s"($v) and ($filter)").getOrElse(filter)
-    val mondaraGroupParam = groupKey ->
+    val groupParam = groupKey ->
       params.get(groupKey).map(v => s"($v), ($groupBy)").getOrElse(groupBy)
 
     // Using a GroupBy is necessary to avoid having holes in Mondara maps
@@ -98,11 +117,7 @@ object GeoProvider {
     // The correct way to fix this would be to implement pagination and render
     // features ~50k at a time in the carto-renderer and then stitch those
     // images together.
-    if (info.mondaraHack) {
-      params + selectParam + whereParam + mondaraGroupParam - styleKey - overscanKey - mondaraKey
-    } else {
-      params + selectParam + whereParam - styleKey - overscanKey - mondaraKey
-    }
+    params + selectParam + whereParam + groupParam - styleKey - overscanKey - mondaraKey
   }
 
   /** Return the SoQL fragment for the $where parameter.
