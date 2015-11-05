@@ -11,7 +11,7 @@ import com.socrata.curator._
 
 import config.TileServerConfig
 import services.{TileService, VersionService}
-import util.{CartoRenderer, GeoProvider}
+import util.{RenderProvider, GeoProvider}
 
 // $COVERAGE-OFF$ Disabled because this is framework boilerplate.
 /** Main object that actually starts up the server; wires everything together. */
@@ -28,10 +28,10 @@ object TileServer extends App {
     broker <- DiscoveryBrokerFromConfig(TileServerConfig.broker, http)
     upstream <- broker.clientFor(TileServerConfig.upstream)
   } {
-    val cartoBaseUrl = RequestBuilder(TileServerConfig.cartoHost).
-      port(TileServerConfig.cartoPort)
+    val cartoBaseUrl = RequestBuilder(TileServerConfig.renderHost).
+      port(TileServerConfig.renderPort)
 
-    val renderer = CartoRenderer(http, cartoBaseUrl)
+    val renderer = RenderProvider(http, cartoBaseUrl)
     val provider = GeoProvider(upstream)
     val tileService = TileService(renderer, provider)
     val router = Router(VersionService, tileService.types, tileService.service)

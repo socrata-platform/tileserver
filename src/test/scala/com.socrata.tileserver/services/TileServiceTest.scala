@@ -23,7 +23,7 @@ import com.socrata.http.server.routing.TypedPathComponent
 import com.socrata.thirdparty.geojson.GeoJson._
 import com.socrata.thirdparty.geojson.{FeatureCollectionJson, FeatureJson, GeoJsonBase}
 
-import util.{CartoRenderer, GeoProvider, QuadTile, RequestInfo, TileEncoder}
+import util.{RenderProvider, GeoProvider, QuadTile, RequestInfo, TileEncoder}
 
 // scalastyle:off import.grouping, null
 class TileServiceTest extends TestBase with UnusedSugar with MockitoSugar {
@@ -73,7 +73,7 @@ class TileServiceTest extends TestBase with UnusedSugar with MockitoSugar {
       val info =
         if (complete) mocks.PngInfo(ext) else mocks.PngInfo(ext, None, None)
       val renderer =
-        CartoRenderer(mocks.StaticHttpClient(expected.toString), Unused)
+        RenderProvider(mocks.StaticHttpClient(expected.toString), Unused)
 
       TileService(renderer, util.GeoProvider(client)).
         handleRequest(info)(resp)
@@ -129,7 +129,7 @@ class TileServiceTest extends TestBase with UnusedSugar with MockitoSugar {
       val outputStream = new mocks.ByteArrayServletOutputStream
       val resp = outputStream.responseFor
 
-      val renderer = CartoRenderer(mocks.StaticHttpClient(""), Unused)
+      val renderer = RenderProvider(mocks.StaticHttpClient(""), Unused)
 
       TileService(Unused, provider).
         handleRequest(reqInfo(req, Unused, Unused, Unused, ext))(resp)
@@ -469,7 +469,7 @@ class TileServiceTest extends TestBase with UnusedSugar with MockitoSugar {
       val outputStream = new mocks.ByteArrayServletOutputStream
       val resp = outputStream.responseFor
       val info = mocks.PngInfo(ext)
-      val renderer = CartoRenderer(mocks.StaticHttpClient(""), Unused)
+      val renderer = RenderProvider(mocks.StaticHttpClient(""), Unused)
 
       TileService(renderer, util.GeoProvider(client)).
         handleRequest(info)(resp)
@@ -592,7 +592,7 @@ class TileServiceTest extends TestBase with UnusedSugar with MockitoSugar {
     }
   }
 
-  test("X-Socrata-RequestId is passed to CartoRenderer") {
+  test("X-Socrata-RequestId is passed to RenderProvider") {
     import gen.Extensions.Png
 
     forAll { requestId: String =>
@@ -604,7 +604,7 @@ class TileServiceTest extends TestBase with UnusedSugar with MockitoSugar {
         mocks.EmptyResponse()
       }
 
-      val renderer = CartoRenderer(http, Unused)
+      val renderer = RenderProvider(http, Unused)
 
       val upstream = mocks.SeqResponse(fJson())
       val client = mocks.StaticCuratedClient(upstream)

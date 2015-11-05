@@ -10,7 +10,7 @@ import com.socrata.http.client.RequestBuilder
 import com.socrata.http.server.responses._
 
 import exceptions.FailedRenderException
-import util.{CartoRenderer, RequestInfo}
+import util.{RenderProvider, RequestInfo}
 
 class PngHandlerTest extends TestBase with UnusedSugar {
   test("Bad Request is returned when renderer fails to render") {
@@ -18,7 +18,7 @@ class PngHandlerTest extends TestBase with UnusedSugar {
     val client = mocks.StaticHttpClient(upstream)
     val outputStream = new mocks.ByteArrayServletOutputStream
     val resp = outputStream.responseFor
-    val renderer = CartoRenderer(client, RequestBuilder(Unused))
+    val renderer = RenderProvider(client, RequestBuilder(Unused))
     val handler = PngHandler(renderer)
     val info = new RequestInfo(Unused, Unused, Unused, Unused, "png") {
       override val style = Some(Unused: String)
@@ -27,6 +27,6 @@ class PngHandlerTest extends TestBase with UnusedSugar {
     handler(info)(OK, util.GeoResponse(mocks.MsgPackResponse(), Unused))(resp)
 
     verify(resp).setStatus(SC_BAD_REQUEST)
-    outputStream.getString must include ("$style")
+    outputStream.getLowStr must include ("failed to render")
   }
 }

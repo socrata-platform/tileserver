@@ -37,16 +37,16 @@ class StaticRequest(val params: Map[String, String],
       override def answer(invocation: InvocationOnMock): Enumeration[String] = {
         val args = invocation.getArguments()
         args(0) match {
-          case name: String => {
+          case name: String =>
             val header = headers.asJava.get(name)
             Collections.enumeration(Seq(header).asJava)
-          }
           case _ => throw new ClassCastException()
         }
       }
     })
 
-  when(underlyingReq.getHeader(anyString)).thenAnswer(new Answer[String] {
+  when(underlyingReq.getHeader(anyString)).thenAnswer(
+    new Answer[String] {
       override def answer(invocation: InvocationOnMock): String = {
         val args = invocation.getArguments()
         args(0) match {

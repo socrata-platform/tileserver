@@ -13,7 +13,7 @@ import org.velvia.MsgPack
 
 import exceptions.FailedRenderException
 
-import CartoRenderer._
+import RenderProvider._
 
 /** Calls out to the renderer service to render tiles.
   *
@@ -21,7 +21,7 @@ import CartoRenderer._
   * @param http the http client to use.
   * @param baseUrl the base url (host, port, etc) for the service.
   */
-case class CartoRenderer(http: HttpClient, baseUrl: RequestBuilder) {
+case class RenderProvider(http: HttpClient, baseUrl: RequestBuilder) {
   /** Render the provided tile using the provided request info.
     *
     * @param rawTile a Map that contains the features as WKB.
@@ -56,6 +56,6 @@ case class CartoRenderer(http: HttpClient, baseUrl: RequestBuilder) {
   }
 }
 
-object CartoRenderer {
+object RenderProvider {
   type MapTile = Map[String, Seq[Array[Byte]]]
 }

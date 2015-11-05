@@ -11,7 +11,7 @@ import com.socrata.http.client.{HttpClient, RequestBuilder, Response}
 import com.socrata.http.server.{HttpRequest, HttpResponse}
 import com.socrata.thirdparty.geojson.FeatureJson
 
-import util.{CartoRenderer, GeoProvider}
+import util.{RenderProvider, GeoProvider}
 
 import UnusedSugar.UnusedValue
 
@@ -41,8 +41,8 @@ trait UnusedSugar {
   implicit def unusedToHttpClient(u: UnusedValue): HttpClient =
     mocks.StaticHttpClient(Unused)
 
-  implicit def unusedToRenderer(u: UnusedValue): CartoRenderer =
-    CartoRenderer(Unused, Unused)
+  implicit def unusedToRenderer(u: UnusedValue): RenderProvider =
+    RenderProvider(Unused, Unused)
 
   implicit def unusedToProvider(u: UnusedValue): GeoProvider = GeoProvider(Unused)
 

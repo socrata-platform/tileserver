@@ -12,11 +12,11 @@ import org.velvia.MsgPack
 
 import com.socrata.http.client.{exceptions => _, _}
 
-import CartoRenderer.MapTile
+import RenderProvider.MapTile
 import exceptions.FailedRenderException
 
 // scalastyle:off import.grouping, no.whitespace.before.left.bracket
-class CartoRendererTest extends TestBase with UnusedSugar {
+class RenderProviderTest extends TestBase with UnusedSugar {
   val styleInfo = new RequestInfo(Unused, Unused, Unused, Unused, Unused) {
     override val style = Some(Unused: String)
   }
@@ -27,7 +27,7 @@ class CartoRendererTest extends TestBase with UnusedSugar {
       val resp = mocks.StringResponse(payload)
       val client = mocks.StaticHttpClient(resp)
       val actual = IOUtils.toString(
-        CartoRenderer(client, Unused).renderPng(Unused, styleInfo), UTF_8)
+        RenderProvider(client, Unused).renderPng(Unused, styleInfo), UTF_8)
 
       actual must equal (expected)
     }
@@ -41,7 +41,7 @@ class CartoRendererTest extends TestBase with UnusedSugar {
 
       val resp = mocks.StringResponse(payload, sc)
       val client = mocks.StaticHttpClient(resp)
-      val renderer = CartoRenderer(client, Unused)
+      val renderer = RenderProvider(client, Unused)
       val actual =
         the [FailedRenderException] thrownBy renderer.renderPng(Unused, styleInfo)
       actual must equal (expected)
@@ -52,7 +52,7 @@ class CartoRendererTest extends TestBase with UnusedSugar {
     forAll { (tile: MapTile, z: Int, css: String, message: String) =>
       val resp = mocks.ThrowsResponse(message)
       val client = mocks.StaticHttpClient(resp)
-      val renderer = CartoRenderer(client, Unused)
+      val renderer = RenderProvider(client, Unused)
 
       val info = new RequestInfo(Unused, Unused, Unused, Unused, Unused) {
         override val style = Some(css)
@@ -66,7 +66,7 @@ class CartoRendererTest extends TestBase with UnusedSugar {
   }
 
   test("renderPng returns expected response") {
-    def makeResp(salt: String): (SimpleHttpRequest => Response) = req => {
+    def makeResp(salt: String): (SimpleHttpRequest => Response) = { req =>
       val blob = IOUtils.toByteArray(req.asInstanceOf[BlobHttpRequest].contents)
       val unpacked = MsgPack.unpack(blob).asInstanceOf[Map[String, Any]]
 
@@ -83,7 +83,7 @@ class CartoRendererTest extends TestBase with UnusedSugar {
           map(_.toString).toSeq.sorted
 
       val client = mocks.DynamicHttpClient(makeResp(salt))
-      val renderer = CartoRenderer(client, Unused)
+      val renderer = RenderProvider(client, Unused)
       val info = new RequestInfo(Unused, Unused, Unused, Unused, Unused) {
         override val style = Some(css)
         override val zoom: Int = z
@@ -97,7 +97,7 @@ class CartoRendererTest extends TestBase with UnusedSugar {
   }
 
   test("renderPng passes x-socrata-requestid to renderer") {
-    def requireRequestId(reqId: String): (SimpleHttpRequest => Response) = req => {
+    def requireRequestId(reqId: String): (SimpleHttpRequest => Response) = { req =>
       val headers = req.builder.headers.map { pair =>
         val (k, v) = pair
         k.toLowerCase -> v
@@ -114,7 +114,7 @@ class CartoRendererTest extends TestBase with UnusedSugar {
         override val requestId = reqId
       }
 
-      val renderer = CartoRenderer(client, Unused)
+      val renderer = RenderProvider(client, Unused)
       renderer.renderPng(Unused, info): Unit
     }
   }
