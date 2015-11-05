@@ -24,7 +24,7 @@ case class PngHandler(val renderer: RenderProvider) extends BaseHandler("png") {
     reqInfo.extension == extension && reqInfo.style.isDefined
 
   override def recover: PartialFunction[Throwable, HttpResponse] = {
-    case ex: FailedRenderException => BadRequest ~>
+    case ex: FailedRenderException => InternalServerError ~>
         Json(json"""{ message: "Failed to render png", cause: ${ex.getMessage}}""")
   }
 
