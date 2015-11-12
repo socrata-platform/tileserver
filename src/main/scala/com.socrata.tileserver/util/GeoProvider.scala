@@ -21,7 +21,6 @@ case class GeoProvider(client: CuratedServiceClient) {
   /** Query the upstream service.
     *
     * @param info the incoming request.
-    * @param params the query parameters for the request.
     */
   def doQuery(info: RequestInfo): GeoResponse = {
     val intersects = filter(info.tile, info.geoColumn, info.overscan.getOrElse(0))
@@ -89,19 +88,25 @@ object GeoProvider {
     * @param filter the "$where" parameter to add.
     */
   def augmentParamsForMondara(info: RequestInfo, filter: String): Map[String, String] = {
-    // TODO : Make `selectSimplified` produce a smoother shape than it does now.
+    // TODO : Make `select` produce a smoother shape than it does now.
     // Returning a single instance of a shape (eg. simplify(min(info.geoColumn))
     // currently causes holes in large complex polygon datasets, so we're just
     // selecting the groupBy value for now.
     //
     // This can cause points to jitter upon zooming,
     // so we don't want to do it unless we have to.
-    val select  = s"snap_to_grid(${info.geoColumn}, ${info.tile.resolution * 2})"
-    val groupBy = s"snap_to_grid(${info.geoColumn}, ${info.tile.resolution * 2})"
+    val select  = s"snap_to_grid(${info.geoColumn}, ${info.tile.resolution})"
+    val groupBy = s"snap_to_grid(${info.geoColumn}, ${info.tile.resolution})"
 
     val mondaraKey = '$' + "mondara"
 
-    val params = info.req.queryParameters
+    // Temporarily overriding the $limit parameter within tileserver itself, ignoring
+    // the value passed by frontend.
+    // This allows us to test 1x1 gridding in production without being dependent on a
+    // frontend deployment.
+    // TODO : Revert this once the $limit change in frontend is deployed in production.
+    val params = info.req.queryParameters - "$limit" + ("$limit" -> "150000")
+
     val selectParam = selectKey ->
       params.get(selectKey).map(v => s"$v, $select").getOrElse(select)
     val whereParam = whereKey ->
