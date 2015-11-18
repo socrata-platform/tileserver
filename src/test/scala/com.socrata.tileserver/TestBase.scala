@@ -63,8 +63,8 @@ trait TestBase
 
   def includeSlice[T](expected: Array[T]): Matcher[Array[T]] = new ArraySliceIncludeMatcher(expected)
 
-  override def beforeEach: Unit = UnusedSugar.rs.close()
-  override def afterEach: Unit = UnusedSugar.rs.close()
+  override def beforeEach: Unit = resourceScope.close()
+  override def afterEach: Unit = resourceScope.close()
 
   def reqInfo(req: HttpRequest,
               ext: String = Unused,
