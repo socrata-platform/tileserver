@@ -8,8 +8,8 @@ import com.rojoma.json.v3.ast.JString
 import com.rojoma.json.v3.codec.JsonEncode.toJValue
 import com.vividsolutions.jts.geom.{Coordinate, GeometryFactory, Point}
 
-
 import com.socrata.http.server.HttpRequest
+import com.socrata.test.http.ResponseSugar
 import com.socrata.thirdparty.geojson.FeatureJson
 
 import UnusedSugar._
@@ -19,6 +19,7 @@ import util.TileEncoder.Feature
 trait TestBase
     extends FunSuite
     with org.scalatest.MustMatchers
+    with ResponseSugar
     with PropertyChecks
     with BeforeAndAfterEach {
   val GeomFactory = new GeometryFactory()

@@ -45,20 +45,16 @@ package object gen {
   }
 
   object StatusCodes {
-    case class KnownStatusCode(underlying: Int) {
-      override val toString: String = underlying.toString
+    trait StatusCodeLike {
+      def underlying: Int
+      def toInt: Int = underlying
     }
-    implicit def knownStatusCodeToInt(k: KnownStatusCode): Int = k.underlying
 
-    case class UnknownStatusCode(underlying: Int) {
-      override val toString: String = underlying.toString
-    }
-    implicit def unknownStatusCodeToInt(u: UnknownStatusCode): Int = u.underlying
+    case class KnownStatusCode(underlying: Int) extends StatusCodeLike
+    case class UnknownStatusCode(underlying: Int) extends StatusCodeLike
+    case class NotOkStatusCode(underlying: Int) extends StatusCodeLike
 
-    case class NotOkStatusCode(underlying: Int) {
-      override val toString: String = underlying.toString
-    }
-    implicit def notOkStatusCodeToInt(u: NotOkStatusCode): Int = u.underlying
+    implicit def statusCodeToInt(sc: StatusCodeLike): Int = sc.underlying
 
     private val knownStatusCodes = Set(SC_BAD_REQUEST,
                                        SC_FORBIDDEN,

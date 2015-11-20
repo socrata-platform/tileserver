@@ -36,7 +36,7 @@ import UnusedSugarCommon._
 trait UnusedSugarCommon extends UnusedSugarSimple {
   val resourceScope = rs
 
-  // Collections
+  // Scala Collections
   implicit def unusedToArray[A: Manifest](u: UnusedValue): Array[A] = Array[A]()
   implicit def unusedToIndexedSeq[A](u: UnusedValue):IndexedSeq[A] = IndexedSeq.empty
   implicit def unusedToIterable[A](u: UnusedValue): Iterable[A] = Iterable.empty
@@ -45,6 +45,20 @@ trait UnusedSugarCommon extends UnusedSugarSimple {
   implicit def unusedToOption[A](u: UnusedValue): Option[A] = None
   implicit def unusedToSeq[A](u: UnusedValue): Seq[A] = Seq.empty
   implicit def unusedToSet[A](u: UnusedValue): Set[A] = Set.empty
+
+  // Java Collections
+  implicit def unusedToJavaList[T](u: UnusedValue): java.util.List[T] =
+    new java.util.ArrayList()
+  implicit def unusedToJavaMap[K, V](u: UnusedValue): java.util.Map[K, V] =
+    new java.util.HashMap()
+  implicit def unusedToJavaQueue[T](u: UnusedValue): java.util.Queue[T] =
+    new java.util.LinkedList()
+  implicit def unusedToJavaSet[T](u: UnusedValue): java.util.Set[T] =
+    new java.util.HashSet()
+  implicit def unusedToJavaSortedMap[K, V](u: UnusedValue): java.util.SortedMap[K, V] =
+    new java.util.TreeMap()
+  implicit def unusedToJavaSortedSet[T](u: UnusedValue): java.util.SortedSet[T] =
+    new java.util.TreeSet()
 
   // Optional Dependencies.
   implicit def unusedToCuratedServiceClient(u: UnusedValue): CuratedServiceClient =

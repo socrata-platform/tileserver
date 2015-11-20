@@ -1,26 +1,15 @@
 package com.socrata.tileserver
 package services
 
-import javax.servlet.http.HttpServletResponse.{SC_OK => ScOk}
+import javax.servlet.http.HttpServletResponse.SC_OK
 
-import org.mockito.Mockito.{verify, when}
-import org.scalatest.mock.MockitoSugar
-import org.scalatest.{FunSuite, MustMatchers}
-
-import com.socrata.http.server.HttpRequest
-
-class VersionServiceTest extends TestBase with MockitoSugar {
+class VersionServiceTest extends TestBase with UnusedSugar {
   test("Endpoint must return health = alive") {
-    val req = mock[HttpRequest]
-    val outputStream = new mocks.ByteArrayServletOutputStream
-    val resp = outputStream.responseFor
+    val resp = unpackResponse(VersionService.get(Unused))
 
-    VersionService.get(req)(resp)
-
-    verify(resp).setStatus(ScOk)
-    verify(resp).setContentType("application/json; charset=UTF-8")
-
-    outputStream.getLowStr must include ("health")
-    outputStream.getLowStr must include ("alive")
+    resp.status must equal (SC_OK)
+    resp.contentType must equal ("application/json; charset=UTF-8")
+    resp.body.toLowStr must include ("health")
+    resp.body.toLowStr must include ("alive")
   }
 }
