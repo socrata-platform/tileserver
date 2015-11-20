@@ -2,7 +2,6 @@ package com.socrata.tileserver
 package util
 
 import java.io.{ByteArrayInputStream, DataInputStream}
-import javax.servlet.http.HttpServletResponse.{SC_OK => ScOk}
 
 import com.rojoma.json.v3.codec.JsonEncode.toJValue
 import com.rojoma.simplearm.v2.ResourceScope
@@ -10,6 +9,7 @@ import org.apache.commons.io.IOUtils
 import org.velvia.InvalidMsgPackDataException
 
 import com.socrata.http.client.{Response, ResponseInfo}
+import com.socrata.http.server.responses._
 import com.socrata.soql.{SoQLPackIterator, SoQLGeoRow}
 import com.socrata.thirdparty.geojson.FeatureJson
 
@@ -30,7 +30,7 @@ trait GeoResponse extends ResponseInfo {
 
   /** The unpacked features without any processing. */
   def rawFeatures: Iterator[FeatureJson] = {
-    if (resultCode != ScOk) {
+    if (resultCode != OK.statusCode) {
       throw new IllegalStateException("Tried to unpack failed response!")
     }
 

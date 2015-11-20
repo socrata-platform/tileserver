@@ -1,8 +1,6 @@
 package com.socrata.tileserver
 package handlers
 
-import javax.servlet.http.HttpServletResponse._
-
 import org.mockito.Mockito.{verify, when}
 import org.scalatest.mock.MockitoSugar
 
@@ -26,7 +24,7 @@ class PngHandlerTest extends TestBase with UnusedSugar {
     val resp = unpackResponse(
       handler(info)(OK, util.GeoResponse(com.socrata.tileserver.mocks.MsgPackResponse(), Unused)))
 
-    resp.status must equal (SC_INTERNAL_SERVER_ERROR)
+    resp.status must equal (InternalServerError.statusCode)
     resp.body.toLowStr must include ("failed to render")
   }
 }

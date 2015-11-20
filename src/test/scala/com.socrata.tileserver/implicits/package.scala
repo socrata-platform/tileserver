@@ -1,10 +1,11 @@
 package com.socrata.tileserver
 
 import scala.language.implicitConversions
-import javax.servlet.http.HttpServletResponse._
 
 import org.scalacheck.Arbitrary
 import org.scalacheck.Gen
+
+import com.socrata.http.server.responses._
 
 import util.CoordinateMapper.Size
 
@@ -56,13 +57,13 @@ package object gen {
 
     implicit def statusCodeToInt(sc: StatusCodeLike): Int = sc.underlying
 
-    private val knownStatusCodes = Set(SC_BAD_REQUEST,
-                                       SC_FORBIDDEN,
-                                       SC_NOT_FOUND,
-                                       SC_REQUEST_TIMEOUT,
-                                       SC_INTERNAL_SERVER_ERROR,
-                                       SC_NOT_IMPLEMENTED,
-                                       SC_SERVICE_UNAVAILABLE)
+    private val knownStatusCodes = Set(BadRequest.statusCode,
+                                       Forbidden.statusCode,
+                                       NotFound.statusCode,
+                                       RequestTimeout.statusCode,
+                                       InternalServerError.statusCode,
+                                       NotImplemented.statusCode,
+                                       ServiceUnavailable.statusCode)
 
     private val knownScGen = for {
       statusCode <- Gen.oneOf(knownStatusCodes.toSeq)
@@ -71,13 +72,13 @@ package object gen {
     private val unknownScGen = for {
       statusCode <- Gen.choose(100, 599) suchThat { statusCode: Int =>
         !knownStatusCodes(statusCode) &&
-          statusCode != SC_OK && statusCode != SC_NOT_MODIFIED
+          statusCode != OK.statusCode && statusCode != NotModified.statusCode
       }
     } yield (UnknownStatusCode(statusCode))
 
     private val notOkScGen = for {
       statusCode <- Gen.choose(100, 599) suchThat { statusCode: Int =>
-        statusCode != SC_OK && statusCode != SC_NOT_MODIFIED
+        statusCode != OK.statusCode && statusCode != NotModified.statusCode
       }
     } yield (NotOkStatusCode(statusCode))
 

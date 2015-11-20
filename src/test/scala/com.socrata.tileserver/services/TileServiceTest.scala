@@ -3,7 +3,6 @@ package services
 
 import java.nio.charset.StandardCharsets.UTF_8
 import javax.servlet.http.HttpServletRequest
-import javax.servlet.http.HttpServletResponse._
 import scala.util.control.NoStackTrace
 import scala.util.{Failure, Success}
 
@@ -19,6 +18,7 @@ import org.scalatest.mock.MockitoSugar
 
 import com.socrata.http.client.Response
 import com.socrata.http.server.HttpRequest
+import com.socrata.http.server.responses._
 import com.socrata.http.server.routing.TypedPathComponent
 import com.socrata.test.http.ResponseSugar
 import com.socrata.test.mocks
@@ -57,7 +57,7 @@ class TileServiceTest
       val resp = unpackResponse(
         TileService(Unused, util.GeoProvider(client)).handleRequest(info))
 
-      resp.status must equal (SC_OK)
+      resp.status must equal (OK.statusCode)
       resp.headers("Access-Control-Allow-Origin") must equal ("*")
       resp.headers(known.key) must equal (known.value)
     }
@@ -81,9 +81,9 @@ class TileServiceTest
         TileService(renderer, util.GeoProvider(client)).handleRequest(info))
 
       if (ext != Png || complete) {
-        resp.status must equal (SC_OK)
+        resp.status must equal (OK.statusCode)
       } else {
-        resp.status must equal(SC_BAD_REQUEST)
+        resp.status must equal(BadRequest.statusCode)
       }
 
       val enc = TileEncoder(expected)
@@ -133,7 +133,7 @@ class TileServiceTest
       val resp = unpackResponse(
         TileService(Unused, provider).handleRequest(reqInfo(req, Unused, Unused, Unused, ext)))
 
-      resp.status must equal (SC_OK)
+      resp.status must equal (OK.statusCode)
     }
   }
 
@@ -148,7 +148,7 @@ class TileServiceTest
       val resp = unpackResponse(
         TileService(Unused, GeoProvider(client)).handleRequest(info))
 
-      resp.status must equal (SC_INTERNAL_SERVER_ERROR)
+      resp.status must equal (InternalServerError.statusCode)
       resp.body.toLowStr must include ("unknown")
       resp.body.toLowStr must include ("error")
       resp.body.toString must include (encode(message))
@@ -167,7 +167,7 @@ class TileServiceTest
 
       val resp = unpackResponse(TileService(Unused, GeoProvider(client)).handleRequest(info))
 
-      resp.status must equal (SC_OK)
+      resp.status must equal (OK.statusCode)
 
       if (ext == Json) {
         resp.body.toString must include (upstream.toString)
@@ -184,7 +184,7 @@ class TileServiceTest
     val info = com.socrata.tileserver.mocks.PngInfo(Png, None, Some(Unused: Int))
     val resp = unpackResponse(TileService(Unused, GeoProvider(client)).handleRequest(info))
 
-    resp.status must equal (SC_BAD_REQUEST)
+    resp.status must equal (BadRequest.statusCode)
   }
 
   test("Handling request succeeds when rendering a `.png` without `$overscan`") {
@@ -196,7 +196,7 @@ class TileServiceTest
 
     val resp = unpackResponse(TileService(Unused, GeoProvider(client)).handleRequest(info))
 
-    resp.status must equal (SC_OK)
+    resp.status must equal (OK.statusCode)
   }
 
   test("Handling request succeeds when rendering a `.png` with invalid `$overscan`") {
@@ -210,7 +210,7 @@ class TileServiceTest
     val resp = unpackResponse(
       TileService(Unused, GeoProvider(client)).handleRequest(reqInfo(req, ext=Png)))
 
-    resp.status must equal (SC_OK)
+    resp.status must equal (OK.statusCode)
   }
 
   test("Handling request returns OK when underlying succeeds for single FeatureJson") {
@@ -225,7 +225,7 @@ class TileServiceTest
 
       val resp = unpackResponse(TileService(Unused, GeoProvider(client)).handleRequest(info))
 
-      resp.status must equal (SC_OK)
+      resp.status must equal (OK.statusCode)
 
       if (ext == Json) {
         val actual = JsonUtil.parseJson[GeoJsonBase](resp.body.toString) match {
@@ -240,13 +240,13 @@ class TileServiceTest
 
   test("Handling request returns 304 with no body when given 304.") {
     val upstream = mock[Response]
-    when(upstream.resultCode).thenReturn(SC_NOT_MODIFIED)
+    when(upstream.resultCode).thenReturn(NotModified.statusCode)
 
     val client = com.socrata.tileserver.mocks.StaticCuratedClient(upstream)
 
     val resp = unpackResponse(TileService(Unused, GeoProvider(client)).handleRequest(Unused))
 
-    resp.status must equal (SC_NOT_MODIFIED)
+    resp.status must equal (NotModified.statusCode)
     resp.body.toString must have length (0)
   }
 
@@ -283,7 +283,7 @@ class TileServiceTest
 
       val resp = unpackResponse(TileService(Unused, GeoProvider(client)).handleRequest(Unused))
 
-      resp.status must equal (SC_INTERNAL_SERVER_ERROR)
+      resp.status must equal (InternalServerError.statusCode)
       resp.body.toLowStr must include ("underlying")
       resp.body.toString must include (encode(payload))
       resp.body.toString must include (statusCode.toInt.toString)
@@ -301,7 +301,7 @@ class TileServiceTest
       val resp = unpackResponse(TileService(Unused, GeoProvider(client)).
                                   handleRequest(reqInfo(ext)))
 
-      resp.status must equal (SC_INTERNAL_SERVER_ERROR)
+      resp.status must equal (InternalServerError.statusCode)
       resp.body.toLowStr must include ("unknown error")
       resp.body.toString must include (encode(message))
     }
@@ -329,7 +329,7 @@ class TileServiceTest
                                           TypedPathComponent(Unused, ext)).
                                   get(req))
 
-      resp.status must equal (SC_OK)
+      resp.status must equal (OK.statusCode)
 
       if (ext == Json) {
         resp.body.toString must equal (upstream.toString)
@@ -379,7 +379,7 @@ class TileServiceTest
 
       val resp = unpackResponse(TileService.fatal(message, cause))
 
-      resp.status must equal (SC_INTERNAL_SERVER_ERROR)
+      resp.status must equal (InternalServerError.statusCode)
       resp.contentType must equal ("application/json; charset=UTF-8")
       resp.body.toLowStr must include ("message")
       resp.body.toString must include (encode(message))
@@ -396,7 +396,7 @@ class TileServiceTest
 
       val resp = unpackResponse(TileService.fatal(message, new RuntimeException(null, cause)))
 
-      resp.status must equal (SC_INTERNAL_SERVER_ERROR)
+      resp.status must equal (InternalServerError.statusCode)
       resp.contentType must equal ("application/json; charset=UTF-8")
       resp.body.toLowStr must include ("message")
       resp.body.toString must include (encode(message))
@@ -411,7 +411,7 @@ class TileServiceTest
 
       val resp = unpackResponse(TileService.fatal(message, new RuntimeException(null, cause)))
 
-      resp.status must equal (SC_INTERNAL_SERVER_ERROR)
+      resp.status must equal (InternalServerError.statusCode)
       resp.contentType must equal ("application/json; charset=UTF-8")
       resp.body.toLowStr must include ("message")
       resp.body.toString must include (encode(message))
@@ -430,7 +430,7 @@ class TileServiceTest
       val resp = unpackResponse(
         TileService(renderer, util.GeoProvider(client)).handleRequest(info))
 
-      resp.status must equal (SC_OK)
+      resp.status must equal (OK.statusCode)
 
       if (ext != Json) {
         resp.body.toString must be ('empty)
@@ -452,8 +452,7 @@ class TileServiceTest
       val resp = unpackResponse(
         TileService(Unused, util.GeoProvider(client)).handleRequest(reqInfo("pbf")))
 
-      resp.status must equal (SC_INTERNAL_SERVER_ERROR)
-
+      resp.status must equal (InternalServerError.statusCode)
       resp.body.toLowStr must include ("invalid")
       resp.body.toLowStr must include ("underlying")
     }
@@ -471,7 +470,7 @@ class TileServiceTest
       val resp = unpackResponse(
         TileService(Unused, util.GeoProvider(client)).handleRequest(reqInfo(ext)))
 
-      resp.status must equal (SC_INTERNAL_SERVER_ERROR)
+      resp.status must equal (InternalServerError.statusCode)
       resp.body.toLowStr must include ("invalid")
       resp.body.toLowStr must include ("underlying")
     }
@@ -489,7 +488,7 @@ class TileServiceTest
       val resp = unpackResponse(
         TileService(Unused, util.GeoProvider(client)).handleRequest(reqInfo(ext)))
 
-      resp.status must equal (SC_INTERNAL_SERVER_ERROR)
+      resp.status must equal (InternalServerError.statusCode)
 
       resp.body.toLowStr must include ("invalid")
       resp.body.toLowStr must include ("underlying")
@@ -507,7 +506,7 @@ class TileServiceTest
         val resp = unpackResponse(
           TileService(Unused, util.GeoProvider(client)).handleRequest(reqInfo(ext)))
 
-        resp.status must equal (SC_INTERNAL_SERVER_ERROR)
+        resp.status must equal (InternalServerError.statusCode)
         resp.body.toLowStr must include ("invalid")
         resp.body.toLowStr must include ("underlying")
       }
@@ -532,7 +531,7 @@ class TileServiceTest
       val resp = unpackResponse(
         TileService(Unused, GeoProvider(client)).handleRequest(info))
 
-      resp.status must equal (SC_OK)
+      resp.status must equal (OK.statusCode)
     }
   }
 

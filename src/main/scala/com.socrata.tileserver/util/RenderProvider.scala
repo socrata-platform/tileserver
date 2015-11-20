@@ -4,14 +4,15 @@ package util
 import java.io.{ByteArrayInputStream, InputStream}
 import java.net.URLDecoder
 import java.nio.charset.StandardCharsets.UTF_8
-import javax.servlet.http.HttpServletResponse.{SC_OK => ScOk}
 
 import com.rojoma.simplearm.v2.ResourceScope
-import com.socrata.http.client.{HttpClient, RequestBuilder, Response}
 import org.apache.commons.codec.binary.Base64
 import org.apache.commons.io.IOUtils
 import org.slf4j.{Logger, LoggerFactory}
 import org.velvia.MsgPack
+
+import com.socrata.http.client.{HttpClient, RequestBuilder, Response}
+import com.socrata.http.server.responses._
 
 import exceptions.FailedRenderException
 
@@ -56,7 +57,7 @@ case class RenderProvider(http: HttpClient, baseUrl: RequestBuilder) {
     val duration = (after - before)/1000000
     val message = s"Carto Renderer (${resp.resultCode}) took ${duration}ms."
 
-    if (resp.resultCode == ScOk) {
+    if (resp.resultCode == OK.statusCode) {
       logger.info(message)
       resp.inputStream()
     } else {

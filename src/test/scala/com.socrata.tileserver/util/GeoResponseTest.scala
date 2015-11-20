@@ -1,10 +1,10 @@
 package com.socrata.tileserver
 package util
 
-import javax.servlet.http.HttpServletResponse.{SC_OK => ScOk}
-
 import com.rojoma.json.v3.ast.JString
 import com.rojoma.simplearm.v2.ResourceScope
+
+import com.socrata.http.server.responses._
 
 // scalastyle:off no.whitespace.before.left.bracket
 class GeoResponseTest extends TestBase with UnusedSugar {
@@ -118,7 +118,7 @@ class GeoResponseTest extends TestBase with UnusedSugar {
 
   test("Retrieving features from a failed result throws") {
     forAll { rc: Int =>
-      whenever (rc != ScOk) {
+      whenever (rc != OK.statusCode) {
         val resp = new GeoResponse {
           val headerNames: Set[String] = Set.empty
           def headers(name: String): Array[String] = Array.empty

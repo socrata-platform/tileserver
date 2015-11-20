@@ -2,7 +2,6 @@ package com.socrata.tileserver
 package util
 
 import java.nio.charset.StandardCharsets.UTF_8
-import javax.servlet.http.HttpServletResponse.{SC_OK => ScOk}
 
 import com.rojoma.json.v3.io.JsonReader
 import com.rojoma.simplearm.v2.ResourceScope

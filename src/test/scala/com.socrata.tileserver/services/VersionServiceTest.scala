@@ -1,13 +1,13 @@
 package com.socrata.tileserver
 package services
 
-import javax.servlet.http.HttpServletResponse.SC_OK
+import com.socrata.http.server.responses._
 
 class VersionServiceTest extends TestBase with UnusedSugar {
   test("Endpoint must return health = alive") {
     val resp = unpackResponse(VersionService.get(Unused))
 
-    resp.status must equal (SC_OK)
+    resp.status must equal (OK.statusCode)
     resp.contentType must equal ("application/json; charset=UTF-8")
     resp.body.toLowStr must include ("health")
     resp.body.toLowStr must include ("alive")

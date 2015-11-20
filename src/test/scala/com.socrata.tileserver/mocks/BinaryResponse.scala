@@ -4,9 +4,10 @@ import java.io.InputStream
 import javax.servlet.http.HttpServletResponse.{SC_OK => ScOk}
 
 import com.socrata.http.common.util.Acknowledgeable
+import com.socrata.http.server.responses._
 
 class BinaryResponse(payload: Array[Byte],
-                     override val resultCode: Int = ScOk)
+                     override val resultCode: Int = OK.statusCode)
     extends EmptyResponse("application/octet-stream") {
   override def inputStream(maxBetween: Long): InputStream with Acknowledgeable =
     ByteInputStream(payload)
