@@ -20,8 +20,8 @@ import com.socrata.http.client.Response
 import com.socrata.http.server.HttpRequest
 import com.socrata.http.server.responses._
 import com.socrata.http.server.routing.TypedPathComponent
+import com.socrata.test.common
 import com.socrata.test.http.ResponseSugar
-import com.socrata.test.mocks
 import com.socrata.thirdparty.geojson.GeoJson._
 import com.socrata.thirdparty.geojson.{FeatureCollectionJson, FeatureJson, GeoJsonBase}
 
@@ -49,10 +49,10 @@ class TileServiceTest
     forAll { (known: OutgoingHeader,
               unknown: UnknownHeader,
               ext: Extension) =>
-      val upstream = com.socrata.tileserver.mocks.HeaderResponse(Map(known, unknown))
-      val client = com.socrata.tileserver.mocks.StaticCuratedClient(upstream)
+      val upstream = mocks.HeaderResponse(Map(known, unknown))
+      val client = common.mocks.StaticCuratedClient(upstream)
 
-      val info = com.socrata.tileserver.mocks.PngInfo(ext)
+      val info = mocks.PngInfo(ext)
 
       val resp = unpackResponse(
         TileService(Unused, util.GeoProvider(client)).handleRequest(info))
@@ -68,14 +68,14 @@ class TileServiceTest
     import gen.Points._
 
     forAll { (pt: ValidPoint, ext: Extension, complete: Boolean) =>
-      val upstream = com.socrata.tileserver.mocks.SeqResponse(fJson(pt))
-      val client = com.socrata.tileserver.mocks.StaticCuratedClient(upstream)
+      val upstream = mocks.SeqResponse(fJson(pt))
+      val client = common.mocks.StaticCuratedClient(upstream)
       val expected = Set(feature(pt))
       val expectedJson = Seq(fJson(pt))
 
-      val info = com.socrata.tileserver.mocks.PngInfo(ext, complete)
+      val info = mocks.PngInfo(ext, complete)
       val renderer =
-        RenderProvider(com.socrata.tileserver.mocks.StaticHttpClient(expected.toString), Unused)
+        RenderProvider(common.mocks.StaticHttpClient(expected.toString), Unused)
 
       val resp = unpackResponse(
         TileService(renderer, util.GeoProvider(client)).handleRequest(info))
@@ -107,16 +107,23 @@ class TileServiceTest
     }
   }
 
-  test("Requests without X-Socrata-Host use Host") {
+  test("Requests without X-Socrata-Host use Host as X-Socrata-Host") {
     import gen.Extensions._
 
-    val upstream = com.socrata.tileserver.mocks.SeqResponse(Seq.empty)
-    val client = com.socrata.tileserver.mocks.StaticCuratedClient(upstream)
-    val provider = util.GeoProvider(client)
-
+    val host = "host.test-socrata.com"
     val overscan: Int = Unused
+    val upstream = mocks.FeatureIteratorResponse(Iterator.empty)
+
+    val client = common.mocks.StaticCuratedClient { curatedReq =>
+      val req = curatedReq(Unused)
+      val headers = req.builder.headers.map { x => x }.toMap
+      headers("X-Socrata-Host") must equal (host)
+      upstream
+    }
 
     forAll { ext: Extension =>
+      val geoProvider = mocks.StaticGeoProvider(client)(upstream)
+
       val params: Map[String, String] =
         if (ext == Png) {
           Map('$' + "style" -> Unused, '$' + "overscan" -> overscan.toString)
@@ -124,14 +131,15 @@ class TileServiceTest
           Map.empty
         }
 
-      val req = new com.socrata.tileserver.mocks.StaticRequest(params,
-                                                               Map("Host" -> "host.test-socrata.com"),
-                                                               false)
-
-      val renderer = RenderProvider(com.socrata.tileserver.mocks.StaticHttpClient(""), Unused)
+      val inner = common.mocks.AugmentedServletRequest(Map("Host" -> host), params)
+      val req = common.mocks.ServletHttpRequest(inner)
 
       val resp = unpackResponse(
-        TileService(Unused, provider).handleRequest(reqInfo(req, Unused, Unused, Unused, ext)))
+        TileService(Unused, geoProvider).handleRequest(reqInfo(req, Unused, Unused, Unused, ext)))
+
+      if (!geoProvider.exceptions.isEmpty) {
+        throw geoProvider.exceptions.head
+      }
 
       resp.status must equal (OK.statusCode)
     }
@@ -141,8 +149,8 @@ class TileServiceTest
     import gen.Extensions._
 
     forAll { (message: String, ext: Extension) =>
-      val upstream = com.socrata.tileserver.mocks.ThrowsResponse(message)
-      val client = com.socrata.tileserver.mocks.StaticCuratedClient(upstream)
+      val upstream = mocks.ThrowsResponse(message)
+      val client = common.mocks.StaticCuratedClient(upstream)
       val info = reqInfo(Unused, Unused, Unused, Unused, ext)
 
       val resp = unpackResponse(
@@ -160,10 +168,10 @@ class TileServiceTest
     import gen.Points._
 
     forAll { (pt: ValidPoint, ext: Extension) =>
-      val upstream = com.socrata.tileserver.mocks.SeqResponse(fJson(pt))
-      val client = com.socrata.tileserver.mocks.StaticCuratedClient(upstream)
+      val upstream = mocks.SeqResponse(fJson(pt))
+      val client = common.mocks.StaticCuratedClient(upstream)
 
-      val info = com.socrata.tileserver.mocks.PngInfo(ext)
+      val info = mocks.PngInfo(ext)
 
       val resp = unpackResponse(TileService(Unused, GeoProvider(client)).handleRequest(info))
 
@@ -178,10 +186,10 @@ class TileServiceTest
   test("Handling request fails when rendering a `.png` without `$style`") {
     import gen.Extensions._
 
-    val upstream = com.socrata.tileserver.mocks.SeqResponse(Seq.empty)
-    val client = com.socrata.tileserver.mocks.StaticCuratedClient(upstream)
+    val upstream = mocks.SeqResponse(Seq.empty)
+    val client = common.mocks.StaticCuratedClient(upstream)
 
-    val info = com.socrata.tileserver.mocks.PngInfo(Png, None, Some(Unused: Int))
+    val info = mocks.PngInfo(Png, None, Some(Unused: Int))
     val resp = unpackResponse(TileService(Unused, GeoProvider(client)).handleRequest(info))
 
     resp.status must equal (BadRequest.statusCode)
@@ -190,9 +198,9 @@ class TileServiceTest
   test("Handling request succeeds when rendering a `.png` without `$overscan`") {
     import gen.Extensions._
 
-    val upstream = com.socrata.tileserver.mocks.SeqResponse(Seq.empty)
-    val client = com.socrata.tileserver.mocks.StaticCuratedClient(upstream)
-    val info = com.socrata.tileserver.mocks.PngInfo(Png, Some(Unused: String), None)
+    val upstream = mocks.SeqResponse(Seq.empty)
+    val client = common.mocks.StaticCuratedClient(upstream)
+    val info = mocks.PngInfo(Png, Some(Unused: String), None)
 
     val resp = unpackResponse(TileService(Unused, GeoProvider(client)).handleRequest(info))
 
@@ -202,10 +210,10 @@ class TileServiceTest
   test("Handling request succeeds when rendering a `.png` with invalid `$overscan`") {
     import gen.Extensions._
 
-    val upstream = com.socrata.tileserver.mocks.SeqResponse(Seq.empty)
-    val client = com.socrata.tileserver.mocks.StaticCuratedClient(upstream)
-    val req = com.socrata.tileserver.mocks.StaticRequest(Map('$' + "style" -> Unused.toString,
-                                                             '$' + "overscan" -> "Invalid"))
+    val upstream = mocks.SeqResponse(Seq.empty)
+    val client = common.mocks.StaticCuratedClient(upstream)
+    val req = mocks.StaticRequest(Map('$' + "style" -> Unused.toString,
+                                      '$' + "overscan" -> "Invalid"))
 
     val resp = unpackResponse(
       TileService(Unused, GeoProvider(client)).handleRequest(reqInfo(req, ext=Png)))
@@ -219,9 +227,9 @@ class TileServiceTest
 
     forAll { (pt: ValidPoint, ext: Extension) =>
       val expected = FeatureCollectionJson(Seq(fJson(pt)))
-      val upstream = com.socrata.tileserver.mocks.SeqResponse(fJson(pt))
-      val client = com.socrata.tileserver.mocks.StaticCuratedClient(upstream)
-      val info = com.socrata.tileserver.mocks.PngInfo(ext)
+      val upstream = mocks.SeqResponse(fJson(pt))
+      val client = common.mocks.StaticCuratedClient(upstream)
+      val info = mocks.PngInfo(ext)
 
       val resp = unpackResponse(TileService(Unused, GeoProvider(client)).handleRequest(info))
 
@@ -242,7 +250,7 @@ class TileServiceTest
     val upstream = mock[Response]
     when(upstream.resultCode).thenReturn(NotModified.statusCode)
 
-    val client = com.socrata.tileserver.mocks.StaticCuratedClient(upstream)
+    val client = common.mocks.StaticCuratedClient(upstream)
 
     val resp = unpackResponse(TileService(Unused, GeoProvider(client)).handleRequest(Unused))
 
@@ -257,9 +265,9 @@ class TileServiceTest
       val message = s"""{message: ${encode(payload)}}"""
       val upstream = mock[Response]
       when(upstream.resultCode).thenReturn(statusCode)
-      when(upstream.inputStream(anyInt)).thenReturn(com.socrata.tileserver.mocks.StringInputStream(message))
+      when(upstream.inputStream(anyInt)).thenReturn(mocks.StringInputStream(message))
 
-      val client = com.socrata.tileserver.mocks.StaticCuratedClient(upstream)
+      val client = common.mocks.StaticCuratedClient(upstream)
 
       val resp = unpackResponse(TileService(Unused, GeoProvider(client)).handleRequest(Unused))
 
@@ -277,9 +285,9 @@ class TileServiceTest
       val upstream = mock[Response]
       when(upstream.resultCode).thenReturn(statusCode)
       when(upstream.inputStream(anyInt)).
-        thenReturn(com.socrata.tileserver.mocks.StringInputStream(message))
+        thenReturn(mocks.StringInputStream(message))
 
-      val client = com.socrata.tileserver.mocks.StaticCuratedClient(upstream)
+      val client = common.mocks.StaticCuratedClient(upstream)
 
       val resp = unpackResponse(TileService(Unused, GeoProvider(client)).handleRequest(Unused))
 
@@ -294,7 +302,7 @@ class TileServiceTest
     import gen.Extensions._
 
     forAll { (message: String, ext: Extension) =>
-      val client = com.socrata.tileserver.mocks.StaticCuratedClient {
+      val client = common.mocks.StaticCuratedClient {
         () => throw new RuntimeException(message)
       }
 
@@ -312,14 +320,14 @@ class TileServiceTest
     import gen.Points._
 
     forAll { (pt: ValidPoint, ext: Extension) =>
-      val upstream = com.socrata.tileserver.mocks.SeqResponse(fJson(pt))
-      val client = com.socrata.tileserver.mocks.StaticCuratedClient(upstream)
+      val upstream = mocks.SeqResponse(fJson(pt))
+      val client = common.mocks.StaticCuratedClient(upstream)
 
       val overscan: Int = Unused
       val params: Map[String, String] = Map('$' + "style" -> Unused,
                                             '$' + "overscan" -> overscan.toString)
       val req: HttpRequest =
-        if (ext == Png) com.socrata.tileserver.mocks.StaticRequest(params) else Unused
+        if (ext == Png) mocks.StaticRequest(params) else Unused
 
       val resp = unpackResponse(TileService(Unused, GeoProvider(client)).
                                   service(Unused,
@@ -341,8 +349,8 @@ class TileServiceTest
     import gen.StatusCodes._
 
     forAll { (statusCode: KnownStatusCode, payload: String) =>
-      val upstream = com.socrata.tileserver.mocks.StringResponse(json"""{payload: $payload}""".toString,
-                                                                 statusCode)
+      val upstream = mocks.StringResponse(json"""{payload: $payload}""".toString,
+                                          statusCode)
 
       val resp = unpackResponse(TileService.echoResponse(upstream))
 
@@ -358,7 +366,7 @@ class TileServiceTest
     import gen.StatusCodes._
 
     forAll { (statusCode: KnownStatusCode, message: String) =>
-      val upstream = com.socrata.tileserver.mocks.ThrowsResponse(message, statusCode)
+      val upstream = mocks.ThrowsResponse(message, statusCode)
 
       val resp = unpackResponse(TileService.echoResponse(upstream))
 
@@ -422,10 +430,10 @@ class TileServiceTest
     import gen.Extensions._
 
     forAll { (ext: Extension) =>
-      val upstream = com.socrata.tileserver.mocks.MsgPackResponse()
-      val client = com.socrata.tileserver.mocks.StaticCuratedClient(upstream)
-      val info = com.socrata.tileserver.mocks.PngInfo(ext)
-      val renderer = RenderProvider(com.socrata.tileserver.mocks.StaticHttpClient(""), Unused)
+      val upstream = mocks.MsgPackResponse()
+      val client = common.mocks.StaticCuratedClient(upstream)
+      val info = mocks.PngInfo(ext)
+      val renderer = RenderProvider(common.mocks.StaticHttpClient(), Unused)
 
       val resp = unpackResponse(
         TileService(renderer, util.GeoProvider(client)).handleRequest(info))
@@ -442,12 +450,12 @@ class TileServiceTest
     import gen.Points._
 
     val writer = new WKBWriter()
-    val expectedJson = JObject(Map(com.socrata.tileserver.mocks.MsgPackResponse.GeoIndexKey -> JString("0")))
+    val expectedJson = JObject(Map(mocks.MsgPackResponse.GeoIndexKey -> JString("0")))
     val invalidWKB = Array[Byte](3, 2, 1, 0)
 
     forAll { pts: Seq[ValidPoint] =>
-      val upstream = com.socrata.tileserver.mocks.MsgPackResponse(pts, invalidWKB)
-      val client = com.socrata.tileserver.mocks.StaticCuratedClient(upstream)
+      val upstream = mocks.MsgPackResponse(pts, invalidWKB)
+      val client = common.mocks.StaticCuratedClient(upstream)
 
       val resp = unpackResponse(
         TileService(Unused, util.GeoProvider(client)).handleRequest(reqInfo("pbf")))
@@ -464,8 +472,8 @@ class TileServiceTest
     val badMessage: Array[Byte] = Array(3, 2, 1, 0)
 
     forAll { (ext: Extension) =>
-      val upstream = com.socrata.tileserver.mocks.BinaryResponse(badMessage)
-      val client = com.socrata.tileserver.mocks.StaticCuratedClient(upstream)
+      val upstream = common.mocks.StaticResponse(badMessage)
+      val client = common.mocks.StaticCuratedClient(upstream)
 
       val resp = unpackResponse(
         TileService(Unused, util.GeoProvider(client)).handleRequest(reqInfo(ext)))
@@ -482,8 +490,8 @@ class TileServiceTest
     val msgNull: Array[Byte] = Array(-64)
 
     forAll { ext: Extension =>
-      val upstream = com.socrata.tileserver.mocks.BinaryResponse(msgNull)
-      val client = com.socrata.tileserver.mocks.StaticCuratedClient(upstream)
+      val upstream = common.mocks.StaticResponse(msgNull)
+      val client = common.mocks.StaticCuratedClient(upstream)
 
       val resp = unpackResponse(
         TileService(Unused, util.GeoProvider(client)).handleRequest(reqInfo(ext)))
@@ -500,8 +508,8 @@ class TileServiceTest
 
     forAll { (idx: Int, ext: Extension) =>
       whenever (idx < 0) {
-        val upstream = com.socrata.tileserver.mocks.MsgPackResponse(-1)
-        val client = com.socrata.tileserver.mocks.StaticCuratedClient(upstream)
+        val upstream = mocks.MsgPackResponse(-1)
+        val client = common.mocks.StaticCuratedClient(upstream)
 
         val resp = unpackResponse(
           TileService(Unused, util.GeoProvider(client)).handleRequest(reqInfo(ext)))
@@ -517,15 +525,15 @@ class TileServiceTest
     import gen.Extensions._
 
     forAll { ext: Extension =>
-      val upstream = com.socrata.tileserver.mocks.StringResponse(Unused)
-      val info = com.socrata.tileserver.mocks.PngInfo(ext, Some(Unused: String), Some(Unused: Int))
+      val upstream = mocks.StringResponse(Unused)
+      val info = mocks.PngInfo(ext, Some(Unused: String), Some(Unused: Int))
 
-      val client = com.socrata.tileserver.mocks.StaticCuratedClient.withReq { request =>
+      val client = common.mocks.StaticCuratedClient { request =>
         val actual = request(Unused).builder
         actual.query.toMap.get("$style") must be ('empty)
 
         val pt: (Int, Int) = (Unused, Unused)
-        com.socrata.tileserver.mocks.SeqResponse(fJson(pt))
+        mocks.SeqResponse(fJson(pt))
       }
 
       val resp = unpackResponse(
@@ -539,20 +547,20 @@ class TileServiceTest
     import gen.Extensions.Png
 
     forAll { requestId: String =>
-      val http = com.socrata.tileserver.mocks.DynamicHttpClient { req =>
+      val http = common.mocks.StaticHttpClient { req =>
         val headers = req.builder.headers.toMap
         headers.contains("X-Socrata-RequestId") must be (true)
         headers("X-Socrata-RequestId") must equal (requestId)
 
-        com.socrata.tileserver.mocks.EmptyResponse()
+        mocks.EmptyResponse()
       }
 
       val renderer = RenderProvider(http, Unused)
 
-      val upstream = com.socrata.tileserver.mocks.SeqResponse(fJson())
-      val client = com.socrata.tileserver.mocks.StaticCuratedClient(upstream)
-      val req = com.socrata.tileserver.mocks.StaticRequest("$style" -> (Unused: String),
-                                                           "X-Socrata-RequestId" -> requestId)
+      val upstream = mocks.SeqResponse(fJson())
+      val client = common.mocks.StaticCuratedClient(upstream)
+      val req = mocks.StaticRequest("$style" -> (Unused: String),
+                                    "X-Socrata-RequestId" -> requestId)
 
       TileService(renderer, GeoProvider(client)).
         handleRequest(reqInfo(req, Png)): Unit

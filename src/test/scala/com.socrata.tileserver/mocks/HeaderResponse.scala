@@ -1,4 +1,5 @@
-package com.socrata.tileserver.mocks
+package com.socrata.tileserver
+package mocks
 
 case class HeaderResponse(underlying: Map[String, String])
     extends MsgPackResponse() {

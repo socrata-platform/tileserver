@@ -6,6 +6,7 @@ import org.scalatest.mock.MockitoSugar
 import com.socrata.http.client.{RequestBuilder, Response}
 import com.socrata.http.server.util.RequestId.ReqIdHeader
 import com.socrata.soql.types.SoQLText
+import com.socrata.test.common
 
 class GeoProviderTest extends TestBase with UnusedSugar with MockitoSugar {
   test("Headers and parameters are correct") {
@@ -39,7 +40,7 @@ class GeoProviderTest extends TestBase with UnusedSugar with MockitoSugar {
         addParameters(augmented).
         get.builder
 
-      val client = mocks.StaticCuratedClient.withReq { request =>
+      val client = common.mocks.StaticCuratedClient { request =>
         val actual = request(base).builder
 
         // Assertions are in here, since we only care about what the client sees.
@@ -175,7 +176,7 @@ class GeoProviderTest extends TestBase with UnusedSugar with MockitoSugar {
       val info = mocks.PngInfo(os)
       val expected = GeoProvider.filter(info.tile, info.geoColumn, os)
 
-      val client = mocks.StaticCuratedClient.withReq { request =>
+      val client = common.mocks.StaticCuratedClient { request =>
         val actual = request(base).builder
         val query = actual.query.toMap
 
@@ -196,7 +197,7 @@ class GeoProviderTest extends TestBase with UnusedSugar with MockitoSugar {
     val info = mocks.PngInfo(Unused, None, None)
     val expected = GeoProvider.filter(info.tile, info.geoColumn, 0)
 
-    val client = mocks.StaticCuratedClient.withReq { request =>
+    val client = common.mocks.StaticCuratedClient { request =>
       val actual = request(base).builder
       val query = actual.query.toMap
 

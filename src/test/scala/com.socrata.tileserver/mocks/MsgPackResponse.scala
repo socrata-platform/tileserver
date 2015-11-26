@@ -18,7 +18,7 @@ import gen.Points.PointLike
 class MsgPackResponse(header: Map[String, Any] = EmptyHeader,
                       rows: Seq[Seq[Any]] = Seq.empty,
                       junk: Option[Array[Byte]] = None)
-    extends BinaryResponse(buildPayload(header, rows) ++ junk.getOrElse(Array[Byte]())) {
+    extends StaticGeoResponse(buildPayload(header, rows) ++ junk.getOrElse(Array[Byte]())) {
   def this(args: (Map[String, Any], Seq[Seq[Any]])) {
     this(args._1, args._2, None)
   }

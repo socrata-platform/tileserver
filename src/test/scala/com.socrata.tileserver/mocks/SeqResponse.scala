@@ -1,4 +1,5 @@
-package com.socrata.tileserver.mocks
+package com.socrata.tileserver
+package mocks
 
 import java.io.InputStream
 import javax.activation.MimeType
