@@ -112,4 +112,16 @@ class QuadTileTest extends TestBase {
       tile.px(west, south, true) must be ((0, flip(0)))
     }
   }
+
+  test("x and y are centered on the standard viewport") {
+    import gen.QuadTiles._
+
+    forAll { tile: QuadTile =>
+      val QuadTile(rawX, rawY, zoom) = tile
+      val wrap = 1 << zoom
+      val wrappedTile = QuadTile(rawX + wrap, rawY + wrap, zoom)
+      tile.x must equal (wrappedTile.x)
+      tile.y must equal (wrappedTile.y)
+    }
+  }
 }

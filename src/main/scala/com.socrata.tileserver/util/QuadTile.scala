@@ -17,8 +17,11 @@ case class QuadTile(rawX: Int, rawY: Int, zoom: Int) {
   /** The mapper for this zoom. */
   val mapper = CoordinateMapper(zoom)
 
+  private val WorldWidth = 1 << zoom
+  private def center(n: Int): Int = ((n % WorldWidth) + WorldWidth) % WorldWidth
+
   /** The mapped TMS coordinate. */
-  val (x: Int, y: Int) = mapper.tmsCoordinates(rawX, rawY)
+  val (x: Int, y: Int) = mapper.tmsCoordinates(center(rawX), center(rawY))
 
   /** North edge of the tile (lat).
     *

@@ -17,7 +17,7 @@ class CoordinateMapperTest extends TestBase {
     mapper5.lon(2303) must equal (-78.7939453125)
   }
 
-  test("lon maps y to longitude") {
+  test("lat maps y to latitude") {
     val mapper14 = CoordinateMapper(14)
     mapper14.lat(2632192) must equal (41.672911819602085)
     mapper14.lat(2632447) must equal (41.689258164829670)
