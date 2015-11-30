@@ -13,7 +13,9 @@ class PngInfo(val ext: String,
 object PngInfo {
   def apply(overscan: Int): PngInfo = new PngInfo(Unused, None, Some(overscan))
 
-  def apply(ext: String): PngInfo = if (ext == Png.name) {
+  def apply(ext: String): PngInfo = apply(ext, true)
+
+  def apply(ext: String, complete: Boolean): PngInfo = if (ext == Png.name && complete) {
     new PngInfo(ext, Some(Unused), Some(Unused))
   } else {
     new PngInfo(ext, None, None)

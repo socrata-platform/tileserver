@@ -1,15 +1,15 @@
 package com.socrata.tileserver
 package util
 
-import javax.servlet.http.HttpServletResponse.{SC_OK => ScOk}
-
 import com.rojoma.json.v3.ast.JString
 import com.rojoma.simplearm.v2.ResourceScope
+
+import com.socrata.http.server.responses._
 
 // scalastyle:off no.whitespace.before.left.bracket
 class GeoResponseTest extends TestBase with UnusedSugar {
   test("An empty list of coordinates rolls up correctly") {
-    val resp = mocks.StaticGeoResponse(Iterator.empty)
+    val resp = mocks.FeatureIteratorResponse(Iterator.empty)
 
     resp.features(Unused, Unused) must be (Set.empty)
   }
@@ -18,7 +18,7 @@ class GeoResponseTest extends TestBase with UnusedSugar {
     import gen.Points._
 
     forAll { pt: ValidPoint =>
-      val resp = mocks.StaticGeoResponse(Iterator.single(fJson(pt)))
+      val resp = mocks.FeatureIteratorResponse(Iterator.single(fJson(pt)))
 
       resp.features(Unused, Unused) must equal (Set(feature(pt)))
     }
@@ -30,7 +30,7 @@ class GeoResponseTest extends TestBase with UnusedSugar {
     forAll { pts: Set[ValidPoint] =>
       val coordinates = pts.map(fJson(_))
       val expected = pts.map(feature(_))
-      val resp = mocks.StaticGeoResponse(coordinates.toIterator)
+      val resp = mocks.FeatureIteratorResponse(coordinates.toIterator)
 
       val actual = resp.features(Unused, Unused)
 
@@ -50,7 +50,7 @@ class GeoResponseTest extends TestBase with UnusedSugar {
       val expected = dupes.
         groupBy(identity).
         mapValues(_.size).map(feature(_)).toSet
-      val resp = mocks.StaticGeoResponse(coordinates.toIterator)
+      val resp = mocks.FeatureIteratorResponse(coordinates.toIterator)
 
       val actual = resp.features(Unused, Unused)
 
@@ -78,7 +78,7 @@ class GeoResponseTest extends TestBase with UnusedSugar {
                            feature(pt0, 1, Map(prop0, prop1)),
                            feature(pt0, 1, Map(prop1)),
                            feature(pt1, 2, Map(prop1)))
-        val resp = mocks.StaticGeoResponse(coordinates.toIterator)
+        val resp = mocks.FeatureIteratorResponse(coordinates.toIterator)
 
         val actual = resp.features(Unused, Unused)
 
@@ -91,7 +91,6 @@ class GeoResponseTest extends TestBase with UnusedSugar {
     import gen.Points._
 
     forAll { pts: Seq[ValidPoint] =>
-      // headerMap(0, Some("txt" -> SoQLText)), rows
       val upstream = mocks.MsgPackResponse(pts, Map("txt" -> "abcde"))
 
       val features = GeoResponse(upstream, Unused).rawFeatures.toSeq
@@ -118,7 +117,7 @@ class GeoResponseTest extends TestBase with UnusedSugar {
 
   test("Retrieving features from a failed result throws") {
     forAll { rc: Int =>
-      whenever (rc != ScOk) {
+      whenever (rc != OK.statusCode) {
         val resp = new GeoResponse {
           val headerNames: Set[String] = Set.empty
           def headers(name: String): Array[String] = Array.empty

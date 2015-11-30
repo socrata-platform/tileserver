@@ -3,7 +3,6 @@ package services
 
 import java.nio.charset.StandardCharsets.UTF_8
 import javax.servlet.http.HttpServletRequest
-import javax.servlet.http.HttpServletResponse._
 import scala.util.control.NoStackTrace
 import scala.util.{Failure, Success}
 
@@ -19,14 +18,21 @@ import org.scalatest.mock.MockitoSugar
 
 import com.socrata.http.client.Response
 import com.socrata.http.server.HttpRequest
+import com.socrata.http.server.responses._
 import com.socrata.http.server.routing.TypedPathComponent
+import com.socrata.test.common
+import com.socrata.test.http.ResponseSugar
 import com.socrata.thirdparty.geojson.GeoJson._
 import com.socrata.thirdparty.geojson.{FeatureCollectionJson, FeatureJson, GeoJsonBase}
 
 import util.{RenderProvider, GeoProvider, QuadTile, RequestInfo, TileEncoder}
 
 // scalastyle:off import.grouping, null
-class TileServiceTest extends TestBase with UnusedSugar with MockitoSugar {
+class TileServiceTest
+    extends TestBase
+    with UnusedSugar
+    with MockitoSugar
+    with ResponseSugar {
   test("Service supports at least .pbf, .bpbf, .json and .png") {
     val svc = TileService(Unused, GeoProvider(Unused))
 
@@ -43,18 +49,17 @@ class TileServiceTest extends TestBase with UnusedSugar with MockitoSugar {
     forAll { (known: OutgoingHeader,
               unknown: UnknownHeader,
               ext: Extension) =>
-      val (k, v): (String, String) = known
       val upstream = mocks.HeaderResponse(Map(known, unknown))
-      val client = mocks.StaticCuratedClient(upstream)
-      val resp = new mocks.ByteArrayServletOutputStream().responseFor
+      val client = common.mocks.StaticCuratedClient(upstream)
 
       val info = mocks.PngInfo(ext)
 
-      TileService(Unused, util.GeoProvider(client)).handleRequest(info)(resp)
+      val resp = unpackResponse(
+        TileService(Unused, util.GeoProvider(client)).handleRequest(info))
 
-      verify(resp).setStatus(SC_OK)
-      verify(resp).setHeader("Access-Control-Allow-Origin", "*")
-      verify(resp).setHeader(k, v)
+      resp.status must equal (OK.statusCode)
+      resp.headers("Access-Control-Allow-Origin") must equal ("*")
+      resp.headers(known.key) must equal (known.value)
     }
   }
 
@@ -64,40 +69,37 @@ class TileServiceTest extends TestBase with UnusedSugar with MockitoSugar {
 
     forAll { (pt: ValidPoint, ext: Extension, complete: Boolean) =>
       val upstream = mocks.SeqResponse(fJson(pt))
-      val client = mocks.StaticCuratedClient(upstream)
+      val client = common.mocks.StaticCuratedClient(upstream)
       val expected = Set(feature(pt))
       val expectedJson = Seq(fJson(pt))
-      val outputStream = new mocks.ByteArrayServletOutputStream
-      val resp = outputStream.responseFor
 
-      val info =
-        if (complete) mocks.PngInfo(ext) else mocks.PngInfo(ext, None, None)
+      val info = mocks.PngInfo(ext, complete)
       val renderer =
-        RenderProvider(mocks.StaticHttpClient(expected.toString), Unused)
+        RenderProvider(common.mocks.StaticHttpClient(expected.toString), Unused)
 
-      TileService(renderer, util.GeoProvider(client)).
-        handleRequest(info)(resp)
+      val resp = unpackResponse(
+        TileService(renderer, util.GeoProvider(client)).handleRequest(info))
 
       if (ext != Png || complete) {
-        verify(resp).setStatus(SC_OK)
+        resp.status must equal (OK.statusCode)
       } else {
-        verify(resp).setStatus(SC_BAD_REQUEST)
+        resp.status must equal(BadRequest.statusCode)
       }
 
       val enc = TileEncoder(expected)
 
       ext match {
         case Pbf =>
-          outputStream.getBytes must includeSlice (enc.bytes)
+          resp.body.toByteArray must includeSlice (enc.bytes)
         case BPbf =>
-          outputStream.getString must include (enc.base64)
+          resp.body.toString must include (enc.base64)
         case Json =>
-          outputStream.getString must equal (upstream.toString)
+          resp.body.toString must equal (upstream.toString)
         case Png =>
           if (complete) {
-            outputStream.getString must equal (expected.toString)
+            resp.body.toString must equal (expected.toString)
           } else {
-            outputStream.getString must include ('$' + "style")
+            resp.body.toString must include ('$' + "style")
           }
         // ".txt" should be supported, but its output format is unspecified.
         case Txt => ()
@@ -105,16 +107,23 @@ class TileServiceTest extends TestBase with UnusedSugar with MockitoSugar {
     }
   }
 
-  test("Requests without X-Socrata-Host use Host") {
+  test("Requests without X-Socrata-Host use Host as X-Socrata-Host") {
     import gen.Extensions._
 
-    val upstream = mocks.SeqResponse(Seq.empty)
-    val client = mocks.StaticCuratedClient(upstream)
-    val provider = util.GeoProvider(client)
-
+    val host = "host.test-socrata.com"
     val overscan: Int = Unused
+    val upstream = mocks.FeatureIteratorResponse(Iterator.empty)
+
+    val client = common.mocks.StaticCuratedClient { curatedReq =>
+      val req = curatedReq(Unused)
+      val headers = req.builder.headers.map { x => x }.toMap
+      headers("X-Socrata-Host") must equal (host)
+      upstream
+    }
 
     forAll { ext: Extension =>
+      val geoProvider = mocks.StaticGeoProvider(client)(upstream)
+
       val params: Map[String, String] =
         if (ext == Png) {
           Map('$' + "style" -> Unused, '$' + "overscan" -> overscan.toString)
@@ -122,19 +131,17 @@ class TileServiceTest extends TestBase with UnusedSugar with MockitoSugar {
           Map.empty
         }
 
-      val req = new mocks.StaticRequest(params,
-                                        Map("Host" -> "host.test-socrata.com"),
-                                        false)
+      val inner = common.mocks.AugmentedServletRequest(Map("Host" -> host), params)
+      val req = common.mocks.ServletHttpRequest(inner)
 
-      val outputStream = new mocks.ByteArrayServletOutputStream
-      val resp = outputStream.responseFor
+      val resp = unpackResponse(
+        TileService(Unused, geoProvider).handleRequest(reqInfo(req, Unused, Unused, Unused, ext)))
 
-      val renderer = RenderProvider(mocks.StaticHttpClient(""), Unused)
+      if (!geoProvider.exceptions.isEmpty) {
+        throw geoProvider.exceptions.head
+      }
 
-      TileService(Unused, provider).
-        handleRequest(reqInfo(req, Unused, Unused, Unused, ext))(resp)
-
-      verify(resp).setStatus(SC_OK)
+      resp.status must equal (OK.statusCode)
     }
   }
 
@@ -143,104 +150,93 @@ class TileServiceTest extends TestBase with UnusedSugar with MockitoSugar {
 
     forAll { (message: String, ext: Extension) =>
       val upstream = mocks.ThrowsResponse(message)
-      val client = mocks.StaticCuratedClient(upstream)
-      val outputStream = new mocks.ByteArrayServletOutputStream
-      val resp = outputStream.responseFor
+      val client = common.mocks.StaticCuratedClient(upstream)
+      val info = reqInfo(Unused, Unused, Unused, Unused, ext)
 
-      TileService(Unused, GeoProvider(client)).
-        handleRequest(reqInfo(Unused, Unused, Unused, Unused, ext))(resp)
+      val resp = unpackResponse(
+        TileService(Unused, GeoProvider(client)).handleRequest(info))
 
-      verify(resp).setStatus(SC_INTERNAL_SERVER_ERROR)
-
-      outputStream.getLowStr must include ("unknown")
-      outputStream.getLowStr must include ("error")
-      outputStream.getString must include (encode(message))
+      resp.status must equal (InternalServerError.statusCode)
+      resp.body.toLowStr must include ("unknown")
+      resp.body.toLowStr must include ("error")
+      resp.body.toString must include (encode(message))
     }
   }
 
-  test("Handle request returns OK when underlying succeeds") {
+  test("Handling request returns OK when underlying succeeds") {
     import gen.Extensions._
     import gen.Points._
 
     forAll { (pt: ValidPoint, ext: Extension) =>
       val upstream = mocks.SeqResponse(fJson(pt))
-      val client = mocks.StaticCuratedClient(upstream)
-      val outputStream = new mocks.ByteArrayServletOutputStream
-      val resp = outputStream.responseFor
+      val client = common.mocks.StaticCuratedClient(upstream)
 
       val info = mocks.PngInfo(ext)
 
-      TileService(Unused, GeoProvider(client)).handleRequest(info)(resp)
+      val resp = unpackResponse(TileService(Unused, GeoProvider(client)).handleRequest(info))
 
-      verify(resp).setStatus(SC_OK)
+      resp.status must equal (OK.statusCode)
 
       if (ext == Json) {
-        outputStream.getString must include (upstream.toString)
+        resp.body.toString must include (upstream.toString)
       }
     }
   }
 
-  test("Handle request fails when rendering a `.png` without `$style`") {
+  test("Handling request fails when rendering a `.png` without `$style`") {
     import gen.Extensions._
 
     val upstream = mocks.SeqResponse(Seq.empty)
-    val client = mocks.StaticCuratedClient(upstream)
-    val outputStream = new mocks.ByteArrayServletOutputStream
-    val resp = outputStream.responseFor
+    val client = common.mocks.StaticCuratedClient(upstream)
 
     val info = mocks.PngInfo(Png, None, Some(Unused: Int))
-    TileService(Unused, GeoProvider(client)).handleRequest(info)(resp)
+    val resp = unpackResponse(TileService(Unused, GeoProvider(client)).handleRequest(info))
 
-    verify(resp).setStatus(SC_BAD_REQUEST)
+    resp.status must equal (BadRequest.statusCode)
   }
 
-  test("Handle request succeeds when rendering a `.png` without `$overscan`") {
+  test("Handling request succeeds when rendering a `.png` without `$overscan`") {
     import gen.Extensions._
 
     val upstream = mocks.SeqResponse(Seq.empty)
-    val client = mocks.StaticCuratedClient(upstream)
-    val outputStream = new mocks.ByteArrayServletOutputStream
-    val resp = outputStream.responseFor
+    val client = common.mocks.StaticCuratedClient(upstream)
     val info = mocks.PngInfo(Png, Some(Unused: String), None)
 
-    TileService(Unused, GeoProvider(client)).handleRequest(info)(resp)
+    val resp = unpackResponse(TileService(Unused, GeoProvider(client)).handleRequest(info))
 
-    verify(resp).setStatus(SC_OK)
+    resp.status must equal (OK.statusCode)
   }
 
-  test("Handle request succeeds when rendering a `.png` with invalid `$overscan`") {
+  test("Handling request succeeds when rendering a `.png` with invalid `$overscan`") {
     import gen.Extensions._
 
     val upstream = mocks.SeqResponse(Seq.empty)
-    val client = mocks.StaticCuratedClient(upstream)
-    val outputStream = new mocks.ByteArrayServletOutputStream
-    val resp = outputStream.responseFor
+    val client = common.mocks.StaticCuratedClient(upstream)
     val req = mocks.StaticRequest(Map('$' + "style" -> Unused.toString,
                                       '$' + "overscan" -> "Invalid"))
 
-    TileService(Unused, GeoProvider(client)).handleRequest(reqInfo(req, ext=Png))(resp)
+    val resp = unpackResponse(
+      TileService(Unused, GeoProvider(client)).handleRequest(reqInfo(req, ext=Png)))
 
-    verify(resp).setStatus(SC_OK)
+    resp.status must equal (OK.statusCode)
   }
 
-  test("Handle request returns OK when underlying succeeds for single FeatureJson") {
+  test("Handling request returns OK when underlying succeeds for single FeatureJson") {
     import gen.Extensions._
     import gen.Points._
 
     forAll { (pt: ValidPoint, ext: Extension) =>
       val expected = FeatureCollectionJson(Seq(fJson(pt)))
       val upstream = mocks.SeqResponse(fJson(pt))
-      val client = mocks.StaticCuratedClient(upstream)
-      val outputStream = new mocks.ByteArrayServletOutputStream
-      val resp = outputStream.responseFor
+      val client = common.mocks.StaticCuratedClient(upstream)
       val info = mocks.PngInfo(ext)
 
-      TileService(Unused, GeoProvider(client)).handleRequest(info)(resp)
+      val resp = unpackResponse(TileService(Unused, GeoProvider(client)).handleRequest(info))
 
-      verify(resp).setStatus(SC_OK)
+      resp.status must equal (OK.statusCode)
 
       if (ext == Json) {
-        val actual = JsonUtil.parseJson[GeoJsonBase](outputStream.getString) match {
+        val actual = JsonUtil.parseJson[GeoJsonBase](resp.body.toString) match {
           case Right(jVal) => jVal
           case _ => fail("Decoding Json Failed!")
         }
@@ -250,22 +246,19 @@ class TileServiceTest extends TestBase with UnusedSugar with MockitoSugar {
     }
   }
 
-  test("Handle request returns 304 with no body when given 304.") {
+  test("Handling request returns 304 with no body when given 304.") {
     val upstream = mock[Response]
-    when(upstream.resultCode).thenReturn(SC_NOT_MODIFIED)
+    when(upstream.resultCode).thenReturn(NotModified.statusCode)
 
-    val client = mocks.StaticCuratedClient(upstream)
-    val outputStream = new mocks.ByteArrayServletOutputStream
-    val resp = outputStream.responseFor
+    val client = common.mocks.StaticCuratedClient(upstream)
 
-    TileService(Unused, GeoProvider(client)).handleRequest(Unused)(resp)
+    val resp = unpackResponse(TileService(Unused, GeoProvider(client)).handleRequest(Unused))
 
-    verify(resp).setStatus(SC_NOT_MODIFIED)
-
-    outputStream.getString must have length (0)
+    resp.status must equal (NotModified.statusCode)
+    resp.body.toString must have length (0)
   }
 
-  test("Handle request echos known codes") {
+  test("Handling request echos known codes") {
     import gen.StatusCodes._
 
     forAll { (statusCode: KnownStatusCode, payload: String) =>
@@ -274,16 +267,13 @@ class TileServiceTest extends TestBase with UnusedSugar with MockitoSugar {
       when(upstream.resultCode).thenReturn(statusCode)
       when(upstream.inputStream(anyInt)).thenReturn(mocks.StringInputStream(message))
 
-      val client = mocks.StaticCuratedClient(upstream)
-      val outputStream = new mocks.ByteArrayServletOutputStream
-      val resp = outputStream.responseFor
+      val client = common.mocks.StaticCuratedClient(upstream)
 
-      TileService(Unused, GeoProvider(client)).handleRequest(Unused)(resp)
+      val resp = unpackResponse(TileService(Unused, GeoProvider(client)).handleRequest(Unused))
 
-      verify(resp).setStatus(statusCode)
-
-      outputStream.getLowStr must include ("underlying")
-      outputStream.getString must include (encode(payload))
+      resp.status must equal (statusCode: Int)
+      resp.body.toLowStr must include ("underlying")
+      resp.body.toString must include (encode(payload))
     }
   }
 
@@ -297,17 +287,14 @@ class TileServiceTest extends TestBase with UnusedSugar with MockitoSugar {
       when(upstream.inputStream(anyInt)).
         thenReturn(mocks.StringInputStream(message))
 
-      val client = mocks.StaticCuratedClient(upstream)
-      val outputStream = new mocks.ByteArrayServletOutputStream
-      val resp = outputStream.responseFor
+      val client = common.mocks.StaticCuratedClient(upstream)
 
-      TileService(Unused, GeoProvider(client)).handleRequest(Unused)(resp)
+      val resp = unpackResponse(TileService(Unused, GeoProvider(client)).handleRequest(Unused))
 
-      verify(resp).setStatus(SC_INTERNAL_SERVER_ERROR)
-
-      outputStream.getLowStr must include ("underlying")
-      outputStream.getString must include (encode(payload))
-      outputStream.getString must include (statusCode.toString)
+      resp.status must equal (InternalServerError.statusCode)
+      resp.body.toLowStr must include ("underlying")
+      resp.body.toString must include (encode(payload))
+      resp.body.toString must include (statusCode.toInt.toString)
     }
   }
 
@@ -315,20 +302,16 @@ class TileServiceTest extends TestBase with UnusedSugar with MockitoSugar {
     import gen.Extensions._
 
     forAll { (message: String, ext: Extension) =>
-      val client = mocks.StaticCuratedClient {
+      val client = common.mocks.StaticCuratedClient {
         () => throw new RuntimeException(message)
       }
 
-      val outputStream = new mocks.ByteArrayServletOutputStream
-      val resp = outputStream.responseFor
+      val resp = unpackResponse(TileService(Unused, GeoProvider(client)).
+                                  handleRequest(reqInfo(ext)))
 
-      TileService(Unused, GeoProvider(client)).
-        handleRequest(reqInfo(ext))(resp)
-
-      verify(resp).setStatus(SC_INTERNAL_SERVER_ERROR)
-
-      outputStream.getLowStr must include ("unknown error")
-      outputStream.getString must include (encode(message))
+      resp.status must equal (InternalServerError.statusCode)
+      resp.body.toLowStr must include ("unknown error")
+      resp.body.toString must include (encode(message))
     }
   }
 
@@ -338,9 +321,7 @@ class TileServiceTest extends TestBase with UnusedSugar with MockitoSugar {
 
     forAll { (pt: ValidPoint, ext: Extension) =>
       val upstream = mocks.SeqResponse(fJson(pt))
-      val client = mocks.StaticCuratedClient(upstream)
-      val outputStream = new mocks.ByteArrayServletOutputStream
-      val resp = outputStream.responseFor
+      val client = common.mocks.StaticCuratedClient(upstream)
 
       val overscan: Int = Unused
       val params: Map[String, String] = Map('$' + "style" -> Unused,
@@ -348,18 +329,18 @@ class TileServiceTest extends TestBase with UnusedSugar with MockitoSugar {
       val req: HttpRequest =
         if (ext == Png) mocks.StaticRequest(params) else Unused
 
-      TileService(Unused, GeoProvider(client)).
-        service(Unused,
-                Unused,
-                Unused,
-                Unused,
-                TypedPathComponent(Unused, ext)).
-        get(req)(resp)
+      val resp = unpackResponse(TileService(Unused, GeoProvider(client)).
+                                  service(Unused,
+                                          Unused,
+                                          Unused,
+                                          Unused,
+                                          TypedPathComponent(Unused, ext)).
+                                  get(req))
 
-      verify(resp).setStatus(SC_OK)
+      resp.status must equal (OK.statusCode)
 
       if (ext == Json) {
-        outputStream.getString must equal (upstream.toString)
+        resp.body.toString must equal (upstream.toString)
       }
     }
   }
@@ -368,19 +349,16 @@ class TileServiceTest extends TestBase with UnusedSugar with MockitoSugar {
     import gen.StatusCodes._
 
     forAll { (statusCode: KnownStatusCode, payload: String) =>
-      val outputStream = new mocks.ByteArrayServletOutputStream
-      val resp = outputStream.responseFor
       val upstream = mocks.StringResponse(json"""{payload: $payload}""".toString,
                                           statusCode)
 
-      TileService.echoResponse(upstream)(resp)
+      val resp = unpackResponse(TileService.echoResponse(upstream))
 
-      verify(resp).setStatus(statusCode)
-      verify(resp).setContentType("application/json; charset=UTF-8")
-
-      outputStream.getLowStr must include ("underlying")
-      outputStream.getString must include (statusCode.toString)
-      outputStream.getString must include (encode(payload))
+      resp.status must equal (statusCode: Int)
+      resp.contentType must equal ("application/json; charset=UTF-8")
+      resp.body.toLowStr must include ("underlying")
+      resp.body.toString must include (statusCode.toInt.toString)
+      resp.body.toString must include (encode(payload))
     }
   }
 
@@ -389,74 +367,62 @@ class TileServiceTest extends TestBase with UnusedSugar with MockitoSugar {
 
     forAll { (statusCode: KnownStatusCode, message: String) =>
       val upstream = mocks.ThrowsResponse(message, statusCode)
-      val outputStream = new mocks.ByteArrayServletOutputStream
-      val resp = outputStream.responseFor
 
-      TileService.echoResponse(upstream)(resp)
+      val resp = unpackResponse(TileService.echoResponse(upstream))
 
-      verify(resp).setStatus(statusCode)
-      verify(resp).setContentType("application/json; charset=UTF-8")
-
-      outputStream.getLowStr must include ("underlying")
-      outputStream.getLowStr must include ("failed")
-      outputStream.getString must include (statusCode.toString)
-      outputStream.getString must include (encode(message))
+      resp.status must equal (statusCode: Int)
+      resp.contentType must equal ("application/json; charset=UTF-8")
+      resp.body.toLowStr must include ("underlying")
+      resp.body.toLowStr must include ("failed")
+      resp.body.toString must include (statusCode.toInt.toString)
+      resp.body.toString must include (encode(message))
     }
   }
 
   test("If cause has a message, fatal errors must include it") {
     forAll { (message: String, causeMessage: String) =>
-      val outputStream = new mocks.ByteArrayServletOutputStream
-      val resp = outputStream.responseFor
       val cause = new NoStackTrace {
         override def getMessage: String = causeMessage
       }
 
-      TileService.fatal(message, cause)(resp)
+      val resp = unpackResponse(TileService.fatal(message, cause))
 
-      verify(resp).setStatus(SC_INTERNAL_SERVER_ERROR)
-      verify(resp).setContentType("application/json; charset=UTF-8")
-
-      outputStream.getLowStr must include ("message")
-      outputStream.getString must include (encode(message))
-      outputStream.getLowStr must include ("cause")
-      outputStream.getString must include (encode(causeMessage))
+      resp.status must equal (InternalServerError.statusCode)
+      resp.contentType must equal ("application/json; charset=UTF-8")
+      resp.body.toLowStr must include ("message")
+      resp.body.toString must include (encode(message))
+      resp.body.toLowStr must include ("cause")
+      resp.body.toString must include (encode(causeMessage))
     }
   }
 
   test("If only the root cause has a message fatal errors must still include it") {
     forAll { (message: String, causeMessage: String) =>
-      val outputStream = new mocks.ByteArrayServletOutputStream
-      val resp = outputStream.responseFor
       val cause = new NoStackTrace {
         override def getMessage: String = causeMessage
       }
 
-      TileService.fatal(message, new RuntimeException(null, cause))(resp)
+      val resp = unpackResponse(TileService.fatal(message, new RuntimeException(null, cause)))
 
-      verify(resp).setStatus(SC_INTERNAL_SERVER_ERROR)
-      verify(resp).setContentType("application/json; charset=UTF-8")
-
-      outputStream.getLowStr must include ("message")
-      outputStream.getString must include (encode(message))
-      outputStream.getLowStr must include ("cause")
-      outputStream.getString must include (encode(causeMessage))
+      resp.status must equal (InternalServerError.statusCode)
+      resp.contentType must equal ("application/json; charset=UTF-8")
+      resp.body.toLowStr must include ("message")
+      resp.body.toString must include (encode(message))
+      resp.body.toLowStr must include ("cause")
+      resp.body.toString must include (encode(causeMessage))
     }
   }
 
   test("Fatal errors must include the provided message; even if the cause has no message") {
     forAll { (message: String) =>
-      val outputStream = new mocks.ByteArrayServletOutputStream
-      val resp = outputStream.responseFor
       val cause = new RuntimeException()
 
-      TileService.fatal(message, new RuntimeException(null, cause))(resp)
+      val resp = unpackResponse(TileService.fatal(message, new RuntimeException(null, cause)))
 
-      verify(resp).setStatus(SC_INTERNAL_SERVER_ERROR)
-      verify(resp).setContentType("application/json; charset=UTF-8")
-
-      outputStream.getLowStr must include ("message")
-      outputStream.getString must include (encode(message))
+      resp.status must equal (InternalServerError.statusCode)
+      resp.contentType must equal ("application/json; charset=UTF-8")
+      resp.body.toLowStr must include ("message")
+      resp.body.toString must include (encode(message))
     }
   }
 
@@ -465,19 +431,17 @@ class TileServiceTest extends TestBase with UnusedSugar with MockitoSugar {
 
     forAll { (ext: Extension) =>
       val upstream = mocks.MsgPackResponse()
-      val client = mocks.StaticCuratedClient(upstream)
-      val outputStream = new mocks.ByteArrayServletOutputStream
-      val resp = outputStream.responseFor
+      val client = common.mocks.StaticCuratedClient(upstream)
       val info = mocks.PngInfo(ext)
-      val renderer = RenderProvider(mocks.StaticHttpClient(""), Unused)
+      val renderer = RenderProvider(common.mocks.StaticHttpClient(), Unused)
 
-      TileService(renderer, util.GeoProvider(client)).
-        handleRequest(info)(resp)
+      val resp = unpackResponse(
+        TileService(renderer, util.GeoProvider(client)).handleRequest(info))
 
-      verify(resp).setStatus(SC_OK)
+      resp.status must equal (OK.statusCode)
 
       if (ext != Json) {
-        outputStream.getString must be ('empty)
+        resp.body.toString must be ('empty)
       }
     }
   }
@@ -491,17 +455,14 @@ class TileServiceTest extends TestBase with UnusedSugar with MockitoSugar {
 
     forAll { pts: Seq[ValidPoint] =>
       val upstream = mocks.MsgPackResponse(pts, invalidWKB)
-      val client = mocks.StaticCuratedClient(upstream)
-      val outputStream = new mocks.ByteArrayServletOutputStream
-      val resp = outputStream.responseFor
+      val client = common.mocks.StaticCuratedClient(upstream)
 
-      TileService(Unused, util.GeoProvider(client)).
-        handleRequest(reqInfo("pbf"))(resp)
+      val resp = unpackResponse(
+        TileService(Unused, util.GeoProvider(client)).handleRequest(reqInfo("pbf")))
 
-      verify(resp).setStatus(SC_INTERNAL_SERVER_ERROR)
-
-      outputStream.getLowStr must include ("invalid")
-      outputStream.getLowStr must include ("underlying")
+      resp.status must equal (InternalServerError.statusCode)
+      resp.body.toLowStr must include ("invalid")
+      resp.body.toLowStr must include ("underlying")
     }
   }
 
@@ -511,18 +472,15 @@ class TileServiceTest extends TestBase with UnusedSugar with MockitoSugar {
     val badMessage: Array[Byte] = Array(3, 2, 1, 0)
 
     forAll { (ext: Extension) =>
-      val upstream = mocks.BinaryResponse(badMessage)
-      val client = mocks.StaticCuratedClient(upstream)
-      val outputStream = new mocks.ByteArrayServletOutputStream
-      val resp = outputStream.responseFor
+      val upstream = common.mocks.StaticResponse(badMessage)
+      val client = common.mocks.StaticCuratedClient(upstream)
 
-      TileService(Unused, util.GeoProvider(client)).
-        handleRequest(reqInfo(ext))(resp)
+      val resp = unpackResponse(
+        TileService(Unused, util.GeoProvider(client)).handleRequest(reqInfo(ext)))
 
-      verify(resp).setStatus(SC_INTERNAL_SERVER_ERROR)
-
-      outputStream.getLowStr must include ("invalid")
-      outputStream.getLowStr must include ("underlying")
+      resp.status must equal (InternalServerError.statusCode)
+      resp.body.toLowStr must include ("invalid")
+      resp.body.toLowStr must include ("underlying")
     }
   }
 
@@ -532,18 +490,16 @@ class TileServiceTest extends TestBase with UnusedSugar with MockitoSugar {
     val msgNull: Array[Byte] = Array(-64)
 
     forAll { ext: Extension =>
-      val upstream = mocks.BinaryResponse(msgNull)
-      val client = mocks.StaticCuratedClient(upstream)
-      val outputStream = new mocks.ByteArrayServletOutputStream
-      val resp = outputStream.responseFor
+      val upstream = common.mocks.StaticResponse(msgNull)
+      val client = common.mocks.StaticCuratedClient(upstream)
 
-      TileService(Unused, util.GeoProvider(client)).
-        handleRequest(reqInfo(ext))(resp)
+      val resp = unpackResponse(
+        TileService(Unused, util.GeoProvider(client)).handleRequest(reqInfo(ext)))
 
-      verify(resp).setStatus(SC_INTERNAL_SERVER_ERROR)
+      resp.status must equal (InternalServerError.statusCode)
 
-      outputStream.getLowStr must include ("invalid")
-      outputStream.getLowStr must include ("underlying")
+      resp.body.toLowStr must include ("invalid")
+      resp.body.toLowStr must include ("underlying")
     }
   }
 
@@ -553,17 +509,14 @@ class TileServiceTest extends TestBase with UnusedSugar with MockitoSugar {
     forAll { (idx: Int, ext: Extension) =>
       whenever (idx < 0) {
         val upstream = mocks.MsgPackResponse(-1)
-        val client = mocks.StaticCuratedClient(upstream)
-        val outputStream = new mocks.ByteArrayServletOutputStream
-        val resp = outputStream.responseFor
+        val client = common.mocks.StaticCuratedClient(upstream)
 
-        TileService(Unused, util.GeoProvider(client)).
-          handleRequest(reqInfo(ext))(resp)
+        val resp = unpackResponse(
+          TileService(Unused, util.GeoProvider(client)).handleRequest(reqInfo(ext)))
 
-        verify(resp).setStatus(SC_INTERNAL_SERVER_ERROR)
-
-        outputStream.getLowStr must include ("invalid")
-        outputStream.getLowStr must include ("underlying")
+        resp.status must equal (InternalServerError.statusCode)
+        resp.body.toLowStr must include ("invalid")
+        resp.body.toLowStr must include ("underlying")
       }
     }
   }
@@ -573,11 +526,9 @@ class TileServiceTest extends TestBase with UnusedSugar with MockitoSugar {
 
     forAll { ext: Extension =>
       val upstream = mocks.StringResponse(Unused)
-      val outputStream = new mocks.ByteArrayServletOutputStream
-      val resp = outputStream.responseFor
       val info = mocks.PngInfo(ext, Some(Unused: String), Some(Unused: Int))
 
-      val client = mocks.StaticCuratedClient.withReq { request =>
+      val client = common.mocks.StaticCuratedClient { request =>
         val actual = request(Unused).builder
         actual.query.toMap.get("$style") must be ('empty)
 
@@ -585,10 +536,10 @@ class TileServiceTest extends TestBase with UnusedSugar with MockitoSugar {
         mocks.SeqResponse(fJson(pt))
       }
 
-      TileService(Unused, GeoProvider(client)).
-        handleRequest(info)(resp)
+      val resp = unpackResponse(
+        TileService(Unused, GeoProvider(client)).handleRequest(info))
 
-      verify(resp).setStatus(SC_OK)
+      resp.status must equal (OK.statusCode)
     }
   }
 
@@ -596,7 +547,7 @@ class TileServiceTest extends TestBase with UnusedSugar with MockitoSugar {
     import gen.Extensions.Png
 
     forAll { requestId: String =>
-      val http = mocks.DynamicHttpClient { req =>
+      val http = common.mocks.StaticHttpClient { req =>
         val headers = req.builder.headers.toMap
         headers.contains("X-Socrata-RequestId") must be (true)
         headers("X-Socrata-RequestId") must equal (requestId)
@@ -607,7 +558,7 @@ class TileServiceTest extends TestBase with UnusedSugar with MockitoSugar {
       val renderer = RenderProvider(http, Unused)
 
       val upstream = mocks.SeqResponse(fJson())
-      val client = mocks.StaticCuratedClient(upstream)
+      val client = common.mocks.StaticCuratedClient(upstream)
       val req = mocks.StaticRequest("$style" -> (Unused: String),
                                     "X-Socrata-RequestId" -> requestId)
 

@@ -3,8 +3,6 @@ package services
 
 import java.nio.charset.StandardCharsets.UTF_8
 import javax.servlet.http.HttpServletResponse
-import javax.servlet.http.HttpServletResponse.{SC_NOT_MODIFIED => ScNotModified}
-import javax.servlet.http.HttpServletResponse.{SC_OK => ScOk}
 
 import com.rojoma.json.v3.interpolation._
 import com.rojoma.json.v3.io.JsonReader
@@ -52,11 +50,11 @@ case class TileService(renderer: RenderProvider, geo: GeoProvider)  {
       val resp = geo.doQuery(info)
 
       val result = resp.resultCode match {
-        case ScOk =>
+        case OK.statusCode =>
           val base = OK ~> HeaderFilter.extract(resp)
 
           handler(info)(base, resp)
-        case ScNotModified => NotModified
+        case NotModified.statusCode => NotModified
         case _ => echoResponse(resp)
       }
 

@@ -3,13 +3,13 @@ package util
 
 import java.net.URLDecoder
 import java.nio.charset.StandardCharsets.UTF_8
-import javax.servlet.http.HttpServletResponse.{SC_OK => ScOk, SC_NOT_MODIFIED => ScNotModified}
 
 import org.slf4j.{Logger, LoggerFactory}
 
-import com.socrata.http.client.RequestBuilder
-import com.socrata.http.server.util.RequestId.ReqIdHeader
 import com.socrata.curator.CuratedServiceClient
+import com.socrata.http.client.RequestBuilder
+import com.socrata.http.server.responses._
+import com.socrata.http.server.util.RequestId.ReqIdHeader
 
 import GeoProvider._
 
@@ -43,7 +43,7 @@ case class GeoProvider(client: CuratedServiceClient) {
     val duration = (after - before)/1000000
     val message = s"Upstream response (${resp.resultCode}) took ${duration}ms."
 
-    if (resp.resultCode == ScOk || resp.resultCode == ScNotModified) {
+    if (resp.resultCode == OK.statusCode || resp.resultCode == NotModified.statusCode) {
       logger.info(message)
     } else {
       logger.warn(message)

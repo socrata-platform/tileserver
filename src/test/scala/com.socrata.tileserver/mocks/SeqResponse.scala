@@ -1,21 +1,22 @@
-package com.socrata.tileserver.mocks
+package com.socrata.tileserver
+package mocks
 
 import java.io.InputStream
 import javax.activation.MimeType
-import javax.servlet.http.HttpServletResponse.{SC_OK => ScOk}
 
 import com.rojoma.json.v3.ast.{JString, JValue}
 import com.vividsolutions.jts.geom.Point
 
+import com.socrata.http.client.Response
 import com.socrata.http.common.util.Acknowledgeable
+import com.socrata.http.server.responses._
 import com.socrata.thirdparty.geojson.GeoJson.codec.encode
 import com.socrata.thirdparty.geojson.{FeatureCollectionJson, FeatureJson}
-import com.socrata.http.client.Response
 
 import SeqResponse._
 
 class SeqResponse(seq: Seq[FeatureJson]) extends MsgPackResponse(buildMessage(seq)) {
-  override val resultCode = ScOk
+  override val resultCode = OK.statusCode
 
   override def toString: String =
     encode(FeatureCollectionJson(seq)).toString.replaceAll("\\s*", "")

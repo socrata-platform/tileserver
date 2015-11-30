@@ -1,21 +1,30 @@
 package com.socrata.tileserver
 package mocks
 
-import javax.servlet.http.HttpServletResponse.{SC_OK => ScOk}
+import java.nio.charset.StandardCharsets.UTF_8
 
-import com.rojoma.simplearm.v2.ResourceScope
+import com.socrata.http.server.responses._
+import com.socrata.test.common
 
-import com.socrata.thirdparty.geojson.FeatureJson
+class StaticGeoResponse(val payload: Array[Byte],
+                        rc: Int = OK.statusCode,
+                        headers: Map[String, Array[String]] = Map.empty,
+                        ct: String = "application/json")
+    extends common.mocks.StaticResponse(common.mocks.AcknowledgeableInputStream(payload),
+                                        rc,
+                                        headers,
+                                        ct)
+    with util.GeoResponse
 
-import UnusedSugar._
-import util.GeoResponse
+object StaticGeoResponse {
+  def apply(payload: Array[Byte],
+            rc: Int,
+            headers: Map[String, Array[String]],
+            ct: String): StaticGeoResponse = new StaticGeoResponse(payload, rc, headers, ct)
+  def apply(payload: String,
+            rc: Int,
+            headers: Map[String, Array[String]],
+            ct: String): StaticGeoResponse = apply(payload.getBytes(UTF_8), rc, headers, ct)
 
-case class StaticGeoResponse(override val rawFeatures: Iterator[FeatureJson])
-    extends GeoResponse {
-  def headers(name: String): Array[String] = Array.empty
-
-  val resultCode: Int = ScOk
-  val headerNames: Set[String] = Set.empty
-  val payload: Array[Byte] = Array.empty
-  val resourceScope: ResourceScope = Unused
+  def apply(): StaticGeoResponse = new StaticGeoResponse(Array.empty)
 }

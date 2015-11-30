@@ -26,20 +26,21 @@ libraryDependencies ++= Seq(
   "com.socrata"             %% "socrata-curator-utils"    % "1.0.1" excludeAll(
     ExclusionRule(organization = "com.socrata", name = "socrata-http-client"),
     ExclusionRule(organization = "com.socrata", name = "socrata-http-jetty")),
-  "com.socrata"             %% "socrata-http-common"      % "3.4.1" excludeAll(
+  "com.socrata"             %% "socrata-http-common"      % "3.5.0" excludeAll(
     ExclusionRule(organization = "joda-time"),
     ExclusionRule(organization = "commons-codec"),
     ExclusionRule(organization = "commons-io"),
     ExclusionRule(organization = "com.rojoma")),
-  "com.socrata"             %% "socrata-http-client"      % "3.4.1" excludeAll(
+  "com.socrata"             %% "socrata-http-client"      % "3.5.0" excludeAll(
     ExclusionRule(organization = "commons-codec"),
     ExclusionRule(organization = "com.socrata", name = "socrata-http-common")),
-  "com.socrata"             %% "socrata-http-jetty"       % "3.4.1" excludeAll(
+  "com.socrata"             %% "socrata-http-jetty"       % "3.5.0" excludeAll(
     ExclusionRule(organization = "com.socrata", name = "socrata-http-common")),
   "com.socrata"             %% "soql-pack"                % "0.8.2" excludeAll(
     ExclusionRule(organization = "joda-time"),
     ExclusionRule(organization = "commons-io"),
     ExclusionRule(organization = "org.slf4j")),
+  "com.socrata"             %% "socrata-test-common"      % "0.2.8",
   "com.socrata"             %% "socrata-thirdparty-utils" % "4.0.1",
   "com.typesafe"             % "config"                   % "1.2.1",
   "commons-codec"            % "commons-codec"            % "1.10",
