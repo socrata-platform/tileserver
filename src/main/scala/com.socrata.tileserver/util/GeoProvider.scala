@@ -31,6 +31,7 @@ case class GeoProvider(client: CuratedServiceClient) {
       val req = base.
         addPaths(Seq("id", s"${info.datasetId}.soqlpack")).
         addHeaders(headers).
+        addHeader("X-Socrata-Federation" -> "Honey Badger").
         addHeader(ReqIdHeader -> info.requestId).
         query(params).get
       logger.info(URLDecoder.decode(req.toString, UTF_8.name))

@@ -96,6 +96,26 @@ class RenderProviderTest extends TestBase with UnusedSugar {
     }
   }
 
+  test("renderPng passes x-socrata-federation to renderer") {
+    def requireFederationHeader(): (SimpleHttpRequest => Response) = { req =>
+      val headers = req.builder.headers.map { pair =>
+        val (k, v) = pair
+        k.toLowerCase -> v
+      }.toMap
+
+      headers("x-socrata-federation") must equal ("Honey Badger")
+      mocks.StringResponse(Unused)
+    }
+
+    val client = common.mocks.StaticHttpClient()
+    val info = new RequestInfo(Unused, Unused, Unused, Unused, Unused) {
+      override val style = Some(Unused: String)
+    }
+
+    val renderer = RenderProvider(client, Unused)
+    renderer.renderPng(Unused, info): Unit
+  }
+
   test("renderPng passes x-socrata-requestid to renderer") {
     def requireRequestId(reqId: String): (SimpleHttpRequest => Response) = { req =>
       val headers = req.builder.headers.map { pair =>

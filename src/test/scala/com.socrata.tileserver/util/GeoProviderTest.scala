@@ -35,6 +35,7 @@ class GeoProviderTest extends TestBase with UnusedSugar with MockitoSugar {
         addPath("id").
         addPath(s"${id: String}.soqlpack").
         addHeader(ReqIdHeader -> info.requestId).
+        addHeader("X-Socrata-Federation" -> "Honey Badger").
         addHeader("X-Socrata-Host" -> "geo.provider.test").
         addHeader(knownHeader).
         addParameters(augmented).
