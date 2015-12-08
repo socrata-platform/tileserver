@@ -46,6 +46,7 @@ case class RenderProvider(http: HttpClient, baseUrl: RequestBuilder) {
 
     val req = baseUrl.
       addPath("render").
+      addHeader("X-Socrata-Federation" -> "Honey Badger").
       addHeader("X-Socrata-RequestID" -> info.requestId).
       blob(blob)
 
