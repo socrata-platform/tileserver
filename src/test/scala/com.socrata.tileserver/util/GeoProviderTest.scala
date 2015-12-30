@@ -85,7 +85,7 @@ class GeoProviderTest extends TestBase with UnusedSugar with MockitoSugar {
       val nParams = GeoProvider.augmentParams(reqInfo(neither ++ mondara,
                                                       geoColumn=selectValue),
                                               whereValue)
-      nParams must have size (5)
+      nParams must have size (4)
       nParams(selectKey) must include (selectValue)
       nParams(selectKey) must include ("snap_to_grid")
       nParams(whereKey) must equal (whereValue)
@@ -103,7 +103,7 @@ class GeoProviderTest extends TestBase with UnusedSugar with MockitoSugar {
       val sParams = GeoProvider.augmentParams(reqInfo(neither ++ select ++ mondara,
                                                       geoColumn=selectValue),
                                               whereValue)
-      sParams must have size (5)
+      sParams must have size (4)
       sParams(selectKey) must startWith (s"$selectBase,")
       sParams(selectKey) must include (selectValue)
       sParams(selectKey) must include ("snap_to_grid")
@@ -116,7 +116,7 @@ class GeoProviderTest extends TestBase with UnusedSugar with MockitoSugar {
       val wParams = GeoProvider.augmentParams(reqInfo(neither ++ where ++ mondara,
                                                       geoColumn=selectValue),
                                               whereValue)
-      wParams must have size (5)
+      wParams must have size (4)
       wParams(otherKey) must equal (otherValue)
 
       wParams(selectKey) must include (selectValue)
@@ -130,7 +130,7 @@ class GeoProviderTest extends TestBase with UnusedSugar with MockitoSugar {
       val gParams = GeoProvider.augmentParams(reqInfo(neither ++ group ++ mondara,
                                                       geoColumn=selectValue),
                                               whereValue)
-      gParams must have size (5)
+      gParams must have size (4)
       gParams(otherKey) must equal (otherValue)
 
       gParams(selectKey) must include (selectValue)
@@ -143,7 +143,7 @@ class GeoProviderTest extends TestBase with UnusedSugar with MockitoSugar {
         reqInfo(neither ++ where ++ select ++ group ++ mondara, geoColumn=selectValue),
         whereValue)
 
-      allParams must have size (5)
+      allParams must have size (4)
       allParams(otherKey) must equal (otherValue)
 
       allParams(selectKey) must startWith (s"$selectBase,")
