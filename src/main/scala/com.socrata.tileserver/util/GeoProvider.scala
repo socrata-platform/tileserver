@@ -101,13 +101,7 @@ object GeoProvider {
 
     val mondaraKey = '$' + "mondara"
 
-    // Temporarily overriding the $limit parameter within tileserver itself, ignoring
-    // the value passed by frontend.
-    // This allows us to test 1x1 gridding in production without being dependent on a
-    // frontend deployment.
-    // TODO : Revert this once the $limit change in frontend is deployed in production.
-    val params = info.req.queryParameters - "$limit" + ("$limit" -> "150000")
-
+    val params = info.req.queryParameters
     val selectParam = selectKey ->
       params.get(selectKey).map(v => s"$v, $select").getOrElse(select)
     val whereParam = whereKey ->
