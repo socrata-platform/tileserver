@@ -3,8 +3,6 @@ package com.socrata.tileserver
 import java.io.{ByteArrayInputStream, InputStream}
 import scala.language.implicitConversions
 
-import org.mockito.Mockito.mock
-
 import com.socrata.test.common.UnusedSugarCommon
 import com.socrata.test.common.UnusedSugarCommon._
 import com.socrata.thirdparty.geojson.FeatureJson
