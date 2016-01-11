@@ -9,7 +9,7 @@ import com.rojoma.json.v3.codec.JsonEncode.toJValue
 import com.vividsolutions.jts.geom.{Coordinate, GeometryFactory, Point}
 
 import com.socrata.http.server.HttpRequest
-import com.socrata.test.http.ResponseSugar
+import com.socrata.testcommon.ResponseSugar
 import com.socrata.thirdparty.geojson.FeatureJson
 
 import UnusedSugar._

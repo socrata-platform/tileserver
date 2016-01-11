@@ -3,15 +3,6 @@ name := "tileserver"
 scalaVersion := "2.11.7"
 crossScalaVersions := Seq("2.10.4", scalaVersion.value)
 
-scalacOptions ++= Seq("-optimize", "-Ywarn-dead-code")
-
-scalacOptions <++= scalaVersion.map {
-  case "2.10.4" => Seq.empty
-  case _ => Seq("-Ywarn-unused-import")
-}
-
-scalacOptions in (Compile, console) := scalacOptions.value.filterNot(_.startsWith("-Ywarn-"))
-
 resolvers ++= Seq(
   "ecc" at "https://github.com/ElectronicChartCentre/ecc-mvn-repo/raw/master/releases",
   "velvia maven" at "http://dl.bintray.com/velvia/maven"
@@ -19,9 +10,8 @@ resolvers ++= Seq(
 
 libraryDependencies ++= Seq(
   "ch.qos.logback"           % "logback-classic"          % "1.1.3",
-  "com.rojoma"              %% "rojoma-json-v3"           % "3.3.0",
-  "com.rojoma"              %% "rojoma-json-v3-jackson"   % "1.0.0" excludeAll(
-    ExclusionRule(organization = "com.rojoma")),
+  "com.rojoma"              %% "rojoma-json-v3"           % "3.4.1",
+  "com.rojoma"              %% "rojoma-json-v3-jackson"   % "1.0.0",
   "com.rojoma"              %% "simple-arm-v2"            % "2.1.0",
   "com.socrata"             %% "socrata-curator-utils"    % "1.0.4" excludeAll(
     ExclusionRule(organization = "com.socrata", name = "socrata-http-client"),
@@ -40,7 +30,7 @@ libraryDependencies ++= Seq(
     ExclusionRule(organization = "joda-time"),
     ExclusionRule(organization = "commons-io"),
     ExclusionRule(organization = "org.slf4j")),
-  "com.socrata"             %% "socrata-test-common"      % "0.2.8",
+  "com.socrata"             %% "socrata-test-common"      % "0.5.0",
   "com.socrata"             %% "socrata-thirdparty-utils" % "4.0.1",
   "com.typesafe"             % "config"                   % "1.2.1",
   "commons-codec"            % "commons-codec"            % "1.10",

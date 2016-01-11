@@ -20,8 +20,8 @@ import com.socrata.http.client.Response
 import com.socrata.http.server.HttpRequest
 import com.socrata.http.server.responses._
 import com.socrata.http.server.routing.TypedPathComponent
-import com.socrata.test.common
-import com.socrata.test.http.ResponseSugar
+import com.socrata.testcommon
+import com.socrata.testcommon.ResponseSugar
 import com.socrata.thirdparty.geojson.GeoJson._
 import com.socrata.thirdparty.geojson.{FeatureCollectionJson, FeatureJson, GeoJsonBase}
 
@@ -50,7 +50,7 @@ class TileServiceTest
               unknown: UnknownHeader,
               ext: Extension) =>
       val upstream = mocks.HeaderResponse(Map(known, unknown))
-      val client = common.mocks.StaticCuratedClient(upstream)
+      val client = testcommon.mocks.StaticCuratedClient(upstream)
 
       val info = mocks.PngInfo(ext)
 
@@ -69,13 +69,13 @@ class TileServiceTest
 
     forAll { (pt: ValidPoint, ext: Extension, complete: Boolean) =>
       val upstream = mocks.SeqResponse(fJson(pt))
-      val client = common.mocks.StaticCuratedClient(upstream)
+      val client = testcommon.mocks.StaticCuratedClient(upstream)
       val expected = Set(feature(pt))
       val expectedJson = Seq(fJson(pt))
 
       val info = mocks.PngInfo(ext, complete)
       val renderer =
-        RenderProvider(common.mocks.StaticHttpClient(expected.toString), Unused)
+        RenderProvider(testcommon.mocks.StaticHttpClient(expected.toString), Unused)
 
       val resp = unpackResponse(
         TileService(renderer, util.GeoProvider(client)).handleRequest(info))
@@ -114,7 +114,7 @@ class TileServiceTest
     val overscan: Int = Unused
     val upstream = mocks.FeatureIteratorResponse(Iterator.empty)
 
-    val client = common.mocks.StaticCuratedClient { curatedReq =>
+    val client = testcommon.mocks.StaticCuratedClient { curatedReq =>
       val req = curatedReq(Unused)
       val headers = req.builder.headers.map { x => x }.toMap
       headers("X-Socrata-Host") must equal (host)
@@ -131,9 +131,7 @@ class TileServiceTest
           Map.empty
         }
 
-      val inner = common.mocks.AugmentedServletRequest(Map("Host" -> host), params)
-      val req = common.mocks.ServletHttpRequest(inner)
-
+      val req = testcommon.mocks.StaticRequest(Map("Host" -> host), params)
       val resp = unpackResponse(
         TileService(Unused, geoProvider).handleRequest(reqInfo(req, Unused, Unused, Unused, ext)))
 
@@ -150,7 +148,7 @@ class TileServiceTest
 
     forAll { (message: String, ext: Extension) =>
       val upstream = mocks.ThrowsResponse(message)
-      val client = common.mocks.StaticCuratedClient(upstream)
+      val client = testcommon.mocks.StaticCuratedClient(upstream)
       val info = reqInfo(Unused, Unused, Unused, Unused, ext)
 
       val resp = unpackResponse(
@@ -169,7 +167,7 @@ class TileServiceTest
 
     forAll { (pt: ValidPoint, ext: Extension) =>
       val upstream = mocks.SeqResponse(fJson(pt))
-      val client = common.mocks.StaticCuratedClient(upstream)
+      val client = testcommon.mocks.StaticCuratedClient(upstream)
 
       val info = mocks.PngInfo(ext)
 
@@ -187,7 +185,7 @@ class TileServiceTest
     import gen.Extensions._
 
     val upstream = mocks.SeqResponse(Seq.empty)
-    val client = common.mocks.StaticCuratedClient(upstream)
+    val client = testcommon.mocks.StaticCuratedClient(upstream)
 
     val info = mocks.PngInfo(Png, None, Some(Unused: Int))
     val resp = unpackResponse(TileService(Unused, GeoProvider(client)).handleRequest(info))
@@ -199,7 +197,7 @@ class TileServiceTest
     import gen.Extensions._
 
     val upstream = mocks.SeqResponse(Seq.empty)
-    val client = common.mocks.StaticCuratedClient(upstream)
+    val client = testcommon.mocks.StaticCuratedClient(upstream)
     val info = mocks.PngInfo(Png, Some(Unused: String), None)
 
     val resp = unpackResponse(TileService(Unused, GeoProvider(client)).handleRequest(info))
@@ -211,7 +209,7 @@ class TileServiceTest
     import gen.Extensions._
 
     val upstream = mocks.SeqResponse(Seq.empty)
-    val client = common.mocks.StaticCuratedClient(upstream)
+    val client = testcommon.mocks.StaticCuratedClient(upstream)
     val req = mocks.StaticRequest(Map('$' + "style" -> Unused.toString,
                                       '$' + "overscan" -> "Invalid"))
 
@@ -228,7 +226,7 @@ class TileServiceTest
     forAll { (pt: ValidPoint, ext: Extension) =>
       val expected = FeatureCollectionJson(Seq(fJson(pt)))
       val upstream = mocks.SeqResponse(fJson(pt))
-      val client = common.mocks.StaticCuratedClient(upstream)
+      val client = testcommon.mocks.StaticCuratedClient(upstream)
       val info = mocks.PngInfo(ext)
 
       val resp = unpackResponse(TileService(Unused, GeoProvider(client)).handleRequest(info))
@@ -250,7 +248,7 @@ class TileServiceTest
     val upstream = mock[Response]
     when(upstream.resultCode).thenReturn(NotModified.statusCode)
 
-    val client = common.mocks.StaticCuratedClient(upstream)
+    val client = testcommon.mocks.StaticCuratedClient(upstream)
 
     val resp = unpackResponse(TileService(Unused, GeoProvider(client)).handleRequest(Unused))
 
@@ -267,7 +265,7 @@ class TileServiceTest
       when(upstream.resultCode).thenReturn(statusCode)
       when(upstream.inputStream(anyInt)).thenReturn(mocks.StringInputStream(message))
 
-      val client = common.mocks.StaticCuratedClient(upstream)
+      val client = testcommon.mocks.StaticCuratedClient(upstream)
 
       val resp = unpackResponse(TileService(Unused, GeoProvider(client)).handleRequest(Unused))
 
@@ -287,7 +285,7 @@ class TileServiceTest
       when(upstream.inputStream(anyInt)).
         thenReturn(mocks.StringInputStream(message))
 
-      val client = common.mocks.StaticCuratedClient(upstream)
+      val client = testcommon.mocks.StaticCuratedClient(upstream)
 
       val resp = unpackResponse(TileService(Unused, GeoProvider(client)).handleRequest(Unused))
 
@@ -302,7 +300,7 @@ class TileServiceTest
     import gen.Extensions._
 
     forAll { (message: String, ext: Extension) =>
-      val client = common.mocks.StaticCuratedClient {
+      val client = testcommon.mocks.StaticCuratedClient {
         () => throw new RuntimeException(message)
       }
 
@@ -321,7 +319,7 @@ class TileServiceTest
 
     forAll { (pt: ValidPoint, ext: Extension) =>
       val upstream = mocks.SeqResponse(fJson(pt))
-      val client = common.mocks.StaticCuratedClient(upstream)
+      val client = testcommon.mocks.StaticCuratedClient(upstream)
 
       val overscan: Int = Unused
       val params: Map[String, String] = Map('$' + "style" -> Unused,
@@ -431,9 +429,9 @@ class TileServiceTest
 
     forAll { (ext: Extension) =>
       val upstream = mocks.MsgPackResponse()
-      val client = common.mocks.StaticCuratedClient(upstream)
+      val client = testcommon.mocks.StaticCuratedClient(upstream)
       val info = mocks.PngInfo(ext)
-      val renderer = RenderProvider(common.mocks.StaticHttpClient(), Unused)
+      val renderer = RenderProvider(testcommon.mocks.StaticHttpClient(), Unused)
 
       val resp = unpackResponse(
         TileService(renderer, util.GeoProvider(client)).handleRequest(info))
@@ -455,7 +453,7 @@ class TileServiceTest
 
     forAll { pts: Seq[ValidPoint] =>
       val upstream = mocks.MsgPackResponse(pts, invalidWKB)
-      val client = common.mocks.StaticCuratedClient(upstream)
+      val client = testcommon.mocks.StaticCuratedClient(upstream)
 
       val resp = unpackResponse(
         TileService(Unused, util.GeoProvider(client)).handleRequest(reqInfo("pbf")))
@@ -472,8 +470,8 @@ class TileServiceTest
     val badMessage: Array[Byte] = Array(3, 2, 1, 0)
 
     forAll { (ext: Extension) =>
-      val upstream = common.mocks.StaticResponse(badMessage)
-      val client = common.mocks.StaticCuratedClient(upstream)
+      val upstream = testcommon.mocks.StaticResponse(badMessage)
+      val client = testcommon.mocks.StaticCuratedClient(upstream)
 
       val resp = unpackResponse(
         TileService(Unused, util.GeoProvider(client)).handleRequest(reqInfo(ext)))
@@ -490,8 +488,8 @@ class TileServiceTest
     val msgNull: Array[Byte] = Array(-64)
 
     forAll { ext: Extension =>
-      val upstream = common.mocks.StaticResponse(msgNull)
-      val client = common.mocks.StaticCuratedClient(upstream)
+      val upstream = testcommon.mocks.StaticResponse(msgNull)
+      val client = testcommon.mocks.StaticCuratedClient(upstream)
 
       val resp = unpackResponse(
         TileService(Unused, util.GeoProvider(client)).handleRequest(reqInfo(ext)))
@@ -509,7 +507,7 @@ class TileServiceTest
     forAll { (idx: Int, ext: Extension) =>
       whenever (idx < 0) {
         val upstream = mocks.MsgPackResponse(-1)
-        val client = common.mocks.StaticCuratedClient(upstream)
+        val client = testcommon.mocks.StaticCuratedClient(upstream)
 
         val resp = unpackResponse(
           TileService(Unused, util.GeoProvider(client)).handleRequest(reqInfo(ext)))
@@ -528,7 +526,7 @@ class TileServiceTest
       val upstream = mocks.StringResponse(Unused)
       val info = mocks.PngInfo(ext, Some(Unused: String), Some(Unused: Int))
 
-      val client = common.mocks.StaticCuratedClient { request =>
+      val client = testcommon.mocks.StaticCuratedClient { request =>
         val actual = request(Unused).builder
         actual.query.toMap.get("$style") must be ('empty)
 
@@ -547,7 +545,7 @@ class TileServiceTest
     import gen.Extensions.Png
 
     forAll { requestId: String =>
-      val http = common.mocks.StaticHttpClient { req =>
+      val http = testcommon.mocks.StaticHttpClient { req =>
         val headers = req.builder.headers.toMap
         headers.contains("X-Socrata-RequestId") must be (true)
         headers("X-Socrata-RequestId") must equal (requestId)
@@ -558,7 +556,7 @@ class TileServiceTest
       val renderer = RenderProvider(http, Unused)
 
       val upstream = mocks.SeqResponse(fJson())
-      val client = common.mocks.StaticCuratedClient(upstream)
+      val client = testcommon.mocks.StaticCuratedClient(upstream)
       val req = mocks.StaticRequest("$style" -> (Unused: String),
                                     "X-Socrata-RequestId" -> requestId)
 
