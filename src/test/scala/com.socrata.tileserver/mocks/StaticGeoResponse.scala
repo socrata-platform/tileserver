@@ -4,16 +4,13 @@ package mocks
 import java.nio.charset.StandardCharsets.UTF_8
 
 import com.socrata.http.server.responses._
-import com.socrata.test.common
+import com.socrata.testcommon
 
 class StaticGeoResponse(val payload: Array[Byte],
                         rc: Int = OK.statusCode,
                         headers: Map[String, Array[String]] = Map.empty,
                         ct: String = "application/json")
-    extends common.mocks.StaticResponse(common.mocks.AcknowledgeableInputStream(payload),
-                                        rc,
-                                        headers,
-                                        ct)
+    extends testcommon.mocks.StaticResponse(payload, rc, headers, ct)
     with util.GeoResponse
 
 object StaticGeoResponse {

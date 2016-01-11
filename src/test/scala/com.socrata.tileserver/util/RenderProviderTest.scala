@@ -10,7 +10,7 @@ import org.apache.commons.io.IOUtils
 import org.velvia.MsgPack
 
 import com.socrata.http.client.{exceptions => _, _}
-import com.socrata.test.common
+import com.socrata.testcommon
 
 import RenderProvider.MapTile
 import exceptions.FailedRenderException
@@ -25,7 +25,7 @@ class RenderProviderTest extends TestBase with UnusedSugar {
     forAll { payload: String =>
       val expected = payload
       val resp = mocks.StringResponse(payload)
-      val client = common.mocks.StaticHttpClient(resp)
+      val client = testcommon.mocks.StaticHttpClient(resp)
       val actual = IOUtils.toString(
         RenderProvider(client, Unused).renderPng(Unused, styleInfo), UTF_8)
 
@@ -40,7 +40,7 @@ class RenderProviderTest extends TestBase with UnusedSugar {
       val expected = FailedRenderException(payload)
 
       val resp = mocks.StringResponse(payload, sc)
-      val client = common.mocks.StaticHttpClient(resp)
+      val client = testcommon.mocks.StaticHttpClient(resp)
       val renderer = RenderProvider(client, Unused)
       val actual =
         the [FailedRenderException] thrownBy renderer.renderPng(Unused, styleInfo)
@@ -51,7 +51,7 @@ class RenderProviderTest extends TestBase with UnusedSugar {
   test("renderPng throws on error") {
     forAll { (tile: MapTile, z: Int, css: String, message: String) =>
       val resp = mocks.ThrowsResponse(message)
-      val client = common.mocks.StaticHttpClient(resp)
+      val client = testcommon.mocks.StaticHttpClient(resp)
       val renderer = RenderProvider(client, Unused)
 
       val info = new RequestInfo(Unused, Unused, Unused, Unused, Unused) {
@@ -82,7 +82,7 @@ class RenderProviderTest extends TestBase with UnusedSugar {
       val tile = rawTile.mapValues(wkbs => wkbs.map(Base64.encodeBase64String(_))).
           map(_.toString).toSeq.sorted
 
-      val client = common.mocks.StaticHttpClient(makeResp(salt))
+      val client = testcommon.mocks.StaticHttpClient(makeResp(salt))
       val renderer = RenderProvider(client, Unused)
       val info = new RequestInfo(Unused, Unused, Unused, Unused, Unused) {
         override val style = Some(css)
@@ -107,7 +107,7 @@ class RenderProviderTest extends TestBase with UnusedSugar {
       mocks.StringResponse(Unused)
     }
 
-    val client = common.mocks.StaticHttpClient()
+    val client = testcommon.mocks.StaticHttpClient()
     val info = new RequestInfo(Unused, Unused, Unused, Unused, Unused) {
       override val style = Some(Unused: String)
     }
@@ -128,7 +128,7 @@ class RenderProviderTest extends TestBase with UnusedSugar {
     }
 
     forAll { reqId: String =>
-      val client = common.mocks.StaticHttpClient(requireRequestId(reqId))
+      val client = testcommon.mocks.StaticHttpClient(requireRequestId(reqId))
       val info = new RequestInfo(Unused, Unused, Unused, Unused, Unused) {
         override val style = Some(Unused: String)
         override val requestId = reqId
