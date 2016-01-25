@@ -4,17 +4,17 @@
 
 ### Pre-Requisites ###
 Both
-[`sbt`](http://www.scala-sbt.org/0.13/tutorial/Installing-sbt-on-Linux.html) 
-and a 
-[JDK](http://www.webupd8.org/2012/09/install-oracle-java-8-in-ubuntu-via-ppa.html) 
-(oracle-jdk-8 recommended) 
+[`sbt`](http://www.scala-sbt.org/0.13/tutorial/Installing-sbt-on-Linux.html)
+and a
+[JDK](http://www.webupd8.org/2012/09/install-oracle-java-8-in-ubuntu-via-ppa.html)
+(oracle-jdk-8 recommended)
 must be installed to build.
 
 To build the image, run:
 ```
 cd .. # Change to project root.
 sbt assembly
-cp target/scala-2.11/tileserver-assembly-1.0.8-SNAPSHOT.jar docker/tileserver-assembly.jar
+cp target/scala-2.11/tileserver-assembly-*.jar docker/tileserver-assembly.jar
 docker build -t tileserver docker
 ```
 
