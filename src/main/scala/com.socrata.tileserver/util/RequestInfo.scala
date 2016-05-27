@@ -18,11 +18,19 @@ case class RequestInfo(req: HttpRequest,
                        geoColumn: String,
                        tile: QuadTile,
                        extension: String) {
+  /** Cleaned query parameters. (`$SELECT` downcased, etc.) */
+  val queryParameters: Map[String, String] = {
+    req.queryParameters.map { case (k, v) =>
+      val key = if (k.startsWith("$")) k.toLowerCase else k
+      key -> v
+    }
+  }
+
   /** The id for this request (generated if not present). */
   val requestId: RequestId = req.requestId
 
   /** The CartoCss for the request, if present. */
-  val style: Option[String] = req.queryParameters.get('$' + "style")
+  val style: Option[String] = queryParameters.get('$' + "style")
 
   /** The ResourceScope to be used when processing this request. */
   val rs: ResourceScope = req.resourceScope
@@ -32,7 +40,7 @@ case class RequestInfo(req: HttpRequest,
 
   /** The overscan amount in pixels. */
   val overscan: Option[Int] =
-    req.queryParameters.get('$' + "overscan").flatMap { s =>
+    queryParameters.get('$' + "overscan").flatMap { s =>
       try {
         Some(s.toInt)
       } catch {
@@ -42,5 +50,5 @@ case class RequestInfo(req: HttpRequest,
 
   // Used in GeoProvider to decide whether or not to groupBy.
   val mondaraHack: Boolean =
-    req.queryParameters.get('$' + "mondara").exists(_ == "true")
+    queryParameters.get('$' + "mondara").exists(_ == "true")
 }

@@ -16,15 +16,15 @@ libraryDependencies ++= Seq(
   "com.socrata"             %% "socrata-curator-utils"    % "1.0.4" excludeAll(
     ExclusionRule(organization = "com.socrata", name = "socrata-http-client"),
     ExclusionRule(organization = "com.socrata", name = "socrata-http-jetty")),
-  "com.socrata"             %% "socrata-http-common"      % "3.5.0" excludeAll(
+  "com.socrata"             %% "socrata-http-common"      % "3.10.0" excludeAll(
     ExclusionRule(organization = "joda-time"),
     ExclusionRule(organization = "commons-codec"),
     ExclusionRule(organization = "commons-io"),
     ExclusionRule(organization = "com.rojoma")),
-  "com.socrata"             %% "socrata-http-client"      % "3.5.0" excludeAll(
+  "com.socrata"             %% "socrata-http-client"      % "3.10.0" excludeAll(
     ExclusionRule(organization = "commons-codec"),
     ExclusionRule(organization = "com.socrata", name = "socrata-http-common")),
-  "com.socrata"             %% "socrata-http-jetty"       % "3.5.0" excludeAll(
+  "com.socrata"             %% "socrata-http-jetty"       % "3.10.0" excludeAll(
     ExclusionRule(organization = "com.socrata", name = "socrata-http-common")),
   "com.socrata"             %% "soql-pack"                % "0.8.2" excludeAll(
     ExclusionRule(organization = "joda-time"),
@@ -53,7 +53,7 @@ val TestOptionFullTraces = "-oDF"
 testOptions in Test += Tests.Argument(TestFrameworks.ScalaTest, TestOptionNoTraces)
 
 enablePlugins(sbtbuildinfo.BuildInfoPlugin)
-// Setup revolver.
+  // Setup revolver.
 Revolver.settings
 
 // Require full coverage.
