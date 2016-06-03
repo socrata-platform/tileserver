@@ -2,5 +2,5 @@
 set -ex
 
 if [ "$DEPLOY_TO_STAGING" ] && $DEPLOY_TO_STAGING; then
-    ops-tools/jenkins/marathon-deploy/marathon-deploy martahon.properties
+    ops-tools/jenkins/marathon-deploy/marathon-deploy marathon.properties
 fi
