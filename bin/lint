@@ -1,0 +1,4 @@
+#!/bin/bash
+set -ex
+
+ops-tools/jenkins/sbt-build/sbt-stylecheck
