@@ -3,4 +3,6 @@ set -ex
 
 ops-tools/jenkins/sbt-build/sbt-assembly
 
-# ops-tools/jenkins/dockerize/dockerize dockerize.properties
+if $PUSH_DOCKER_IMAGE; then
+    ops-tools/jenkins/dockerize/dockerize dockerize.properties
+fi

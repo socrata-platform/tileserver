@@ -1,4 +1,6 @@
 #!/bin/bash
 set -ex
 
-ops-tools/jenkins/marathon-deploy/marathon-deploy
+if $DEPLOY_TO_STAGING; then
+    ops-tools/jenkins/marathon-deploy/marathon-deploy
+fi
