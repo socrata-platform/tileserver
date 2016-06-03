@@ -1,6 +1,6 @@
 #!/bin/bash
 set -ex
 
-if $DEPLOY_TO_STAGING; then
+if [ "$DEPLOY_TO_STAGING" ] && $DEPLOY_TO_STAGING; then
     ops-tools/jenkins/marathon-deploy/marathon-deploy martahon.properties
 fi
