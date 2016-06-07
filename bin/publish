@@ -4,5 +4,5 @@ set -ex
 ops-tools/jenkins/sbt-build/sbt-assembly
 
 if [ "$PUSH_DOCKER_IMAGE" ] && $PUSH_DOCKER_IMAGE; then
-    ops-tools/jenkins/dockerize/dockerize dockerize.properties
+    ops-tools/jenkins/dockerize/dockerize-marathon dockerize.properties
 fi
