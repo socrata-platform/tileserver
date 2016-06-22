@@ -10,6 +10,8 @@ SERVER_JAR="$SERVER_ROOT/$SERVER_ARTIFACT"
 exec su socrata -c "exec /usr/bin/java \
     -Xmx${JAVA_XMX} \
     -Xms${JAVA_XMX} \
+    -XX:MaxMetaspaceSize=${MAX_META_SIZE} \
+    -XX:CompressedClassSpaceSize=${COMPRESSED_CLASS_SIZE} \
     -Dconfig.file=/etc/${SERVER_CONFIG} \
     -Dlogback.configurationFile=/etc/${LOGBACK_CONFIG} \
     -Djava.net.preferIPv4Stack=true \
