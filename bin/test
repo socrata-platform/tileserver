@@ -1,4 +1,3 @@
 #!/bin/bash
-set -ex
 
-ops-tools/jenkins/sbt-build/sbt-build
+PROJECT=tileserver ops-tools/jenkins/sbt-build/sbt-build
