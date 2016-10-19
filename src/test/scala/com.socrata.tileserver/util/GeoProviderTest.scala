@@ -30,7 +30,9 @@ class GeoProviderTest extends TestBase with UnusedSugar with MockitoSugar {
       val info = RequestInfo(request, id, Unused, Unused, Unused)
 
       val filter = GeoProvider.filter(info.tile, info.geoColumn, Unused)
-      val augmented = GeoProvider.augmentParams(info, filter)
+      val augmented =GeoProvider.augmentParams(info, filter)
+      val augmentedWithQueryTimeout =  GeoProvider.addQueryTimeout(augmented, "5")
+
       val expected = base.
         addPath("id").
         addPath(s"${id: String}.soqlpack").
@@ -38,7 +40,7 @@ class GeoProviderTest extends TestBase with UnusedSugar with MockitoSugar {
         addHeader("X-Socrata-Federation" -> "Honey Badger").
         addHeader("X-Socrata-Host" -> "geo.provider.test").
         addHeader(knownHeader).
-        addParameters(augmented).
+        addParameters(augmentedWithQueryTimeout).
         get.builder
 
       val client = testcommon.mocks.StaticCuratedClient { request =>
