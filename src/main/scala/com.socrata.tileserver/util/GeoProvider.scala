@@ -25,7 +25,7 @@ case class GeoProvider(client: CuratedServiceClient) {
   def doQuery(info: RequestInfo): GeoResponse = {
     val intersects = filter(info.tile, info.geoColumn, info.overscan.getOrElse(0))
     val params = augmentParams(info, intersects)
-    val paramsWithTimeout = addQueryTimeout(params,  config.TileServerConfig.queryTimeout)
+    val paramsWithTimeout = addQueryTimeout(params, config.TileServerConfig.queryTimeout)
 
     val headers = HeaderFilter.headers(info.req)
 

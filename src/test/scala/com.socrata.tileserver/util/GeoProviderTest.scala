@@ -30,8 +30,8 @@ class GeoProviderTest extends TestBase with UnusedSugar with MockitoSugar {
       val info = RequestInfo(request, id, Unused, Unused, Unused)
 
       val filter = GeoProvider.filter(info.tile, info.geoColumn, Unused)
-      val augmented =GeoProvider.augmentParams(info, filter)
-      val augmentedWithQueryTimeout =  GeoProvider.addQueryTimeout(augmented, "5")
+      val augmented = GeoProvider.augmentParams(info, filter)
+      val augmentedWithQueryTimeout = GeoProvider.addQueryTimeout(augmented, config.TileServerConfig.queryTimeout)
 
       val expected = base.
         addPath("id").
