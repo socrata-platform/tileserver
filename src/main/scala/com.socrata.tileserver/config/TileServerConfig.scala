@@ -22,7 +22,7 @@ object TileServerConfig {
   lazy val renderPort = config.getInt("tileserver.render-port")
 
   /** Query configuration. */
-  lazy val queryTimeout = config.getDuration("tileserver.query-timeout", SECONDS).toString
+  lazy val queryTimeout = config.getDuration("tileserver.query-timeout", SECONDS)
 
   /** Zookeeper configuration. */
   lazy val broker = new DiscoveryBrokerConfig(config, "curator")

@@ -134,8 +134,8 @@ object GeoProvider {
     s"intersects($geoColumn, 'MULTIPOLYGON((($corners)))')"
   }
 
-  def addQueryTimeout(params: Map[String, String], queryTimeout: String): Map[String, String] = {
-    val queryTimeoutParam = queryTimeoutKey -> queryTimeout
+  def addQueryTimeout(params: Map[String, String], queryTimeout: Long): Map[String, String] = {
+    val queryTimeoutParam = queryTimeoutKey -> queryTimeout.toString
     params + queryTimeoutParam
   }
 }
