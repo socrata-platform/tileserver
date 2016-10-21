@@ -25,6 +25,8 @@ case class GeoProvider(client: CuratedServiceClient) {
   def doQuery(info: RequestInfo): GeoResponse = {
     val intersects = filter(info.tile, info.geoColumn, info.overscan.getOrElse(0))
     val params = augmentParams(info, intersects)
+    val paramsWithTimeout = addQueryTimeout(params, config.TileServerConfig.queryTimeout)
+
     val headers = HeaderFilter.headers(info.req)
 
     val jsonReq = { base: RequestBuilder =>
@@ -33,7 +35,7 @@ case class GeoProvider(client: CuratedServiceClient) {
         addHeaders(headers).
         addHeader("X-Socrata-Federation" -> "Honey Badger").
         addHeader(ReqIdHeader -> info.requestId).
-        query(params).get
+        query(paramsWithTimeout).get
       logger.info(URLDecoder.decode(req.toString, UTF_8.name))
       req
     }
@@ -62,6 +64,7 @@ object GeoProvider {
   private val groupKey = '$' + "group"
   private val styleKey = '$' + "style"
   private val overscanKey = '$' + "overscan"
+  private val queryTimeoutKey = "$$" + "query_timeout_seconds"
 
   /** Adds `where` and `select` to the parameters in `req`.
     *
@@ -129,5 +132,10 @@ object GeoProvider {
   def filter(tile: QuadTile, geoColumn: String, overscan: Int): String = {
     val corners = tile.corners(overscan).map { case (lat, lon) => s"$lat $lon" }.mkString(",")
     s"intersects($geoColumn, 'MULTIPOLYGON((($corners)))')"
+  }
+
+  def addQueryTimeout(params: Map[String, String], queryTimeout: Long): Map[String, String] = {
+    val queryTimeoutParam = queryTimeoutKey -> queryTimeout.toString
+    params + queryTimeoutParam
   }
 }
