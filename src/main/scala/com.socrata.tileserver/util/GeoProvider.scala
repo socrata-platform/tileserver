@@ -62,6 +62,8 @@ object GeoProvider {
   private val groupKey = '$' + "group"
   private val styleKey = '$' + "style"
   private val overscanKey = '$' + "overscan"
+  private val aggrColorKey = '$' + "aggregation-color"
+  private val aggrColumnKey = '$' + "aggregation-column-name"
 
   /** Adds `where` and `select` to the parameters in `req`.
     *
@@ -77,7 +79,7 @@ object GeoProvider {
     val whereParam = whereKey ->
       params.get(whereKey).map(v => s"($v) and ($filter)").getOrElse(filter)
 
-    params + selectParam + whereParam - styleKey - overscanKey
+    params + selectParam + whereParam - styleKey - overscanKey - aggrColorKey - aggrColumnKey
   }
 
   /** Adds `where` and `select` to the parameters in `req` for Mondara maps.
@@ -117,7 +119,7 @@ object GeoProvider {
     // The correct way to fix this would be to implement pagination and render
     // features ~50k at a time in the carto-renderer and then stitch those
     // images together.
-    params + selectParam + whereParam + groupParam - styleKey - overscanKey - mondaraKey
+    params + selectParam + whereParam + groupParam - styleKey - overscanKey - aggrColorKey - aggrColumnKey - mondaraKey
   }
 
   /** Return the SoQL fragment for the $where parameter.

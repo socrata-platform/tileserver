@@ -1,9 +1,9 @@
 package com.socrata.tileserver.util
 
 import com.rojoma.simplearm.v2.ResourceScope
-
 import com.socrata.http.server.util.RequestId.RequestId
 import com.socrata.http.server.HttpRequest
+
 
 /** Represents the incoming request plus path components.
   *
@@ -21,8 +21,13 @@ case class RequestInfo(req: HttpRequest,
   /** The id for this request (generated if not present). */
   val requestId: RequestId = req.requestId
 
+
   /** The CartoCss for the request, if present. */
   val style: Option[String] = req.queryParameters.get('$' + "style")
+
+  val colors: Option[String] = req.queryParameters.get('$' + "aggregation-color")
+
+  val columnName: Option[String] = req.queryParameters.get('$' + "aggregation-column-name")
 
   /** The ResourceScope to be used when processing this request. */
   val rs: ResourceScope = req.resourceScope

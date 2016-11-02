@@ -93,6 +93,7 @@ case class TileService(renderer: RenderProvider, geo: GeoProvider)  {
           handleRequest(info)
         }
       }
+
     }
 }
 
