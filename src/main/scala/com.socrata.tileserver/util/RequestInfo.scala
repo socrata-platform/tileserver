@@ -1,9 +1,9 @@
 package com.socrata.tileserver.util
 
 import com.rojoma.simplearm.v2.ResourceScope
-
 import com.socrata.http.server.util.RequestId.RequestId
 import com.socrata.http.server.HttpRequest
+
 
 /** Represents the incoming request plus path components.
   *
@@ -17,12 +17,18 @@ case class RequestInfo(req: HttpRequest,
                        datasetId: String,
                        geoColumn: String,
                        tile: QuadTile,
-                       extension: String) {
+                       extension: String,
+                       range: Option[(String, String)]) {
   /** The id for this request (generated if not present). */
   val requestId: RequestId = req.requestId
 
+
   /** The CartoCss for the request, if present. */
   val style: Option[String] = req.queryParameters.get('$' + "style")
+
+  val rangedColorMin: Option[String] = req.queryParameters.get('$' + "ranged-color-min")
+  val rangedColorMax: Option[String] = req.queryParameters.get('$' + "ranged-color-max")
+  val columnName: Option[String] = req.queryParameters.get('$' + "ranged-column-name")
 
   /** The ResourceScope to be used when processing this request. */
   val rs: ResourceScope = req.resourceScope
@@ -43,4 +49,9 @@ case class RequestInfo(req: HttpRequest,
   // Used in GeoProvider to decide whether or not to groupBy.
   val mondaraHack: Boolean =
     req.queryParameters.get('$' + "mondara").exists(_ == "true")
+
+  val (min, max) = range match {
+    case Some((low, high)) => (Some(low.toFloat), Some(high.toFloat))
+    case None => (None,None)
+  }
 }

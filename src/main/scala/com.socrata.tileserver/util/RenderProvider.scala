@@ -1,10 +1,16 @@
 package com.socrata.tileserver
 package util
 
+import java.awt.Color
 import java.io.{ByteArrayInputStream, InputStream}
 import java.net.URLDecoder
 import java.nio.charset.StandardCharsets.UTF_8
+import java.util
 
+import com.rojoma.json.v3.ast
+import com.rojoma.json.v3.ast.JNumber
+import com.rojoma.json.v3.codec.JsonDecode
+import com.rojoma.json.v3.util.JsonUtil
 import com.rojoma.simplearm.v2.ResourceScope
 import org.apache.commons.codec.binary.Base64
 import org.apache.commons.io.IOUtils
@@ -27,18 +33,22 @@ import RenderProvider._
 case class RenderProvider(http: HttpClient, baseUrl: RequestBuilder) {
   /** Render the provided tile using the provided request info.
     *
-    * @param rawTile a Map that contains the features as WKB.
+    * @param encoder An encoder to manipulate features
     * @param info the request info to use while rendering the tile.
     */
-  def renderPng(rawTile: MapTile, info: RequestInfo): InputStream = {
-    val style = info.style.get
-    val tile: Map[String, Seq[String]] = rawTile.map { case (layer, wkbs) =>
-      layer -> wkbs.map(Base64.encodeBase64String(_))
+  def renderPng(encoder: TileEncoder, info: RequestInfo): InputStream = {
+    val rawTile = encoder.wkbsAndAttributes
+    val cartoCssProvider = CartoCssEncoder(info)
+    val style  = (info.min, info.max) match {
+      case (Some(_), Some(_)) => cartoCssProvider.buildCartoCSS
+        //cartoCssProvider.buildGranularCartoCSS(encoder.features)
+      case _ => info.style.get
     }
 
-    val content: Map[String, Any] = Map("tile" -> tile,
+
+    val content: Map[String, Any] = Map("tile" -> rawTile,
                                         "zoom" -> info.zoom,
-                                        "style" -> style,
+                                        "style" -> Base64.encodeBase64String(style.getBytes),
                                         "overscan" -> info.overscan.getOrElse(0))
     val packed: Array[Byte] = MsgPack.pack(content)
 
@@ -69,6 +79,7 @@ case class RenderProvider(http: HttpClient, baseUrl: RequestBuilder) {
 }
 
 object RenderProvider {
-  type MapTile = Map[String, Seq[Array[Byte]]]
+  type MapTile = Map[String, Seq[Map[String, String]]]
+
   private val logger: Logger = LoggerFactory.getLogger(getClass)
 }

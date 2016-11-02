@@ -47,13 +47,23 @@ case class TileService(renderer: RenderProvider, geo: GeoProvider)  {
     */
   def handleRequest(info: RequestInfo) : HttpResponse = {
     try {
-      val resp = geo.doQuery(info)
+      val (resp, optionalMinMaxResp) =
+        (info.columnName, info.rangedColorMin, info.rangedColorMax) match {
+        case (Some(_), Some(_), Some(_))  =>
+          (geo.doQuery(info), Some(geo.doMinMaxQuery(info)))
+        case (_,_,_) => (geo.doQuery(info), None)
+      }
 
       val result = resp.resultCode match {
         case OK.statusCode =>
           val base = OK ~> HeaderFilter.extract(resp)
+          optionalMinMaxResp match {
+            case Some(minMaxResp) =>
+              val augmentedInfo = info.copy(range = Some((minMaxResp.min, minMaxResp.max)))
+              handler(augmentedInfo)(base, resp)
+            case None => handler(info)(base, resp)
+          }
 
-          handler(info)(base, resp)
         case NotModified.statusCode => NotModified
         case _ => echoResponse(resp)
       }
@@ -89,10 +99,11 @@ case class TileService(renderer: RenderProvider, geo: GeoProvider)  {
 
         { req =>
           val info =
-            RequestInfo(req, identifier, geoColumn, QuadTile(x, y, zoom), ext)
+            RequestInfo(req, identifier, geoColumn, QuadTile(x, y, zoom), ext, None)
           handleRequest(info)
         }
       }
+
     }
 }
 

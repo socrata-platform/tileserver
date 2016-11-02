@@ -3,7 +3,10 @@ package util
 
 import java.io.{ByteArrayInputStream, DataInputStream}
 
+import com.rojoma.json.v3.codec.{DecodeError, JsonCodec, JsonDecode}
 import com.rojoma.json.v3.codec.JsonEncode.toJValue
+
+import com.rojoma.json.v3.util.{AutomaticJsonCodecBuilder, JsonUtil}
 import com.rojoma.simplearm.v2.ResourceScope
 import org.apache.commons.io.IOUtils
 import org.velvia.InvalidMsgPackDataException
@@ -28,12 +31,12 @@ trait GeoResponse extends ResponseInfo {
   /** The (binary) payload from the underlying response. */
   def payload: Array[Byte]
 
-  /** The unpacked features without any processing. */
+
+/** The unpacked features without any processing. */
   def rawFeatures: Iterator[FeatureJson] = {
     if (resultCode != OK.statusCode) {
       throw new IllegalStateException("Tried to unpack failed response!")
     }
-
     try {
       val dis = resourceScope.
         open(new DataInputStream(new ByteArrayInputStream(payload)))

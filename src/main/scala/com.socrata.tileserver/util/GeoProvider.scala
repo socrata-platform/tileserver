@@ -4,6 +4,8 @@ package util
 import java.net.URLDecoder
 import java.nio.charset.StandardCharsets.UTF_8
 
+import com.rojoma.json.v3.codec.JsonDecode
+import com.rojoma.json.v3.io.JsonReader
 import org.slf4j.{Logger, LoggerFactory}
 
 import com.socrata.curator.CuratedServiceClient
@@ -25,6 +27,8 @@ case class GeoProvider(client: CuratedServiceClient) {
   def doQuery(info: RequestInfo): GeoResponse = {
     val intersects = filter(info.tile, info.geoColumn, info.overscan.getOrElse(0))
     val params = augmentParams(info, intersects)
+    val paramsWithTimeout = addQueryTimeout(params, config.TileServerConfig.queryTimeout)
+
     val headers = HeaderFilter.headers(info.req)
 
     val jsonReq = { base: RequestBuilder =>
@@ -33,7 +37,7 @@ case class GeoProvider(client: CuratedServiceClient) {
         addHeaders(headers).
         addHeader("X-Socrata-Federation" -> "Honey Badger").
         addHeader(ReqIdHeader -> info.requestId).
-        query(params).get
+        query(paramsWithTimeout).get
       logger.info(URLDecoder.decode(req.toString, UTF_8.name))
       req
     }
@@ -49,7 +53,27 @@ case class GeoProvider(client: CuratedServiceClient) {
     } else {
       logger.warn(message)
     }
+    resp
+  }
 
+  def doMinMaxQuery(info: RequestInfo): MinMaxResponse = {
+    val headers = HeaderFilter.headers(info.req)
+    val params = Map("$select" -> s"min(${info.columnName.get}) as min, max(${info.columnName.get}) as max")
+    val jsonReq = { base: RequestBuilder =>
+      val req = base.
+        addPaths(Seq("id", s"${info.datasetId}.json")).
+        addHeaders(headers).
+        addHeader("X-Socrata-Federation" -> "Honey Badger").
+        addHeader(ReqIdHeader -> info.requestId).
+        query(params).get
+      logger.info(URLDecoder.decode(req.toString, UTF_8.name))
+      req
+    }
+    val before = System.nanoTime()
+    val resp = client.execute(jsonReq, MinMaxResponse(_, info.rs))
+    val after = System.nanoTime()
+    val duration = (after - before)/1000000
+    val message = s"Upstream response (${resp.resultCode}) took ${duration}ms."
     resp
   }
 }
@@ -62,7 +86,11 @@ object GeoProvider {
   private val groupKey = '$' + "group"
   private val styleKey = '$' + "style"
   private val overscanKey = '$' + "overscan"
-
+  private val rangedColorMinKey = '$' + "ranged-color-min"
+  private val rangedColorMaxKey = '$' + "ranged-color-max"
+  private val rangedColumnKey = '$' + "ranged-column-name"
+  private val queryTimeoutKey = "$$" + "query_timeout_seconds"
+  
   /** Adds `where` and `select` to the parameters in `req`.
     *
     * @param info the information about this request.
@@ -77,7 +105,7 @@ object GeoProvider {
     val whereParam = whereKey ->
       params.get(whereKey).map(v => s"($v) and ($filter)").getOrElse(filter)
 
-    params + selectParam + whereParam - styleKey - overscanKey
+    params + selectParam + whereParam - styleKey - overscanKey - rangedColorMinKey -rangedColorMaxKey - rangedColumnKey
   }
 
   /** Adds `where` and `select` to the parameters in `req` for Mondara maps.
@@ -117,7 +145,7 @@ object GeoProvider {
     // The correct way to fix this would be to implement pagination and render
     // features ~50k at a time in the carto-renderer and then stitch those
     // images together.
-    params + selectParam + whereParam + groupParam - styleKey - overscanKey - mondaraKey
+    params + selectParam + whereParam + groupParam - styleKey - overscanKey -  rangedColumnKey - rangedColorMinKey -rangedColorMaxKey - mondaraKey
   }
 
   /** Return the SoQL fragment for the $where parameter.
@@ -129,5 +157,10 @@ object GeoProvider {
   def filter(tile: QuadTile, geoColumn: String, overscan: Int): String = {
     val corners = tile.corners(overscan).map { case (lat, lon) => s"$lat $lon" }.mkString(",")
     s"intersects($geoColumn, 'MULTIPOLYGON((($corners)))')"
+  }
+
+  def addQueryTimeout(params: Map[String, String], queryTimeout: Long): Map[String, String] = {
+    val queryTimeoutParam = queryTimeoutKey -> queryTimeout.toString
+    params + queryTimeoutParam
   }
 }

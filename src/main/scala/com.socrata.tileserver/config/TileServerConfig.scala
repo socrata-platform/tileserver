@@ -4,6 +4,8 @@ import com.typesafe.config.ConfigFactory
 
 import com.socrata.curator.{CuratedClientConfig, DiscoveryBrokerConfig}
 
+import java.util.concurrent.TimeUnit.SECONDS
+
 // $COVERAGE-OFF$ Disabled because this is configuration boilerplate.
 /** Container for global configuration. */
 object TileServerConfig {
@@ -18,6 +20,9 @@ object TileServerConfig {
   /** CartoCSS Renderer Base Url */
   lazy val renderHost = config.getString("tileserver.render-host")
   lazy val renderPort = config.getInt("tileserver.render-port")
+
+  /** Query configuration. */
+  lazy val queryTimeout = config.getDuration("tileserver.query-timeout", SECONDS)
 
   /** Zookeeper configuration. */
   lazy val broker = new DiscoveryBrokerConfig(config, "curator")

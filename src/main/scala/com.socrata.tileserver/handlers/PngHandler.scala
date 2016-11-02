@@ -33,6 +33,6 @@ case class PngHandler(val renderer: RenderProvider) extends BaseHandler("png") {
                               encoder: TileEncoder): HttpResponse = {
     base ~>
       ContentType("image/png") ~>
-      Stream(renderer.renderPng(encoder.wkbs, reqInfo))
+      Stream(renderer.renderPng(encoder, reqInfo))
   }
 }
