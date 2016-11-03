@@ -4,6 +4,8 @@ package util
 import java.net.URLDecoder
 import java.nio.charset.StandardCharsets.UTF_8
 
+import com.rojoma.json.v3.codec.JsonDecode
+import com.rojoma.json.v3.io.JsonReader
 import org.slf4j.{Logger, LoggerFactory}
 
 import com.socrata.curator.CuratedServiceClient
@@ -50,7 +52,32 @@ case class GeoProvider(client: CuratedServiceClient) {
       logger.warn(message)
     }
 
+    val respMinMax = doMinMaxQuery(info)
     resp
+  }
+
+  def doMinMaxQuery(info: RequestInfo): GeoResponse = {
+    val headers = HeaderFilter.headers(info.req)
+    val params = Map("$select" -> s"min(${info.columnName.get}) as min, max(${info.columnName.get}) as max")
+    val jsonReq = { base: RequestBuilder =>
+      val req = base.
+        addPaths(Seq("id", s"${info.datasetId}.json")).
+        addHeaders(headers).
+        addHeader("X-Socrata-Federation" -> "Honey Badger").
+        addHeader(ReqIdHeader -> info.requestId).
+        query(params).get
+      logger.info(URLDecoder.decode(req.toString, UTF_8.name))
+      req
+    }
+
+    val before = System.nanoTime()
+    val resp = client.execute(jsonReq, GeoResponse(_, info.rs))
+    val after = System.nanoTime()
+    val duration = (after - before)/1000000
+    val message = s"Upstream response (${resp.resultCode}) took ${duration}ms."
+
+    resp
+
   }
 }
 

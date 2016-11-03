@@ -2,8 +2,12 @@ package com.socrata.tileserver
 package util
 
 import java.io.{ByteArrayInputStream, DataInputStream}
+import java.nio.charset.StandardCharsets._
 
+import com.rojoma.json.v3.codec.{DecodeError, JsonCodec, JsonDecode}
 import com.rojoma.json.v3.codec.JsonEncode.toJValue
+import com.rojoma.json.v3.io.JsonReader
+import com.rojoma.json.v3.util.{AutomaticJsonCodecBuilder, JsonUtil}
 import com.rojoma.simplearm.v2.ResourceScope
 import org.apache.commons.io.IOUtils
 import org.velvia.InvalidMsgPackDataException
@@ -15,6 +19,11 @@ import com.socrata.thirdparty.geojson.FeatureJson
 
 import TileEncoder.Feature
 import exceptions._
+
+case class MinMax(min:String, max:String)
+object MinMax {
+  implicit val jCodec = AutomaticJsonCodecBuilder[MinMax]
+}
 
 /** Wraps a geometry response from the underlying service. */
 trait GeoResponse extends ResponseInfo {
@@ -28,12 +37,30 @@ trait GeoResponse extends ResponseInfo {
   /** The (binary) payload from the underlying response. */
   def payload: Array[Byte]
 
-  /** The unpacked features without any processing. */
+  def min: String = {
+    val json = JsonReader.fromString(new String(payload, UTF_8))
+    JsonDecode.fromJValue[Seq[MinMax]](json) match {
+      case Right(minMaxArray) =>
+        minMaxArray.head.min
+      case Left(e) => throw new Exception ("unparseable json" + e.getMessage)
+    }
+  }
+
+  //this duplication sucks but it's 2 am and how do you even scala
+  def max: String = {
+    val json = JsonReader.fromString(new String(payload, UTF_8))
+    JsonDecode.fromJValue[Seq[MinMax]](json) match {
+      case Right(minMaxArray) =>
+        minMaxArray.head.max
+      case Left(e) => throw new Exception ("unparseable json" + e.getMessage)
+    }
+  }
+
+/** The unpacked features without any processing. */
   def rawFeatures: Iterator[FeatureJson] = {
     if (resultCode != OK.statusCode) {
       throw new IllegalStateException("Tried to unpack failed response!")
     }
-
     try {
       val dis = resourceScope.
         open(new DataInputStream(new ByteArrayInputStream(payload)))
