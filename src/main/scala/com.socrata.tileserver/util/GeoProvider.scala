@@ -52,8 +52,10 @@ case class GeoProvider(client: CuratedServiceClient) {
       logger.warn(message)
     }
 
-    val respMinMax = doMinMaxQuery(info)
-    resp
+    (info.columnName, info.colors) match {
+      case (Some(columnName), Some(colors))  => doMinMaxQuery(info)
+      case (_,_) => resp
+    }
   }
 
   def doMinMaxQuery(info: RequestInfo): GeoResponse = {
