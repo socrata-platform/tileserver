@@ -90,7 +90,7 @@ object GeoProvider {
   private val rangedColorMaxKey = '$' + "ranged-color-max"
   private val rangedColumnKey = '$' + "ranged-column-name"
   private val queryTimeoutKey = "$$" + "query_timeout_seconds"
-  
+
   /** Adds `where` and `select` to the parameters in `req`.
     *
     * @param info the information about this request.
@@ -145,7 +145,8 @@ object GeoProvider {
     // The correct way to fix this would be to implement pagination and render
     // features ~50k at a time in the carto-renderer and then stitch those
     // images together.
-    params + selectParam + whereParam + groupParam - styleKey - overscanKey -  rangedColumnKey - rangedColorMinKey -rangedColorMaxKey - mondaraKey
+    val parameters = params + selectParam + whereParam + groupParam
+    parameters - styleKey - overscanKey -  rangedColumnKey - rangedColorMinKey -rangedColorMaxKey - mondaraKey
   }
 
   /** Return the SoQL fragment for the $where parameter.

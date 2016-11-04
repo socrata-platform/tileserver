@@ -1,7 +1,6 @@
 package com.socrata.tileserver
 package util
 
-import java.awt.Color
 import java.io.{ByteArrayInputStream, InputStream}
 import java.net.URLDecoder
 import java.nio.charset.StandardCharsets.UTF_8
@@ -41,7 +40,6 @@ case class RenderProvider(http: HttpClient, baseUrl: RequestBuilder) {
     val cartoCssProvider = CartoCssEncoder(info)
     val style  = (info.min, info.max) match {
       case (Some(_), Some(_)) => cartoCssProvider.buildCartoCSS
-        //cartoCssProvider.buildGranularCartoCSS(encoder.features)
       case _ => info.style.get
     }
 

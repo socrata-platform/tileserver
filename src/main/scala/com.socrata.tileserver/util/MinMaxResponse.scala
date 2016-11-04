@@ -33,6 +33,7 @@ trait MinMaxResponse extends ResponseInfo {
   /** The (binary) payload from the underlying response. */
   def payload: Array[Byte]
 
+  // Get min and max values should be combined in one method
   def min: String = {
     val json = JsonReader.fromString(new String(payload, UTF_8))
     JsonDecode.fromJValue[Seq[MinMax]](json) match {
@@ -42,7 +43,6 @@ trait MinMaxResponse extends ResponseInfo {
     }
   }
 
-  //this duplication sucks but it's 2 am and how do you even scala
   def max: String = {
     val json = JsonReader.fromString(new String(payload, UTF_8))
     JsonDecode.fromJValue[Seq[MinMax]](json) match {
