@@ -5,6 +5,7 @@ import java.nio.charset.StandardCharsets.UTF_8
 
 import com.rojoma.json.v3.io.JsonReader
 import com.rojoma.simplearm.v2.ResourceScope
+import com.socrata.tileserver.exceptions.FailedRenderException
 import org.apache.commons.codec.binary.Base64
 import org.apache.commons.io.IOUtils
 import org.velvia.MsgPack
@@ -17,9 +18,11 @@ import exceptions.FailedRenderException
 
 // scalastyle:off import.grouping, no.whitespace.before.left.bracket
 class RenderProviderTest extends TestBase with UnusedSugar {
-  val styleInfo = new RequestInfo(Unused, Unused, Unused, Unused, Unused) {
+  val styleInfo = new RequestInfo(Unused, Unused, Unused, Unused, Unused, None) {
     override val style = Some(Unused: String)
   }
+
+  val tileEncoder = new TileEncoder(Unused)
 
   test("handleResponse unpacks payload") {
     forAll { payload: String =>
@@ -27,7 +30,7 @@ class RenderProviderTest extends TestBase with UnusedSugar {
       val resp = mocks.StringResponse(payload)
       val client = testcommon.mocks.StaticHttpClient(resp)
       val actual = IOUtils.toString(
-        RenderProvider(client, Unused).renderPng(Unused, styleInfo), UTF_8)
+        RenderProvider(client, Unused).renderPng(tileEncoder, styleInfo), UTF_8)
 
       actual must equal (expected)
     }
@@ -43,7 +46,7 @@ class RenderProviderTest extends TestBase with UnusedSugar {
       val client = testcommon.mocks.StaticHttpClient(resp)
       val renderer = RenderProvider(client, Unused)
       val actual =
-        the [FailedRenderException] thrownBy renderer.renderPng(Unused, styleInfo)
+        the [FailedRenderException] thrownBy renderer.renderPng(tileEncoder, styleInfo)
       actual must equal (expected)
     }
   }
@@ -53,14 +56,13 @@ class RenderProviderTest extends TestBase with UnusedSugar {
       val resp = mocks.ThrowsResponse(message)
       val client = testcommon.mocks.StaticHttpClient(resp)
       val renderer = RenderProvider(client, Unused)
-
-      val info = new RequestInfo(Unused, Unused, Unused, Unused, Unused) {
+      val info = new RequestInfo(Unused, Unused, Unused, Unused, Unused, None) {
         override val style = Some(css)
         override val zoom = z
       }
 
       val actual =
-        the [Exception] thrownBy renderer.renderPng(tile, info) // scalastyle:ignore
+        the [Exception] thrownBy renderer.renderPng(tileEncoder, info) // scalastyle:ignore
       actual.getMessage must equal (message)
     }
   }
@@ -79,18 +81,18 @@ class RenderProviderTest extends TestBase with UnusedSugar {
     }
 
     forAll { (salt: String, rawTile: MapTile, z: Int, css: String) =>
-      val tile = rawTile.mapValues(wkbs => wkbs.map(Base64.encodeBase64String(_))).
+      val tile = rawTile.mapValues(wkbs => wkbs.map(ft => ft map(x => Base64.encodeBase64String(x._1.getBytes)))).
           map(_.toString).toSeq.sorted
 
       val client = testcommon.mocks.StaticHttpClient(makeResp(salt))
       val renderer = RenderProvider(client, Unused)
-      val info = new RequestInfo(Unused, Unused, Unused, Unused, Unused) {
+      val info = new RequestInfo(Unused, Unused, Unused, Unused, Unused, None) {
         override val style = Some(css)
         override val zoom: Int = z
       }
 
       val expected = salt + tile + z + css
-      val actual = IOUtils.toString(renderer.renderPng(rawTile, info))
+      val actual = IOUtils.toString(renderer.renderPng(tileEncoder, info))
 
       actual must equal (expected)
     }
@@ -108,12 +110,12 @@ class RenderProviderTest extends TestBase with UnusedSugar {
     }
 
     val client = testcommon.mocks.StaticHttpClient()
-    val info = new RequestInfo(Unused, Unused, Unused, Unused, Unused) {
+    val info = new RequestInfo(Unused, Unused, Unused, Unused, Unused, None) {
       override val style = Some(Unused: String)
     }
 
     val renderer = RenderProvider(client, Unused)
-    renderer.renderPng(Unused, info): Unit
+    renderer.renderPng(tileEncoder, info): Unit
   }
 
   test("renderPng passes x-socrata-requestid to renderer") {
@@ -129,13 +131,13 @@ class RenderProviderTest extends TestBase with UnusedSugar {
 
     forAll { reqId: String =>
       val client = testcommon.mocks.StaticHttpClient(requireRequestId(reqId))
-      val info = new RequestInfo(Unused, Unused, Unused, Unused, Unused) {
+      val info = new RequestInfo(Unused, Unused, Unused, Unused, Unused, None) {
         override val style = Some(Unused: String)
         override val requestId = reqId
       }
 
       val renderer = RenderProvider(client, Unused)
-      renderer.renderPng(Unused, info): Unit
+      renderer.renderPng(tileEncoder, info): Unit
     }
   }
 }

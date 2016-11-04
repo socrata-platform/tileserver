@@ -21,7 +21,7 @@ trait UnusedSugar extends UnusedSugarCommon {
     }
 
   implicit def unusedToRequestInfo(u: UnusedValue): util.RequestInfo =
-    util.RequestInfo(Unused, Unused, Unused, Unused, Unused)
+    util.RequestInfo(Unused, Unused, Unused, Unused, Unused, None)
 }
 
 object UnusedSugar extends UnusedSugar

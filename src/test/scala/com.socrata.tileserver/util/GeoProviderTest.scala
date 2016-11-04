@@ -27,7 +27,7 @@ class GeoProviderTest extends TestBase with UnusedSugar with MockitoSugar {
       val request = mocks.StaticRequest(param, Map(knownHeader,
                                                    unknownHeader,
                                                    "X-Socrata-Host" -> "geo.provider.test"))
-      val info = RequestInfo(request, id, Unused, Unused, Unused)
+      val info = RequestInfo(request, id, Unused, Unused, Unused, None)
 
       val filter = GeoProvider.filter(info.tile, info.geoColumn, Unused)
       val augmented = GeoProvider.augmentParams(info, filter)

@@ -17,7 +17,7 @@ class PngHandlerTest extends TestBase with UnusedSugar {
     val client = testcommon.mocks.StaticHttpClient(upstream)
     val renderer = RenderProvider(client, RequestBuilder(Unused))
     val handler = PngHandler(renderer)
-    val info = new RequestInfo(Unused, Unused, Unused, Unused, "png") {
+    val info = new RequestInfo(Unused, Unused, Unused, Unused, "png", None) {
       override val style = Some(Unused: String)
     }
 

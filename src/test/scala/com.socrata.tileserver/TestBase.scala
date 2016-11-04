@@ -70,15 +70,15 @@ trait TestBase
   def reqInfo(req: HttpRequest,
               ext: String = Unused,
               geoColumn: String = Unused): util.RequestInfo =
-    util.RequestInfo(req, Unused, geoColumn, Unused, ext)
+    util.RequestInfo(req, Unused, geoColumn, Unused, ext, None)
 
   def reqInfo(ext: String): util.RequestInfo =
-    util.RequestInfo(Unused, Unused, Unused, Unused, ext)
+    util.RequestInfo(Unused, Unused, Unused, Unused, ext, None)
 
   def reqInfo(req: HttpRequest,
               datasetId: String,
               geoColumn: String,
               tile: util.QuadTile,
               ext: String): util.RequestInfo =
-    util.RequestInfo(req, datasetId, geoColumn, tile, ext)
+    util.RequestInfo(req, datasetId, geoColumn, tile, ext, None)
 }
