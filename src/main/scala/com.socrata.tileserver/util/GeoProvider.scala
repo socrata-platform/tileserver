@@ -45,7 +45,7 @@ case class GeoProvider(client: CuratedServiceClient) {
     val before = System.nanoTime()
     val resp = client.execute(jsonReq, GeoResponse(_, info.rs))
     val after = System.nanoTime()
-    val duration = (after - before)/1000000
+    val duration = (after - before) / 1000000
     val message = s"Upstream response (${resp.resultCode}) took ${duration}ms."
 
     if (resp.resultCode == OK.statusCode || resp.resultCode == NotModified.statusCode) {
@@ -72,7 +72,7 @@ case class GeoProvider(client: CuratedServiceClient) {
     val before = System.nanoTime()
     val resp = client.execute(jsonReq, MinMaxResponse(_, info.rs))
     val after = System.nanoTime()
-    val duration = (after - before)/1000000
+    val duration = (after - before) / 1000000
     val message = s"Upstream response (${resp.resultCode}) took ${duration}ms."
     resp
   }
@@ -105,7 +105,7 @@ object GeoProvider {
     val whereParam = whereKey ->
       params.get(whereKey).map(v => s"($v) and ($filter)").getOrElse(filter)
 
-    params + selectParam + whereParam - styleKey - overscanKey - rangedColorMinKey -rangedColorMaxKey - rangedColumnKey
+    params + selectParam + whereParam - styleKey - overscanKey - rangedColorMinKey - rangedColorMaxKey - rangedColumnKey
   }
 
   /** Adds `where` and `select` to the parameters in `req` for Mondara maps.
@@ -146,7 +146,7 @@ object GeoProvider {
     // features ~50k at a time in the carto-renderer and then stitch those
     // images together.
     val parameters = params + selectParam + whereParam + groupParam
-    parameters - styleKey - overscanKey -  rangedColumnKey - rangedColorMinKey -rangedColorMaxKey - mondaraKey
+    parameters - styleKey - overscanKey -  rangedColumnKey - rangedColorMinKey - rangedColorMaxKey - mondaraKey
   }
 
   /** Return the SoQL fragment for the $where parameter.

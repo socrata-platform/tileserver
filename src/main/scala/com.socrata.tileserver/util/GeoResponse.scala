@@ -31,12 +31,12 @@ trait GeoResponse extends ResponseInfo {
   /** The (binary) payload from the underlying response. */
   def payload: Array[Byte]
 
-
-/** The unpacked features without any processing. */
+  /** The unpacked features without any processing. */
   def rawFeatures: Iterator[FeatureJson] = {
     if (resultCode != OK.statusCode) {
       throw new IllegalStateException("Tried to unpack failed response!")
     }
+
     try {
       val dis = resourceScope.
         open(new DataInputStream(new ByteArrayInputStream(payload)))

@@ -1,12 +1,10 @@
 package com.socrata.tileserver.util
 
-import com.rojoma.json.v3.util.JsonUtil
 import com.socrata.soql.environment.ColumnName
-
-import scala.collection.JavaConverters._
-
 import com.rojoma.json.v3.ast.JValue
 import com.rojoma.json.v3.codec.JsonEncode.toJValue
+import com.rojoma.json.v3.util.JsonUtil
+
 import com.vividsolutions.jts.geom.{Geometry, Point}
 import com.vividsolutions.jts.io.WKBWriter
 import com.vividsolutions.jts.util.AssertionFailedException
@@ -14,6 +12,7 @@ import no.ecc.vectortile.VectorTileEncoder
 import org.apache.commons.codec.binary.Base64
 import org.slf4j.{Logger, LoggerFactory}
 
+import scala.collection.JavaConverters._
 import TileEncoder._
 
 /** Encodes features in a variety of formats.
@@ -21,8 +20,6 @@ import TileEncoder._
   * @constructor create a new encoder for the given features.
   * @param features the features to encode.
   */
-
-
 case class TileEncoder(features: Set[TileEncoder.Feature]) {
   private lazy val writer: WKBWriter = new WKBWriter()
 
@@ -68,7 +65,7 @@ case class TileEncoder(features: Set[TileEncoder.Feature]) {
             }
           }
         )
-        case (_,_) => throw new Exception ("couldn't find attributes")
+        case (_) => throw new Exception ("couldn't find attributes")
       }
     }
   }

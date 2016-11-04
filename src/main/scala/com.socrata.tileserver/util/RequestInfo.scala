@@ -4,7 +4,6 @@ import com.rojoma.simplearm.v2.ResourceScope
 import com.socrata.http.server.util.RequestId.RequestId
 import com.socrata.http.server.HttpRequest
 
-
 /** Represents the incoming request plus path components.
   *
   * @param req the incoming request
@@ -21,7 +20,6 @@ case class RequestInfo(req: HttpRequest,
                        range: Option[(String, String)]) {
   /** The id for this request (generated if not present). */
   val requestId: RequestId = req.requestId
-
 
   /** The CartoCss for the request, if present. */
   val style: Option[String] = req.queryParameters.get('$' + "style")
@@ -52,6 +50,6 @@ case class RequestInfo(req: HttpRequest,
 
   val (min, max) = range match {
     case Some((low, high)) => (Some(low.toFloat), Some(high.toFloat))
-    case None => (None,None)
+    case None => (None, None)
   }
 }

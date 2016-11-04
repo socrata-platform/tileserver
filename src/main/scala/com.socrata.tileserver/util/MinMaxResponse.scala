@@ -11,16 +11,12 @@ import com.rojoma.json.v3.util.{AutomaticJsonCodecBuilder, JsonUtil}
 import com.rojoma.simplearm.v2.ResourceScope
 import org.apache.commons.io.IOUtils
 
-
 import com.socrata.http.client.{Response, ResponseInfo}
-import com.socrata.soql.{SoQLPackIterator, SoQLGeoRow}
 
-
-case class MinMax(min:String, max:String)
+case class MinMax(min: String, max: String)
 object MinMax {
   implicit val jCodec = AutomaticJsonCodecBuilder[MinMax]
 }
-
 
 trait MinMaxResponse extends ResponseInfo {
   override def resultCode: Int
@@ -37,8 +33,7 @@ trait MinMaxResponse extends ResponseInfo {
   def min: String = {
     val json = JsonReader.fromString(new String(payload, UTF_8))
     JsonDecode.fromJValue[Seq[MinMax]](json) match {
-      case Right(minMaxArray) =>
-        minMaxArray.head.min
+      case Right(minMaxArray) => minMaxArray.head.min
       case Left(e) => throw new Exception ("unparseable json" + e.getMessage)
     }
   }
@@ -46,8 +41,7 @@ trait MinMaxResponse extends ResponseInfo {
   def max: String = {
     val json = JsonReader.fromString(new String(payload, UTF_8))
     JsonDecode.fromJValue[Seq[MinMax]](json) match {
-      case Right(minMaxArray) =>
-        minMaxArray.head.max
+      case Right(minMaxArray) => minMaxArray.head.max
       case Left(e) => throw new Exception ("unparseable json" + e.getMessage)
     }
   }

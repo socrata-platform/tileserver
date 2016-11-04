@@ -1,4 +1,3 @@
-import scoverage.ScoverageSbtPlugin
 import spray.revolver.RevolverPlugin.Revolver
 
 name := "tileserver"

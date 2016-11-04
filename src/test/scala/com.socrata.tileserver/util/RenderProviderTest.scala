@@ -81,7 +81,7 @@ class RenderProviderTest extends TestBase with UnusedSugar {
     }
 
     forAll { (salt: String, rawTile: MapTile, z: Int, css: String) =>
-      val tile = rawTile.mapValues(wkbs => wkbs.map(ft => ft map(x => Base64.encodeBase64String(x._1.getBytes)))).
+      val tile = rawTile.mapValues(wkbs => wkbs.map(ft => ft map (x => Base64.encodeBase64String(x._1.getBytes())))).
           map(_.toString).toSeq.sorted
 
       val client = testcommon.mocks.StaticHttpClient(makeResp(salt))
