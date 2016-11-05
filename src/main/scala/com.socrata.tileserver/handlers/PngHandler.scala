@@ -10,7 +10,7 @@ import com.socrata.http.server.implicits._
 import com.socrata.http.server.responses._
 
 import exceptions.FailedRenderException
-import util.{RenderProvider, RequestInfo, TileEncoder}
+import com.socrata.tileserver.util.{CartoCssEncoder, RenderProvider, RequestInfo, TileEncoder}
 
 /** Produce a png.
   *
@@ -33,6 +33,6 @@ case class PngHandler(val renderer: RenderProvider) extends BaseHandler("png") {
                               encoder: TileEncoder): HttpResponse = {
     base ~>
       ContentType("image/png") ~>
-      Stream(renderer.renderPng(encoder, reqInfo))
+      Stream(renderer.renderPng(encoder.wkbsAndAttributes, reqInfo, CartoCssEncoder(reqInfo).cartoCss))
   }
 }

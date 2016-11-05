@@ -1,13 +1,12 @@
 package com.socrata.tileserver
 package util
 
-import java.awt.Color
+import java.awt.Color // scalastyle:ignore
 
 import com.rojoma.json.v3.$minusimpl.dynamic.DynamicPathType.str
 
 import scala.annotation.tailrec
 
-// scalastyle:ignore
 import org.slf4j.{Logger, LoggerFactory}
 
 
@@ -25,7 +24,7 @@ case class CartoCssEncoder(info: RequestInfo) {
     "#%02x%02x%02x".format(red.toInt, green.toInt, blue.toInt)
   }
 
-  def buildRangeCartoCSS: String = {
+  private def buildRangeCartoCSS: String = {
     val initialSliceRange = (info.max.get - info.min.get) / 20
 
     @tailrec def buildSlices(sliceRange: Float, str: String, accumulator: Float): String = {
@@ -45,9 +44,16 @@ case class CartoCssEncoder(info: RequestInfo) {
     buildSlices(initialSliceRange, s"$defaultMinCss $defaultMaxCss", info.min.get)
   }
 
-  def buildCartoCSS: String = {
+  private def buildCartoCSS: String = {
     val rangeCartoCSS = buildRangeCartoCSS
     val cartoCss = s"#multipolygon, #polygon { $rangeCartoCSS }"
     (cartoCss + info.style.get).replaceAll("\\s+", "")
+  }
+
+  def cartoCss: String = {
+    (info.min, info.max) match {
+      case (Some(_), Some(_)) => buildCartoCSS
+      case _ => info.style.get
+    }
   }
 }

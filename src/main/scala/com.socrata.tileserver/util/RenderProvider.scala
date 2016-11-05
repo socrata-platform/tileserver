@@ -32,17 +32,10 @@ import RenderProvider._
 case class RenderProvider(http: HttpClient, baseUrl: RequestBuilder) {
   /** Render the provided tile using the provided request info.
     *
-    * @param encoder An encoder to manipulate features
+    * @param rawTile contains the raw features on a tile
     * @param info the request info to use while rendering the tile.
     */
-  def renderPng(encoder: TileEncoder, info: RequestInfo): InputStream = {
-    val rawTile = encoder.wkbsAndAttributes
-    val cartoCssProvider = CartoCssEncoder(info)
-    val style  = (info.min, info.max) match {
-      case (Some(_), Some(_)) => cartoCssProvider.buildCartoCSS
-      case _ => info.style.get
-    }
-
+  def renderPng(rawTile: MapTile, info: RequestInfo, style: String): InputStream = {
 
     val content: Map[String, Any] = Map("tile" -> rawTile,
                                         "zoom" -> info.zoom,

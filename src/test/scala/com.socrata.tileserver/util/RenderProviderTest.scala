@@ -30,7 +30,7 @@ class RenderProviderTest extends TestBase with UnusedSugar {
       val resp = mocks.StringResponse(payload)
       val client = testcommon.mocks.StaticHttpClient(resp)
       val actual = IOUtils.toString(
-        RenderProvider(client, Unused).renderPng(tileEncoder, styleInfo), UTF_8)
+        RenderProvider(client, Unused).renderPng(Unused, styleInfo, Unused), UTF_8)
 
       actual must equal (expected)
     }
@@ -46,7 +46,7 @@ class RenderProviderTest extends TestBase with UnusedSugar {
       val client = testcommon.mocks.StaticHttpClient(resp)
       val renderer = RenderProvider(client, Unused)
       val actual =
-        the [FailedRenderException] thrownBy renderer.renderPng(tileEncoder, styleInfo)
+        the [FailedRenderException] thrownBy renderer.renderPng(Unused, styleInfo, Unused)
       actual must equal (expected)
     }
   }
@@ -62,7 +62,7 @@ class RenderProviderTest extends TestBase with UnusedSugar {
       }
 
       val actual =
-        the [Exception] thrownBy renderer.renderPng(tileEncoder, info) // scalastyle:ignore
+        the [Exception] thrownBy renderer.renderPng(Unused, info, info.style.get) // scalastyle:ignore
       actual.getMessage must equal (message)
     }
   }
@@ -92,7 +92,7 @@ class RenderProviderTest extends TestBase with UnusedSugar {
       }
 
       val expected = salt + tile + z + css
-      val actual = IOUtils.toString(renderer.renderPng(tileEncoder, info))
+      val actual = IOUtils.toString(renderer.renderPng(rawTile, info, info.style.get))
 
       actual must equal (expected)
     }
@@ -115,7 +115,7 @@ class RenderProviderTest extends TestBase with UnusedSugar {
     }
 
     val renderer = RenderProvider(client, Unused)
-    renderer.renderPng(tileEncoder, info): Unit
+    renderer.renderPng(Unused, info, info.style.get): Unit
   }
 
   test("renderPng passes x-socrata-requestid to renderer") {
@@ -137,7 +137,7 @@ class RenderProviderTest extends TestBase with UnusedSugar {
       }
 
       val renderer = RenderProvider(client, Unused)
-      renderer.renderPng(tileEncoder, info): Unit
+      renderer.renderPng(Unused, info, Unused): Unit
     }
   }
 }
