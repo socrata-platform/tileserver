@@ -43,8 +43,7 @@ TileServer uses ZooKeeper for service discovery, so it must have
 access to a running instance.
 
 .png rendering requires access to a running instance of 
-[carto-renderer](http://github.com/socrata-platform/carto-renderer)
-
+[carto-renderer](http://github.com/socrata-platform/carto-renderer) and [carto-style-renderer](https://github.com/socrata-platform/carto-style-renderer)
 Both of these are configured in `/src/main/resources/reference.conf`
 and default to `localhost` and have commented out lines to point to
 staging.
