@@ -197,4 +197,13 @@ package object gen {
 
     implicit val quadTile: Arbitrary[QuadTile] = Arbitrary(tileGen)
   }
+
+  // object MapTile {
+  //   // Need to generate a JValue with the correct schema.
+  //   private val tileGen: Gen[MapTile] = for {
+  //     foo <- Gen.choose(1, 10)
+  //   } yield Map.empty
+
+  //   implicit val mapTile: Arbitrary[MapTile] = Arbitrary(tileGen)
+  // }
 }

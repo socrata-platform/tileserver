@@ -14,7 +14,7 @@ import com.socrata.http.server.util.RequestId.ReqIdHeader
 import com.vividsolutions.jts.io.WKBWriter
 import org.mockito.Matchers.{anyInt, anyString, anyObject, eq => matcher}
 import org.mockito.Mockito.{verify, when}
-import org.scalatest.mock.MockitoSugar
+import org.scalatest.mockito.MockitoSugar
 
 import com.socrata.http.client.Response
 import com.socrata.http.server.HttpRequest
@@ -172,6 +172,10 @@ class TileServiceTest
       val info = mocks.PngInfo(ext)
 
       val resp = unpackResponse(TileService(Unused, GeoProvider(client)).handleRequest(info))
+
+      if (resp.status != OK.statusCode) {
+        println(resp.body)
+      }
 
       resp.status must equal (OK.statusCode)
 

@@ -1,10 +1,9 @@
 package com.socrata.tileserver.util
 
 import com.socrata.soql.environment.ColumnName
-import com.rojoma.json.v3.ast.JValue
+import com.rojoma.json.v3.ast.{JArray, JObject, JValue, JString}
 import com.rojoma.json.v3.codec.JsonEncode.toJValue
 import com.rojoma.json.v3.util.JsonUtil
-import com.socrata.tileserver.util.RenderProvider.MapTile
 
 import com.vividsolutions.jts.geom.{Geometry, Point}
 import com.vividsolutions.jts.io.WKBWriter
@@ -48,27 +47,25 @@ case class TileEncoder(features: Set[TileEncoder.Feature]) {
   /** Create a vector tile as a base64 encoded protocol-buffer. */
   lazy val base64: String = Base64.encodeBase64String(bytes)
 
-  /** Create a Seq of Well Known Binary geometries and attributes. */
-  lazy val wkbsAndAttributes: MapTile = {
-      val grouped = features.toSeq.groupBy { case (geom, _) => layerName(geom) }
+  /** Create a Seq of Well Known Binary geometries and their attributes. */
+  lazy val mapTile: JValue = {
+    val grouped = features.toSeq.groupBy { case (geom, _) => layerName(geom) }
 
-      grouped.map { case (layer, features) =>
-        layer -> features.map {
-          case (geom: Geometry, attributes) => Map(
-            "wkbs" -> Base64.encodeBase64String(writer.write(geom)),
-            "attributes" -> {
-              attributes.get("properties") match {
-                case Some(properties) => {
-                  val jsonString = JsonUtil.renderJson(properties)
-                  Base64.encodeBase64String(jsonString.getBytes)
-                }
-                case None => Base64.encodeBase64String(None.toString.getBytes)
-              }
-            }
-          )
-          case (_) => throw new Exception ("couldn't find attributes")
-        }
+    val processed = grouped.map { case (layer, features) =>
+      layer -> features.map {
+        case (geom: Geometry, rawAttrs) =>
+          // Sadly RojomaJson doesn't support binary types (yet...)
+          val wkbs = Map("wkbs" -> JString(Base64.encodeBase64String(writer.write(geom))))
+
+          val attributes = rawAttrs.get("properties").map { properties =>
+            Map("attributes" -> properties)
+          }.getOrElse(Map.empty)
+
+          JObject(wkbs ++ attributes)
       }
+    }
+
+    JObject(processed.mapValues(JArray))
   }
 
   /** String representation of `features`. */
