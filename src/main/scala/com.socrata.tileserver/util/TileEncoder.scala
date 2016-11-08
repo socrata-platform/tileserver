@@ -4,6 +4,7 @@ import com.socrata.soql.environment.ColumnName
 import com.rojoma.json.v3.ast.JValue
 import com.rojoma.json.v3.codec.JsonEncode.toJValue
 import com.rojoma.json.v3.util.JsonUtil
+import com.socrata.tileserver.util.RenderProvider.MapTile
 
 import com.vividsolutions.jts.geom.{Geometry, Point}
 import com.vividsolutions.jts.io.WKBWriter
@@ -48,26 +49,26 @@ case class TileEncoder(features: Set[TileEncoder.Feature]) {
   lazy val base64: String = Base64.encodeBase64String(bytes)
 
   /** Create a Seq of Well Known Binary geometries and attributes. */
-  lazy val wkbsAndAttributes: Map[String, Seq[Map[String, String]]] = {
-    val grouped = features.toSeq.groupBy { case (geom, _) => layerName(geom) }
+  lazy val wkbsAndAttributes: MapTile = {
+      val grouped = features.toSeq.groupBy { case (geom, _) => layerName(geom) }
 
-    grouped.map { case (layer, features) =>
-      layer -> features.map {
-        case (geom: Geometry, attributes) => Map(
-          "wkbs" -> Base64.encodeBase64String(writer.write(geom)),
-          "attributes" -> {
-            attributes.get("properties") match {
-              case Some(properties) => {
-                val jsonString = JsonUtil.renderJson(properties)
-                Base64.encodeBase64String(jsonString.getBytes)
+      grouped.map { case (layer, features) =>
+        layer -> features.map {
+          case (geom: Geometry, attributes) => Map(
+            "wkbs" -> Base64.encodeBase64String(writer.write(geom)),
+            "attributes" -> {
+              attributes.get("properties") match {
+                case Some(properties) => {
+                  val jsonString = JsonUtil.renderJson(properties)
+                  Base64.encodeBase64String(jsonString.getBytes)
+                }
+                case None => Base64.encodeBase64String(None.toString.getBytes)
               }
-              case None => Base64.encodeBase64String(None.toString.getBytes)
             }
-          }
-        )
-        case (_) => throw new Exception ("couldn't find attributes")
+          )
+          case (_) => throw new Exception ("couldn't find attributes")
+        }
       }
-    }
   }
 
   /** String representation of `features`. */

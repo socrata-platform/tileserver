@@ -1,7 +1,11 @@
 package com.socrata.tileserver
 package util
 
-import java.awt.Color // scalastyle:ignore
+import java.awt.Color
+
+import com.socrata.tileserver.util.RequestInfo.{MinMaxInfo, RangedColumnInfo}
+
+// scalastyle:ignore
 
 import com.rojoma.json.v3.$minusimpl.dynamic.DynamicPathType.str
 
@@ -12,9 +16,9 @@ import org.slf4j.{Logger, LoggerFactory}
 
 case class CartoCssEncoder(info: RequestInfo) {
   def buildColor(value: Float): String = {
-    val rgbMin = Color.decode(info.rangedColorMin.get)
-    val rgbMax = Color.decode(info.rangedColorMax.get)
-    val percentValue = Math.abs((value - info.min.get)/info.max.get)
+    val rgbMin = Color.decode(info.rangedColumn.get.minColor)
+    val rgbMax = Color.decode(info.rangedColumn.get.maxColor)
+    val percentValue = Math.abs((value - info.minMaxValues.get.minValue)/info.minMaxValues.get.maxValue)
 
     val red = rgbMin.getRed + (rgbMax.getRed - rgbMin.getRed) * percentValue
     val blue = rgbMin.getBlue + (rgbMax.getBlue - rgbMin.getBlue) * percentValue
@@ -25,23 +29,23 @@ case class CartoCssEncoder(info: RequestInfo) {
   }
 
   private def buildRangeCartoCSS: String = {
-    val initialSliceRange = (info.max.get - info.min.get) / 20
+    val initialSliceRange = (info.minMaxValues.get.maxValue - info.minMaxValues.get.maxValue) / 20
 
     @tailrec def buildSlices(sliceRange: Float, str: String, accumulator: Float): String = {
-      if (accumulator >= info.max.get) {
+      if (accumulator >= info.minMaxValues.get.maxValue) {
         str
       } else {
         val low = accumulator
-        val high = Math.min(info.max.get, accumulator + sliceRange)
+        val high = Math.min(info.minMaxValues.get.maxValue, accumulator + sliceRange)
         val rgbValue = buildColor((high + low) / 2)
-        val newString = s"[${info.columnName.get} >= $low][${info.columnName.get} <= $high]{polygon-fill: $rgbValue}"
+        val newString = s"[${info.rangedColumn.get.name} >= $low][${info.rangedColumn.get.name} <= $high]{polygon-fill: $rgbValue}"
         buildSlices(sliceRange, str + newString, accumulator + sliceRange)
       }
     }
-    val defaultMinCss = s"[${info.columnName.get} <= ${info.min.get}]{polygon-fill: ${info.rangedColorMin.get}}"
-    val defaultMaxCss = s"[${info.columnName.get} >= ${info.max.get}]{polygon-fill: ${info.rangedColorMax.get}}"
+    val defaultMinCss = s"[${info.rangedColumn.get.name} <= ${info.minMaxValues.get.minValue}]{polygon-fill: ${info.rangedColumn.get.minColor}}"
+    val defaultMaxCss = s"[${info.rangedColumn.get.name} >= ${info.minMaxValues.get.maxValue}]{polygon-fill: ${info.rangedColumn.get.maxColor}}"
 
-    buildSlices(initialSliceRange, s"$defaultMinCss $defaultMaxCss", info.min.get)
+    buildSlices(initialSliceRange, s"$defaultMinCss $defaultMaxCss", info.minMaxValues.get.minValue)
   }
 
   private def buildCartoCSS: String = {
@@ -51,7 +55,7 @@ case class CartoCssEncoder(info: RequestInfo) {
   }
 
   def cartoCss: String = {
-    (info.min, info.max) match {
+    (info.rangedColumn, info.minMaxValues) match {
       case (Some(_), Some(_)) => buildCartoCSS
       case _ => info.style.get
     }

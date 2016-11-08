@@ -6,6 +6,7 @@ import javax.servlet.http.HttpServletResponse
 
 import com.rojoma.json.v3.interpolation._
 import com.rojoma.json.v3.io.JsonReader
+import com.socrata.http.client.ResponseInfo
 import org.slf4j.{Logger, LoggerFactory, MDC}
 import org.velvia.InvalidMsgPackDataException
 
@@ -47,24 +48,19 @@ case class TileService(renderer: RenderProvider, geo: GeoProvider)  {
     */
   def handleRequest(info: RequestInfo) : HttpResponse = {
     try {
-      val (resp, optionalMinMaxResp) =
-        (info.columnName, info.rangedColorMin, info.rangedColorMax) match {
-        case (Some(_), Some(_), Some(_))  =>
-          (geo.doQuery(info), Some(geo.doMinMaxQuery(info)))
-        case (_,_,_) => (geo.doQuery(info), None)
-      }
+      val resp = geo.doQuery(info)
+      val maybeMinMaxResp = geo.doMinMaxQuery(info)
 
-      val result = resp.resultCode match {
-        case OK.statusCode =>
+      val result = (resp.resultCode, maybeMinMaxResp) match {
+        case (OK.statusCode, Some(minMaxResp)) if minMaxResp.resultCode == OK.statusCode=>
           val base = OK ~> HeaderFilter.extract(resp)
-          optionalMinMaxResp match {
-            case Some(minMaxResp) =>
-              val augmentedInfo = info.copy(range = Some((minMaxResp.min, minMaxResp.max)))
-              handler(augmentedInfo)(base, resp)
-            case None => handler(info)(base, resp)
-          }
-
-        case NotModified.statusCode => NotModified
+          val augmentedInfo = info.copy(range = Some((minMaxResp.min, minMaxResp.max)))
+          handler(augmentedInfo)(base, resp)
+        case (OK.statusCode, None) =>
+          val base = OK ~> HeaderFilter.extract(resp)
+          handler(info)(base, resp)
+        case (NotModified.statusCode, _) => NotModified
+        case (OK.statusCode, Some(minMaxError)) => echoResponse(minMaxError)
         case _ => echoResponse(resp)
       }
 
@@ -123,7 +119,7 @@ object TileService {
     *
     * @param resp the underlying response.
     */
-  def echoResponse(resp: GeoResponse): HttpResponse = {
+  def echoResponse(resp: ResponseInfo with GeoProvider.HasGeoPayload): HttpResponse = {
     val body = try {
       JsonReader.fromString(new String(resp.payload, UTF_8))
     } catch {

@@ -20,7 +20,7 @@ import TileEncoder.Feature
 import exceptions._
 
 /** Wraps a geometry response from the underlying service. */
-trait GeoResponse extends ResponseInfo {
+trait GeoResponse extends ResponseInfo with GeoProvider.HasGeoPayload {
   override def resultCode: Int
   override def headers(name: String): Array[String]
   override def headerNames: Set[String]

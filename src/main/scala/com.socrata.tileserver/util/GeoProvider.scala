@@ -56,30 +56,39 @@ case class GeoProvider(client: CuratedServiceClient) {
     resp
   }
 
-  def doMinMaxQuery(info: RequestInfo): MinMaxResponse = {
+  def doMinMaxQuery(info: RequestInfo): Option[MinMaxResponse] = {
     val headers = HeaderFilter.headers(info.req)
-    val params = Map("$select" -> s"min(${info.columnName.get}) as min, max(${info.columnName.get}) as max")
-    val jsonReq = { base: RequestBuilder =>
-      val req = base.
-        addPaths(Seq("id", s"${info.datasetId}.json")).
-        addHeaders(headers).
-        addHeader("X-Socrata-Federation" -> "Honey Badger").
-        addHeader(ReqIdHeader -> info.requestId).
-        query(params).get
-      logger.info(URLDecoder.decode(req.toString, UTF_8.name))
-      req
+
+    info.rangedColumn.map { rangedColumnInfo =>
+      val params = Map('$' + "select" -> s"min(${rangedColumnInfo.minColor}) as min, max(${rangedColumnInfo.minColor}) as max")
+      val jsonReq = { base: RequestBuilder =>
+        val req = base.
+          addPaths(Seq("id", s"${info.datasetId}.json")).
+          addHeaders(headers).
+          addHeader("X-Socrata-Federation" -> "Honey Badger").
+          addHeader(ReqIdHeader -> info.requestId).
+          query(params).get
+        logger.info(URLDecoder.decode(req.toString, UTF_8.name))
+        req
+      }
+      val before = System.nanoTime()
+      val resp = client.execute(jsonReq, MinMaxResponse(_, info.rs))
+      val after = System.nanoTime()
+      val duration = (after - before) / 1000000
+      val message = s"Upstream response (${resp.resultCode}) took ${duration}ms."
+
+      resp
     }
-    val before = System.nanoTime()
-    val resp = client.execute(jsonReq, MinMaxResponse(_, info.rs))
-    val after = System.nanoTime()
-    val duration = (after - before) / 1000000
-    val message = s"Upstream response (${resp.resultCode}) took ${duration}ms."
-    resp
   }
 }
 
 // scalastyle:off multiple.string.literals
 object GeoProvider {
+  trait HasGeoPayload {
+    /** The payload for this response. */
+    def payload: Array[Byte]
+  }
+
   private val logger: Logger = LoggerFactory.getLogger(getClass)
   private val selectKey = '$' + "select"
   private val whereKey = '$' + "where"

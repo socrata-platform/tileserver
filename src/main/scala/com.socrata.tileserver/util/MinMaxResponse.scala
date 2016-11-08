@@ -18,7 +18,7 @@ object MinMax {
   implicit val jCodec = AutomaticJsonCodecBuilder[MinMax]
 }
 
-trait MinMaxResponse extends ResponseInfo {
+trait MinMaxResponse extends ResponseInfo with GeoProvider.HasGeoPayload {
   override def resultCode: Int
   override def headers(name: String): Array[String]
   override def headerNames: Set[String]
@@ -30,18 +30,18 @@ trait MinMaxResponse extends ResponseInfo {
   def payload: Array[Byte]
 
   // Get min and max values should be combined in one method
-  def min: String = {
+  def min: Float = {
     val json = JsonReader.fromString(new String(payload, UTF_8))
     JsonDecode.fromJValue[Seq[MinMax]](json) match {
-      case Right(minMaxArray) => minMaxArray.head.min
+      case Right(minMaxArray) => minMaxArray.head.min.toFloat
       case Left(e) => throw new Exception ("unparseable json" + e.getMessage)
     }
   }
 
-  def max: String = {
+  def max: Float = {
     val json = JsonReader.fromString(new String(payload, UTF_8))
     JsonDecode.fromJValue[Seq[MinMax]](json) match {
-      case Right(minMaxArray) => minMaxArray.head.max
+      case Right(minMaxArray) => minMaxArray.head.max.toFloat
       case Left(e) => throw new Exception ("unparseable json" + e.getMessage)
     }
   }

@@ -39,7 +39,7 @@ case class RenderProvider(http: HttpClient, baseUrl: RequestBuilder) {
 
     val content: Map[String, Any] = Map("tile" -> rawTile,
                                         "zoom" -> info.zoom,
-                                        "style" -> Base64.encodeBase64String(style.getBytes),
+                                        "style" -> style,
                                         "overscan" -> info.overscan.getOrElse(0))
     val packed: Array[Byte] = MsgPack.pack(content)
 
