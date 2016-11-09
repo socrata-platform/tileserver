@@ -6,16 +6,13 @@ import java.net.URLDecoder
 import java.nio.charset.StandardCharsets.UTF_8
 import java.util
 
-import com.rojoma.json.v3.ast
-import com.rojoma.json.v3.ast.{JObject, JNumber, JString, JValue}
 import com.rojoma.json.v3.codec.JsonDecode
 import com.rojoma.json.v3.util.JsonUtil
 import com.rojoma.simplearm.v2.ResourceScope
 import org.apache.commons.codec.binary.Base64
 import org.apache.commons.io.IOUtils
 import org.slf4j.{Logger, LoggerFactory}
-import org.velvia.msgpack
-import org.velvia.msgpack.RojomaJsonCodecs._
+import org.velvia.MsgPack
 
 import com.socrata.http.client.{HttpClient, RequestBuilder, Response}
 import com.socrata.http.server.responses._
@@ -36,12 +33,13 @@ case class RenderProvider(http: HttpClient, baseUrl: RequestBuilder) {
     * @param tile contains the raw features on a tile
     * @param info the request info to use while rendering the tile.
     */
-  def renderPng(tile: JValue, info: RequestInfo, style: String): InputStream = {
-    val content = Map("tile" -> tile,
-                      "zoom" -> JNumber(info.zoom),
-                      "style" -> JString(style),
-                      "overscan" -> JNumber(info.overscan.getOrElse(0)))
-    val packed: Array[Byte] = msgpack.pack(JObject(content))
+  def renderPng(tile: MapTile, info: RequestInfo, style: String): InputStream = {
+    // Ew, Java API.
+    val content: Map[String, Any] = Map("tile" -> tile,
+                                        "zoom" -> info.zoom,
+                                        "style" -> style,
+                                        "overscan" -> info.overscan.getOrElse(0))
+    val packed: Array[Byte] = MsgPack.pack(content)
 
     val blob = info.rs.open(new ByteArrayInputStream(packed))
 
@@ -70,5 +68,7 @@ case class RenderProvider(http: HttpClient, baseUrl: RequestBuilder) {
 }
 
 object RenderProvider {
+  type MapTile = Map[String, Seq[Map[String, Any]]]
+
   private val logger: Logger = LoggerFactory.getLogger(getClass)
 }

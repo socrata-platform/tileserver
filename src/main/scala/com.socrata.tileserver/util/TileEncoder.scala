@@ -1,9 +1,9 @@
 package com.socrata.tileserver.util
 
-import com.socrata.soql.environment.ColumnName
-import com.rojoma.json.v3.ast.{JArray, JObject, JValue, JString}
+import com.rojoma.json.v3.ast.{JArray, JBoolean, JNull, JNumber, JObject, JString, JValue}
 import com.rojoma.json.v3.codec.JsonEncode.toJValue
 import com.rojoma.json.v3.util.JsonUtil
+import com.socrata.soql.environment.ColumnName
 
 import com.vividsolutions.jts.geom.{Geometry, Point}
 import com.vividsolutions.jts.io.WKBWriter
@@ -12,8 +12,9 @@ import no.ecc.vectortile.VectorTileEncoder
 import org.apache.commons.codec.binary.Base64
 import org.slf4j.{Logger, LoggerFactory}
 
-import scala.collection.JavaConverters._
 import TileEncoder._
+import com.socrata.tileserver.util.RenderProvider.MapTile
+import scala.collection.JavaConverters._
 
 /** Encodes features in a variety of formats.
   *
@@ -48,24 +49,21 @@ case class TileEncoder(features: Set[TileEncoder.Feature]) {
   lazy val base64: String = Base64.encodeBase64String(bytes)
 
   /** Create a Seq of Well Known Binary geometries and their attributes. */
-  lazy val mapTile: JValue = {
+  lazy val mapTile: MapTile = {
     val grouped = features.toSeq.groupBy { case (geom, _) => layerName(geom) }
 
-    val processed = grouped.map { case (layer, features) =>
+    grouped.map { case (layer, features) =>
       layer -> features.map {
         case (geom: Geometry, rawAttrs) =>
-          // Sadly RojomaJson doesn't support binary types (yet...)
-          val wkbs = Map("wkbs" -> JString(Base64.encodeBase64String(writer.write(geom))))
+          val wkbs = Map("wkbs" -> writer.write(geom))
 
           val attributes = rawAttrs.get("properties").map { properties =>
-            Map("attributes" -> properties)
+            Map("attributes" -> jValueToScala(properties))
           }.getOrElse(Map.empty)
 
-          JObject(wkbs ++ attributes)
+          wkbs ++ attributes
       }
     }
-
-    JObject(processed.mapValues(JArray))
   }
 
   /** String representation of `features`. */
@@ -83,6 +81,16 @@ object TileEncoder {
 
   /** (geometry, attributes) */
   type Feature = (Geometry, Map[String, JValue])
+
+  /** Return a JValue converted into Scala types (primitives, collections, etc). */
+  def jValueToScala(jVal: JValue): Any = jVal match {
+    case JObject(features) => features.mapValues(jValueToScala).toMap
+    case JArray(underlying) => underlying.map(jValueToScala)
+    case JBoolean(underlying) => underlying
+    case JString(underlying) => underlying
+    case JNull => null
+    case num: JNumber => num.toBigDecimal
+  }
 
   def layerName(geom: Geometry): String = geom match {
     case _: Point => "main"

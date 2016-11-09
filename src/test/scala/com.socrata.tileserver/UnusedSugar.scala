@@ -24,9 +24,6 @@ trait UnusedSugar extends UnusedSugarCommon {
 
   implicit def unusedToRequestInfo(u: UnusedValue): util.RequestInfo =
     util.RequestInfo(Unused, Unused, Unused, Unused, Unused, None)
-
-  // TODO: move to socrata-test-common
-  implicit def unusedToJValue(u: UnusedValue): JValue = JNull
 }
 
 object UnusedSugar extends UnusedSugar
