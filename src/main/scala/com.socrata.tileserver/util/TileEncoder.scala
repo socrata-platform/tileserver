@@ -78,6 +78,8 @@ case class TileEncoder(features: Set[TileEncoder.Feature]) {
 object TileEncoder {
   private val logger: Logger = LoggerFactory.getLogger(getClass)
   private val ZoomFactor: Int = 16
+  private val minLong = BigDecimal(Long.MinValue)
+  private val maxLong = BigDecimal(Long.MaxValue)
 
   /** (geometry, attributes) */
   type Feature = (Geometry, Map[String, JValue])
@@ -89,7 +91,13 @@ object TileEncoder {
     case JBoolean(underlying) => underlying
     case JString(underlying) => underlying
     case JNull => null
-    case num: JNumber => num.toBigDecimal
+    case num: JNumber =>
+      val decimal = num.toBigDecimal
+      if (decimal <= maxLong && decimal >= minLong && decimal.bigDecimal.stripTrailingZeros.scale <= 0) {
+        num.toLong
+      } else {
+        decimal
+      }
   }
 
   def layerName(geom: Geometry): String = geom match {

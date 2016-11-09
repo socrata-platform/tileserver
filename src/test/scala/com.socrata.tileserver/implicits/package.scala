@@ -198,12 +198,39 @@ package object gen {
     implicit val quadTile: Arbitrary[QuadTile] = Arbitrary(tileGen)
   }
 
-  // object MapTile {
-  //   // Need to generate a JValue with the correct schema.
-  //   private val tileGen: Gen[MapTile] = for {
-  //     foo <- Gen.choose(1, 10)
-  //   } yield Map.empty
+  object SmallMapTiles {
+    import com.socrata.tileserver.util.RenderProvider.MapTile
 
-  //   implicit val mapTile: Arbitrary[MapTile] = Arbitrary(tileGen)
-  // }
+    case class SmallMapTile(underlying: MapTile)
+
+    implicit def smallMapTileToMapTile(mt: SmallMapTile): MapTile = mt.underlying
+
+    private val layerNames = Seq("main",
+                                 "point",
+                                 "multipoint",
+                                 "line",
+                                 "multiline",
+                                 "polygon",
+                                 "multipolygon")
+
+    private val featureGen: Gen[Map[String, Any]] = for {
+      maxProps <- Gen.choose(0, 8)
+      pairs <- Gen.listOfN(maxProps, Arbitrary.arbitrary[(String, String)])
+    } yield pairs.toMap
+
+    // Need to generate a JValue with the correct schema.
+    private val layerGen: Gen[Seq[Map[String, Any]]] = for {
+      maxProperties <- Gen.choose(0, 16)
+      features <- Gen.listOfN(maxProperties, featureGen)
+    } yield features
+
+    private val tileGen: Gen[SmallMapTile] = for {
+      layerNames <- Gen.someOf(layerNames)
+      layers <- Gen.listOfN(layerNames.length, layerGen)
+    } yield SmallMapTile(layerNames.zip(layers).toMap)
+
+    // This should be layerName -> [Features] will need to choose from the set of valid layer names randomly.
+
+    implicit val mapTile: Arbitrary[SmallMapTile] = Arbitrary(tileGen)
+  }
 }

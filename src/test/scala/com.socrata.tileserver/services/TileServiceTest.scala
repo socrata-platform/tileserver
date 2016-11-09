@@ -173,10 +173,6 @@ class TileServiceTest
 
       val resp = unpackResponse(TileService(Unused, GeoProvider(client)).handleRequest(info))
 
-      if (resp.status != OK.statusCode) {
-        println(resp.body)
-      }
-
       resp.status must equal (OK.statusCode)
 
       if (ext == Json) {
