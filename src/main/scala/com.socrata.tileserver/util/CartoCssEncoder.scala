@@ -1,24 +1,20 @@
 package com.socrata.tileserver
 package util
 
-import java.awt.Color
-
-import com.socrata.tileserver.util.RequestInfo.{MinMaxInfo, RangedColumnInfo}
-
-// scalastyle:ignore
-
-import com.rojoma.json.v3.$minusimpl.dynamic.DynamicPathType.str
-
 import scala.annotation.tailrec
+import java.awt.Color // scalastyle:ignore
 
 import org.slf4j.{Logger, LoggerFactory}
 
+import com.socrata.tileserver.util.RequestInfo.{MinMaxInfo, RangedColumnInfo}
 
-case class CartoCssEncoder(info: RequestInfo) {
-  def buildColor(value: Float): String = {
-    val rgbMin = Color.decode(info.rangedColumn.get.minColor)
-    val rgbMax = Color.decode(info.rangedColumn.get.maxColor)
-    val percentValue = Math.abs((value - info.minMaxValues.get.minValue)/info.minMaxValues.get.maxValue)
+case class CartoCssEncoder(info: RequestInfo, style: String) {
+  def buildColor(value: Float,
+                 rangedColumn: RangedColumnInfo,
+                 minMax: MinMaxInfo): String = {
+    val rgbMin = Color.decode(rangedColumn.minColor)
+    val rgbMax = Color.decode(rangedColumn.maxColor)
+    val percentValue = Math.abs((value - minMax.minValue) / minMax.maxValue)
 
     val red = rgbMin.getRed + (rgbMax.getRed - rgbMin.getRed) * percentValue
     val blue = rgbMin.getBlue + (rgbMax.getBlue - rgbMin.getBlue) * percentValue
@@ -28,36 +24,40 @@ case class CartoCssEncoder(info: RequestInfo) {
     "#%02x%02x%02x".format(red.toInt, green.toInt, blue.toInt)
   }
 
-  private def buildRangeCartoCSS: String = {
-    val initialSliceRange = (info.minMaxValues.get.maxValue - info.minMaxValues.get.maxValue) / 20
+  private def buildRangeCartoCSS(rangedColumn: RangedColumnInfo, minMax: MinMaxInfo): String = {
+    val initialSliceRange = (minMax.maxValue - minMax.maxValue) / 20
 
     @tailrec def buildSlices(sliceRange: Float, str: String, accumulator: Float): String = {
-      if (accumulator >= info.minMaxValues.get.maxValue) {
+      if (accumulator >= minMax.maxValue) {
         str
       } else {
         val low = accumulator
-        val high = Math.min(info.minMaxValues.get.maxValue, accumulator + sliceRange)
-        val rgbValue = buildColor((high + low) / 2)
-        val newString = s"[${info.rangedColumn.get.name} >= $low][${info.rangedColumn.get.name} <= $high]{polygon-fill: $rgbValue}"
+        val high = Math.min(minMax.maxValue, accumulator + sliceRange)
+        val rgbValue = buildColor((high + low) / 2, rangedColumn, minMax)
+        val newString =
+          s"[${rangedColumn.name} >= $low][${rangedColumn.name} <= $high]{polygon-fill: $rgbValue}"
+
         buildSlices(sliceRange, str + newString, accumulator + sliceRange)
       }
     }
-    val defaultMinCss = s"[${info.rangedColumn.get.name} <= ${info.minMaxValues.get.minValue}]{polygon-fill: ${info.rangedColumn.get.minColor}}"
-    val defaultMaxCss = s"[${info.rangedColumn.get.name} >= ${info.minMaxValues.get.maxValue}]{polygon-fill: ${info.rangedColumn.get.maxColor}}"
 
-    buildSlices(initialSliceRange, s"$defaultMinCss $defaultMaxCss", info.minMaxValues.get.minValue)
+    val defaultMinCss = s"[${rangedColumn.name} <= ${rangedColumn.minColor}]{polygon-fill: ${minMax.minValue}}"
+    val defaultMaxCss = s"[${rangedColumn.name} >= ${rangedColumn.minColor}]{polygon-fill: ${minMax.maxValue}}"
+
+    buildSlices(initialSliceRange, s"$defaultMinCss $defaultMaxCss", minMax.minValue)
   }
 
-  private def buildCartoCSS: String = {
-    val rangeCartoCSS = buildRangeCartoCSS
+  private def buildCartoCSS(style: String, rangedColumn: RangedColumnInfo, minMaxValues: MinMaxInfo): String = {
+    val rangeCartoCSS = buildRangeCartoCSS(rangedColumn, minMaxValues)
     val cartoCss = s"#multipolygon, #polygon { $rangeCartoCSS }"
-    (cartoCss + info.style.get).replaceAll("\\s+", "")
+
+    (cartoCss + style).replaceAll("\\s+", "")
   }
 
   def cartoCss: String = {
     (info.rangedColumn, info.minMaxValues) match {
-      case (Some(_), Some(_)) => buildCartoCSS
-      case _ => info.style.get
+      case (Some(rangedColumn), Some(minMax)) => buildCartoCSS(style, rangedColumn, minMax)
+      case _ => style
     }
   }
 }

@@ -31,8 +31,10 @@ case class PngHandler(val renderer: RenderProvider) extends BaseHandler("png") {
   override def createResponse(reqInfo: RequestInfo,
                               base: HttpResponse,
                               encoder: TileEncoder): HttpResponse = {
+    // reqInfo.style must be defined at this point.
+    // TODO: I should fold the two PNG handlers together though and replace the handler architecture.
     base ~>
       ContentType("image/png") ~>
-      Stream(renderer.renderPng(encoder.mapTile, reqInfo, CartoCssEncoder(reqInfo).cartoCss))
+      Stream(renderer.renderPng(encoder.mapTile, reqInfo, CartoCssEncoder(reqInfo, reqInfo.style.get).cartoCss))
   }
 }
