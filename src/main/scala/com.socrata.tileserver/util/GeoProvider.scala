@@ -60,7 +60,8 @@ case class GeoProvider(client: CuratedServiceClient) {
     val headers = HeaderFilter.headers(info.req)
 
     info.rangedColumn.map { rangedColumnInfo =>
-      val params = Map('$' + "select" -> s"min(${rangedColumnInfo.minColor}) as min, max(${rangedColumnInfo.minColor}) as max")
+      val params = Map('$' + "select" ->
+                         s"min(${rangedColumnInfo.minColor}) as min, max(${rangedColumnInfo.minColor}) as max")
       val jsonReq = { base: RequestBuilder =>
         val req = base.
           addPaths(Seq("id", s"${info.datasetId}.json")).

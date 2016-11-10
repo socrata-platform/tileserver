@@ -90,7 +90,7 @@ object TileEncoder {
     case JArray(underlying) => underlying.map(jValueToScala)
     case JBoolean(underlying) => underlying
     case JString(underlying) => underlying
-    case JNull => null
+    case JNull => null // scalastyle:ignore
     case num: JNumber =>
       val decimal = num.toBigDecimal
       if (decimal <= maxLong && decimal >= minLong && decimal.bigDecimal.stripTrailingZeros.scale <= 0) {
