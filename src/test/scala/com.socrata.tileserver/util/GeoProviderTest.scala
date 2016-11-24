@@ -59,6 +59,56 @@ class GeoProviderTest extends TestBase with UnusedSugar with MockitoSugar {
     }
   }
 
+  test("Headers and parameters are correct for MinMaxQuery") {
+    implicit val generatorDrivenConfig = PropertyCheckConfig(minSuccessful = 5)
+
+    import gen.Headers._
+    import gen.Alphanumerics._
+    import gen.ShortStrings._
+
+    val resp = mock[Response]
+    val base = RequestBuilder("mock.socrata.com")
+
+    forAll { (reqId: Alphanumeric,
+              id: Alphanumeric,
+              param: (ShortString, ShortString),
+              knownHeader: IncomingHeader,
+              unknownHeader: UnknownHeader) =>
+      val request = mocks.StaticRequest(param, Map(knownHeader,
+        unknownHeader,
+        "X-Socrata-Host" -> "geo.provider.test"))
+      val info = RequestInfo(request, id, Unused, Unused, Unused, None)
+      val min = '1'
+      val max = '3'
+
+      val expected = base.
+        addPath("id").
+        addPath(s"${id: String}.soqlpack").
+        addHeader(ReqIdHeader -> info.requestId).
+        addHeader("X-Socrata-Federation" -> "Honey Badger").
+        addHeader("X-Socrata-Host" -> "geo.provider.test").
+        addHeader(knownHeader).
+        addParameters(Map('$' + "select" ->
+          s"min($min) as min, max($max)")
+        ).
+        get.builder
+
+      val client = testcommon.mocks.StaticCuratedClient { request =>
+        val actual = request(base).builder
+
+        // Assertions are in here, since we only care about what the client sees.
+        actual.url must equal (expected.url)
+        actual.method must equal (expected.method)
+        actual.query.toSet must equal (expected.query.toSet)
+        actual.headers.toSet must equal (expected.headers.toSet)
+
+        resp
+      }
+
+      GeoProvider(client).doMinMaxQuery(info): Unit
+    }
+  }
+
   test("Augmenting parameters adds to select, where and group") {
     import gen.Alphanumerics._
 
@@ -211,6 +261,24 @@ class GeoProviderTest extends TestBase with UnusedSugar with MockitoSugar {
     }
 
     GeoProvider(client).doQuery(info): Unit
+  }
+
+  test("GeoProvider returns None if no min and max values are specified") {
+    val resp = mock[Response]
+    val base = RequestBuilder("mock.socrata.com")
+
+    val info = mocks.PngInfo(Unused, None, None)
+    val client = testcommon.mocks.StaticCuratedClient { request =>
+      val actual = request(base).builder
+      val query = actual.query.toMap
+
+      // Assertions are in here, since we only care about what the client sees.
+      query must equal (None)
+
+      resp
+    }
+
+    GeoProvider(client).doMinMaxQuery(info): Unit
   }
 
   test("filter uses overscan to adjust corners") {
