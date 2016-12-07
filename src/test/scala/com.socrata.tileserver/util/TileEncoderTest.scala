@@ -10,7 +10,7 @@ import no.ecc.vectortile.VectorTileDecoder
 import org.apache.commons.codec.binary.Base64
 import org.mockito.Matchers
 import org.mockito.Mockito.{verify, when}
-import org.scalatest.mock.MockitoSugar
+import org.scalatest.mockito.MockitoSugar
 import org.scalatest.prop.PropertyChecks
 import org.scalatest.{FunSuite, MustMatchers}
 

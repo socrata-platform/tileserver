@@ -1,3 +1,5 @@
+import spray.revolver.RevolverPlugin.Revolver
+
 name := "tileserver"
 
 scalaVersion := "2.11.7"
@@ -30,7 +32,7 @@ libraryDependencies ++= Seq(
     ExclusionRule(organization = "joda-time"),
     ExclusionRule(organization = "commons-io"),
     ExclusionRule(organization = "org.slf4j")),
-  "com.socrata"             %% "socrata-test-common"      % "0.5.0",
+  "com.socrata"             %% "socrata-test-common"      % "0.5.2",
   "com.socrata"             %% "socrata-thirdparty-utils" % "4.0.1",
   "com.typesafe"             % "config"                   % "1.2.1",
   "commons-codec"            % "commons-codec"            % "1.10",
@@ -43,7 +45,7 @@ libraryDependencies ++= Seq(
 // Test dependencies.
 libraryDependencies ++= Seq(
   "org.mockito"              % "mockito-core"             % "1.10.19" % "test",
-  "org.scalacheck"          %% "scalacheck"               % "1.12.4"  % "test"
+  "org.scalacheck"          %% "scalacheck"               % "1.13.4"  % "test"
 )
 
 val TestOptionNoTraces = "-oD"

@@ -6,6 +6,7 @@ import javax.servlet.http.HttpServletResponse
 
 import com.rojoma.json.v3.interpolation._
 import com.rojoma.json.v3.io.JsonReader
+import com.socrata.http.client.ResponseInfo
 import org.slf4j.{Logger, LoggerFactory, MDC}
 import org.velvia.InvalidMsgPackDataException
 
@@ -48,13 +49,18 @@ case class TileService(renderer: RenderProvider, geo: GeoProvider)  {
   def handleRequest(info: RequestInfo) : HttpResponse = {
     try {
       val resp = geo.doQuery(info)
+      val maybeMinMaxResp = geo.doMinMaxQuery(info)
 
-      val result = resp.resultCode match {
-        case OK.statusCode =>
+      val result = (resp.resultCode, maybeMinMaxResp) match {
+        case (OK.statusCode, Some(minMaxResp)) if minMaxResp.resultCode == OK.statusCode=>
           val base = OK ~> HeaderFilter.extract(resp)
-
+          val augmentedInfo = info.copy(range = Some((minMaxResp.min, minMaxResp.max)))
+          handler(augmentedInfo)(base, resp)
+        case (OK.statusCode, None) =>
+          val base = OK ~> HeaderFilter.extract(resp)
           handler(info)(base, resp)
-        case NotModified.statusCode => NotModified
+        case (NotModified.statusCode, _) => NotModified
+        case (OK.statusCode, Some(minMaxError)) => echoResponse(minMaxError)
         case _ => echoResponse(resp)
       }
 
@@ -89,10 +95,11 @@ case class TileService(renderer: RenderProvider, geo: GeoProvider)  {
 
         { req =>
           val info =
-            RequestInfo(req, identifier, geoColumn, QuadTile(x, y, zoom), ext)
+            RequestInfo(req, identifier, geoColumn, QuadTile(x, y, zoom), ext, None)
           handleRequest(info)
         }
       }
+
     }
 }
 
@@ -112,7 +119,7 @@ object TileService {
     *
     * @param resp the underlying response.
     */
-  def echoResponse(resp: GeoResponse): HttpResponse = {
+  def echoResponse(resp: ResponseInfo with GeoProvider.HasGeoPayload): HttpResponse = {
     val body = try {
       JsonReader.fromString(new String(resp.payload, UTF_8))
     } catch {

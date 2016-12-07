@@ -4,7 +4,10 @@ package util
 import java.io.{ByteArrayInputStream, InputStream}
 import java.net.URLDecoder
 import java.nio.charset.StandardCharsets.UTF_8
+import java.util
 
+import com.rojoma.json.v3.codec.JsonDecode
+import com.rojoma.json.v3.util.JsonUtil
 import com.rojoma.simplearm.v2.ResourceScope
 import org.apache.commons.codec.binary.Base64
 import org.apache.commons.io.IOUtils
@@ -27,15 +30,11 @@ import RenderProvider._
 case class RenderProvider(http: HttpClient, baseUrl: RequestBuilder) {
   /** Render the provided tile using the provided request info.
     *
-    * @param rawTile a Map that contains the features as WKB.
+    * @param tile contains the raw features on a tile
     * @param info the request info to use while rendering the tile.
     */
-  def renderPng(rawTile: MapTile, info: RequestInfo): InputStream = {
-    val style = info.style.get
-    val tile: Map[String, Seq[String]] = rawTile.map { case (layer, wkbs) =>
-      layer -> wkbs.map(Base64.encodeBase64String(_))
-    }
-
+  def renderPng(tile: MapTile, info: RequestInfo, style: String): InputStream = {
+    // Ew, Java API.
     val content: Map[String, Any] = Map("tile" -> tile,
                                         "zoom" -> info.zoom,
                                         "style" -> style,
@@ -69,6 +68,7 @@ case class RenderProvider(http: HttpClient, baseUrl: RequestBuilder) {
 }
 
 object RenderProvider {
-  type MapTile = Map[String, Seq[Array[Byte]]]
+  type MapTile = Map[String, Seq[Map[String, Any]]]
+
   private val logger: Logger = LoggerFactory.getLogger(getClass)
 }

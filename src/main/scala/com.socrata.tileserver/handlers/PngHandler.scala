@@ -10,7 +10,7 @@ import com.socrata.http.server.implicits._
 import com.socrata.http.server.responses._
 
 import exceptions.FailedRenderException
-import util.{RenderProvider, RequestInfo, TileEncoder}
+import com.socrata.tileserver.util.{CartoCssEncoder, RenderProvider, RequestInfo, TileEncoder}
 
 /** Produce a png.
   *
@@ -31,8 +31,10 @@ case class PngHandler(val renderer: RenderProvider) extends BaseHandler("png") {
   override def createResponse(reqInfo: RequestInfo,
                               base: HttpResponse,
                               encoder: TileEncoder): HttpResponse = {
+    // reqInfo.style must be defined at this point.
+    // TODO: I should fold the two PNG handlers together though and replace the handler architecture.
     base ~>
       ContentType("image/png") ~>
-      Stream(renderer.renderPng(encoder.wkbs, reqInfo))
+      Stream(renderer.renderPng(encoder.mapTile, reqInfo, CartoCssEncoder(reqInfo, reqInfo.style.get).cartoCss))
   }
 }

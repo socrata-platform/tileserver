@@ -3,6 +3,8 @@ package com.socrata.tileserver
 import java.io.{ByteArrayInputStream, InputStream}
 import scala.language.implicitConversions
 
+import com.rojoma.json.v3.ast.{JNull, JValue}
+
 import com.socrata.testcommon.UnusedSugarCommon
 import com.socrata.testcommon.UnusedSugarCommon._
 import com.socrata.thirdparty.geojson.FeatureJson
@@ -21,7 +23,7 @@ trait UnusedSugar extends UnusedSugarCommon {
     }
 
   implicit def unusedToRequestInfo(u: UnusedValue): util.RequestInfo =
-    util.RequestInfo(Unused, Unused, Unused, Unused, Unused)
+    util.RequestInfo(Unused, Unused, Unused, Unused, Unused, None)
 }
 
 object UnusedSugar extends UnusedSugar

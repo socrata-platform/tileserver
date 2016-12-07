@@ -3,7 +3,10 @@ package util
 
 import java.io.{ByteArrayInputStream, DataInputStream}
 
+import com.rojoma.json.v3.codec.{DecodeError, JsonCodec, JsonDecode}
 import com.rojoma.json.v3.codec.JsonEncode.toJValue
+
+import com.rojoma.json.v3.util.{AutomaticJsonCodecBuilder, JsonUtil}
 import com.rojoma.simplearm.v2.ResourceScope
 import org.apache.commons.io.IOUtils
 import org.velvia.InvalidMsgPackDataException
@@ -17,7 +20,7 @@ import TileEncoder.Feature
 import exceptions._
 
 /** Wraps a geometry response from the underlying service. */
-trait GeoResponse extends ResponseInfo {
+trait GeoResponse extends ResponseInfo with GeoProvider.HasGeoPayload {
   override def resultCode: Int
   override def headers(name: String): Array[String]
   override def headerNames: Set[String]

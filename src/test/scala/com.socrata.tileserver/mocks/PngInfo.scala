@@ -8,7 +8,7 @@ import util.RequestInfo
 class PngInfo(val ext: String,
               override val style: Option[String],
               override val overscan: Option[Int])
-    extends RequestInfo(Unused, Unused, Unused, Unused, ext)
+    extends RequestInfo(Unused, Unused, Unused, Unused, ext, None)
 
 object PngInfo {
   def apply(overscan: Int): PngInfo = new PngInfo(Unused, None, Some(overscan))

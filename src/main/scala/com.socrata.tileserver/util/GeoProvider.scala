@@ -4,6 +4,8 @@ package util
 import java.net.URLDecoder
 import java.nio.charset.StandardCharsets.UTF_8
 
+import com.rojoma.json.v3.codec.JsonDecode
+import com.rojoma.json.v3.io.JsonReader
 import org.slf4j.{Logger, LoggerFactory}
 
 import com.socrata.curator.CuratedServiceClient
@@ -43,7 +45,7 @@ case class GeoProvider(client: CuratedServiceClient) {
     val before = System.nanoTime()
     val resp = client.execute(jsonReq, GeoResponse(_, info.rs))
     val after = System.nanoTime()
-    val duration = (after - before)/1000000
+    val duration = (after - before) / 1000000
     val message = s"Upstream response (${resp.resultCode}) took ${duration}ms."
 
     if (resp.resultCode == OK.statusCode || resp.resultCode == NotModified.statusCode) {
@@ -51,19 +53,52 @@ case class GeoProvider(client: CuratedServiceClient) {
     } else {
       logger.warn(message)
     }
-
     resp
+  }
+
+  def doMinMaxQuery(info: RequestInfo): Option[MinMaxResponse] = {
+    val headers = HeaderFilter.headers(info.req)
+
+    info.rangedColumn.map { rangedColumnInfo =>
+      val params = Map('$' + "select" ->
+                         s"min(${rangedColumnInfo.minColor}) as min, max(${rangedColumnInfo.minColor}) as max")
+      val jsonReq = { base: RequestBuilder =>
+        val req = base.
+          addPaths(Seq("id", s"${info.datasetId}.json")).
+          addHeaders(headers).
+          addHeader("X-Socrata-Federation" -> "Honey Badger").
+          addHeader(ReqIdHeader -> info.requestId).
+          query(params).get
+        logger.info(URLDecoder.decode(req.toString, UTF_8.name))
+        req
+      }
+      val before = System.nanoTime()
+      val resp = client.execute(jsonReq, MinMaxResponse(_, info.rs))
+      val after = System.nanoTime()
+      val duration = (after - before) / 1000000
+      val message = s"Upstream response (${resp.resultCode}) took ${duration}ms."
+
+      resp
+    }
   }
 }
 
 // scalastyle:off multiple.string.literals
 object GeoProvider {
+  trait HasGeoPayload {
+    /** The payload for this response. */
+    def payload: Array[Byte]
+  }
+
   private val logger: Logger = LoggerFactory.getLogger(getClass)
   private val selectKey = '$' + "select"
   private val whereKey = '$' + "where"
   private val groupKey = '$' + "group"
   private val styleKey = '$' + "style"
   private val overscanKey = '$' + "overscan"
+  private val rangedColorMinKey = '$' + "ranged-color-min"
+  private val rangedColorMaxKey = '$' + "ranged-color-max"
+  private val rangedColumnKey = '$' + "ranged-column-name"
   private val queryTimeoutKey = "$$" + "query_timeout_seconds"
 
   /** Adds `where` and `select` to the parameters in `req`.
@@ -80,7 +115,7 @@ object GeoProvider {
     val whereParam = whereKey ->
       params.get(whereKey).map(v => s"($v) and ($filter)").getOrElse(filter)
 
-    params + selectParam + whereParam - styleKey - overscanKey
+    params + selectParam + whereParam - styleKey - overscanKey - rangedColorMinKey - rangedColorMaxKey - rangedColumnKey
   }
 
   /** Adds `where` and `select` to the parameters in `req` for Mondara maps.
@@ -120,7 +155,8 @@ object GeoProvider {
     // The correct way to fix this would be to implement pagination and render
     // features ~50k at a time in the carto-renderer and then stitch those
     // images together.
-    params + selectParam + whereParam + groupParam - styleKey - overscanKey - mondaraKey
+    val parameters = params + selectParam + whereParam + groupParam
+    parameters - styleKey - overscanKey -  rangedColumnKey - rangedColorMinKey - rangedColorMaxKey - mondaraKey
   }
 
   /** Return the SoQL fragment for the $where parameter.
