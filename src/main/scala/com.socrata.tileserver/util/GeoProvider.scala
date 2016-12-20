@@ -25,8 +25,6 @@ case class GeoProvider(client: CuratedServiceClient) {
   def doQuery(info: RequestInfo): GeoResponse = {
     val intersects = filter(info.tile, info.geoColumn, info.overscan.getOrElse(0))
     val params = augmentParams(info, intersects)
-    val paramsWithTimeout = addQueryTimeout(params, config.TileServerConfig.queryTimeout)
-
     val headers = HeaderFilter.headers(info.req)
 
     val jsonReq = { base: RequestBuilder =>
@@ -35,7 +33,7 @@ case class GeoProvider(client: CuratedServiceClient) {
         addHeaders(headers).
         addHeader("X-Socrata-Federation" -> "Honey Badger").
         addHeader(ReqIdHeader -> info.requestId).
-        query(paramsWithTimeout).get
+        query(params).get
       logger.info(URLDecoder.decode(req.toString, UTF_8.name))
       req
     }
@@ -65,6 +63,9 @@ object GeoProvider {
   private val styleKey = '$' + "style"
   private val overscanKey = '$' + "overscan"
   private val queryTimeoutKey = "$$" + "query_timeout_seconds"
+  private val readFromNBEKey = "$$" + "read_from_nbe"
+  private val versionKey = "$$" + "version"
+  private val queryTimeout = config.TileServerConfig.queryTimeout
 
   /** Adds `where` and `select` to the parameters in `req`.
     *
@@ -80,7 +81,7 @@ object GeoProvider {
     val whereParam = whereKey ->
       params.get(whereKey).map(v => s"($v) and ($filter)").getOrElse(filter)
 
-    params + selectParam + whereParam - styleKey - overscanKey
+    addTimeoutandVersionParameters(params + selectParam + whereParam - styleKey - overscanKey)
   }
 
   /** Adds `where` and `select` to the parameters in `req` for Mondara maps.
@@ -120,7 +121,7 @@ object GeoProvider {
     // The correct way to fix this would be to implement pagination and render
     // features ~50k at a time in the carto-renderer and then stitch those
     // images together.
-    params + selectParam + whereParam + groupParam - styleKey - overscanKey - mondaraKey
+    addTimeoutandVersionParameters(params + selectParam + whereParam + groupParam - styleKey - overscanKey - mondaraKey)
   }
 
   /** Return the SoQL fragment for the $where parameter.
@@ -134,8 +135,21 @@ object GeoProvider {
     s"intersects($geoColumn, 'MULTIPOLYGON((($corners)))')"
   }
 
-  def addQueryTimeout(params: Map[String, String], queryTimeout: Long): Map[String, String] = {
+  /**
+    *
+    * @param params query parameters
+    * @return query parameters + query_tieout_seconds=300 + read_from_nbe=true + version=2.1
+    * This function adds three parameters to the query:
+    * query_timeout_seconds, read_from_nbe, and version
+    * read_from_nbe and version were added as part of
+    * this epic: https://socrata.atlassian.net/browse/EN-12365
+    * This change ensures that we get the correct data for building maps for derived views.
+    *
+    */
+  def addTimeoutandVersionParameters(params: Map[String, String]): Map[String, String] = {
     val queryTimeoutParam = queryTimeoutKey -> queryTimeout.toString
-    params + queryTimeoutParam
+    val readFromNbeParam  = readFromNBEKey -> "true"
+    val versionParam = versionKey -> "2.1"
+    params + queryTimeoutParam + readFromNbeParam + versionParam
   }
 }

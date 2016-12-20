@@ -31,7 +31,6 @@ class GeoProviderTest extends TestBase with UnusedSugar with MockitoSugar {
 
       val filter = GeoProvider.filter(info.tile, info.geoColumn, Unused)
       val augmented = GeoProvider.augmentParams(info, filter)
-      val augmentedWithQueryTimeout = GeoProvider.addQueryTimeout(augmented, config.TileServerConfig.queryTimeout)
 
       val expected = base.
         addPath("id").
@@ -40,12 +39,11 @@ class GeoProviderTest extends TestBase with UnusedSugar with MockitoSugar {
         addHeader("X-Socrata-Federation" -> "Honey Badger").
         addHeader("X-Socrata-Host" -> "geo.provider.test").
         addHeader(knownHeader).
-        addParameters(augmentedWithQueryTimeout).
+        addParameters(augmented).
         get.builder
 
       val client = testcommon.mocks.StaticCuratedClient { request =>
         val actual = request(base).builder
-
         // Assertions are in here, since we only care about what the client sees.
         actual.url must equal (expected.url)
         actual.method must equal (expected.method)
@@ -87,7 +85,7 @@ class GeoProviderTest extends TestBase with UnusedSugar with MockitoSugar {
       val nParams = GeoProvider.augmentParams(reqInfo(neither ++ mondara,
                                                       geoColumn=selectValue),
                                               whereValue)
-      nParams must have size (4)
+      nParams must have size (7)
       nParams(selectKey) must include (selectValue)
       nParams(selectKey) must include ("snap_to_grid")
       nParams(whereKey) must equal (whereValue)
@@ -97,7 +95,7 @@ class GeoProviderTest extends TestBase with UnusedSugar with MockitoSugar {
       val nfParams = GeoProvider.augmentParams(reqInfo(neither,
                                                        geoColumn=selectValue),
                                                whereValue)
-      nfParams must have size (3)
+      nfParams must have size (6)
       nfParams(selectKey) must equal (selectValue)
       nfParams(whereKey) must equal (whereValue)
       nfParams(otherKey) must equal (otherValue)
@@ -105,7 +103,7 @@ class GeoProviderTest extends TestBase with UnusedSugar with MockitoSugar {
       val sParams = GeoProvider.augmentParams(reqInfo(neither ++ select ++ mondara,
                                                       geoColumn=selectValue),
                                               whereValue)
-      sParams must have size (4)
+      sParams must have size (7)
       sParams(selectKey) must startWith (s"$selectBase,")
       sParams(selectKey) must include (selectValue)
       sParams(selectKey) must include ("snap_to_grid")
@@ -118,7 +116,7 @@ class GeoProviderTest extends TestBase with UnusedSugar with MockitoSugar {
       val wParams = GeoProvider.augmentParams(reqInfo(neither ++ where ++ mondara,
                                                       geoColumn=selectValue),
                                               whereValue)
-      wParams must have size (4)
+      wParams must have size (7)
       wParams(otherKey) must equal (otherValue)
 
       wParams(selectKey) must include (selectValue)
@@ -132,7 +130,7 @@ class GeoProviderTest extends TestBase with UnusedSugar with MockitoSugar {
       val gParams = GeoProvider.augmentParams(reqInfo(neither ++ group ++ mondara,
                                                       geoColumn=selectValue),
                                               whereValue)
-      gParams must have size (4)
+      gParams must have size (7)
       gParams(otherKey) must equal (otherValue)
 
       gParams(selectKey) must include (selectValue)
@@ -145,7 +143,7 @@ class GeoProviderTest extends TestBase with UnusedSugar with MockitoSugar {
         reqInfo(neither ++ where ++ select ++ group ++ mondara, geoColumn=selectValue),
         whereValue)
 
-      allParams must have size (4)
+      allParams must have size (7)
       allParams(otherKey) must equal (otherValue)
 
       allParams(selectKey) must startWith (s"$selectBase,")
@@ -162,7 +160,7 @@ class GeoProviderTest extends TestBase with UnusedSugar with MockitoSugar {
         reqInfo(neither ++ where ++ select ++ group, geoColumn=selectValue),
         whereValue)
 
-      allfParams must have size (4)
+      allfParams must have size (7)
       allfParams(otherKey) must equal (otherValue)
 
       allfParams(selectKey) must equal (s"$selectBase, $selectValue")
