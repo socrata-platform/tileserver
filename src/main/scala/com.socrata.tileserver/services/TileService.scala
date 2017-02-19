@@ -68,7 +68,11 @@ case class TileService(renderer: RenderProvider, geo: GeoProvider)  {
   }
 
   def handleOptions() : HttpResponse = {
-    Header("Access-Control-Allow-Origin", "*") ~> OK
+    val result = OK
+    Header("Access-Control-Allow-Origin", "*") ~> result
+    // TODO this doesn't work (negates effect of previous line). Also, both
+    // these headers should be set on the normal GET path. How to factor out?
+    Header("Access-Control-Allow-Headers", "X-Socrata-Host, X-Socrata-RequestId") ~> result
   }
 
   /** Handle the request.
