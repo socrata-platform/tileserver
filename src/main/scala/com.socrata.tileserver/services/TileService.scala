@@ -67,6 +67,10 @@ case class TileService(renderer: RenderProvider, geo: GeoProvider)  {
     }
   }
 
+  def handleOptions() : HttpResponse = {
+    Header("Access-Control-Allow-Origin", "*") ~> OK
+  }
+
   /** Handle the request.
     *
     * @param identifier unique identifier for this set
@@ -91,6 +95,12 @@ case class TileService(renderer: RenderProvider, geo: GeoProvider)  {
           val info =
             RequestInfo(req, identifier, geoColumn, QuadTile(x, y, zoom), ext)
           handleRequest(info)
+        }
+      }
+
+      override def options: HttpService = {
+        { req =>
+          handleOptions()
         }
       }
     }
