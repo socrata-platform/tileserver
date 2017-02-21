@@ -58,13 +58,21 @@ case class TileService(renderer: RenderProvider, geo: GeoProvider)  {
         case _ => echoResponse(resp)
       }
 
-      Header("Access-Control-Allow-Origin", "*") ~> result
+      Header("Access-Control-Allow-Origin", "*") ~>
+        Header("Access-Control-Allow-Headers", "X-Socrata-Host, X-Socrata-RequestId") ~>
+        result
     } catch {
       case packEx @ (_: InvalidSoqlPackException | _: InvalidMsgPackDataException) =>
         fatal("Invalid or corrupt data returned from underlying service", packEx)
       case unknown: Exception =>
         fatal("Unknown error", unknown)
     }
+  }
+
+  def handleOptions() : HttpResponse = {
+    Header("Access-Control-Allow-Origin", "*") ~>
+      Header("Access-Control-Allow-Headers", "X-Socrata-Host, X-Socrata-RequestId") ~>
+      OK
   }
 
   /** Handle the request.
@@ -91,6 +99,12 @@ case class TileService(renderer: RenderProvider, geo: GeoProvider)  {
           val info =
             RequestInfo(req, identifier, geoColumn, QuadTile(x, y, zoom), ext)
           handleRequest(info)
+        }
+      }
+
+      override def options: HttpService = {
+        { req =>
+          handleOptions()
         }
       }
     }
