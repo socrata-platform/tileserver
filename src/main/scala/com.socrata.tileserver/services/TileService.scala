@@ -70,11 +70,9 @@ case class TileService(renderer: RenderProvider, geo: GeoProvider)  {
   }
 
   def handleOptions() : HttpResponse = {
-    val result = OK
-
     Header("Access-Control-Allow-Origin", "*") ~>
       Header("Access-Control-Allow-Headers", "X-Socrata-Host, X-Socrata-RequestId") ~>
-      result
+      OK
   }
 
   /** Handle the request.
