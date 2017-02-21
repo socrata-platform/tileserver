@@ -58,7 +58,9 @@ case class TileService(renderer: RenderProvider, geo: GeoProvider)  {
         case _ => echoResponse(resp)
       }
 
-      Header("Access-Control-Allow-Origin", "*") ~> result
+      Header("Access-Control-Allow-Origin", "*") ~>
+        Header("Access-Control-Allow-Headers", "X-Socrata-Host, X-Socrata-RequestId") ~>
+        result
     } catch {
       case packEx @ (_: InvalidSoqlPackException | _: InvalidMsgPackDataException) =>
         fatal("Invalid or corrupt data returned from underlying service", packEx)
@@ -69,9 +71,7 @@ case class TileService(renderer: RenderProvider, geo: GeoProvider)  {
 
   def handleOptions() : HttpResponse = {
     val result = OK
-    // Header("Access-Control-Allow-Origin", "*") ~> result
-    // TODO this doesn't work (negates effect of previous line). Also, both
-    // these headers should be set on the normal GET path. How to factor out?
+
     Header("Access-Control-Allow-Origin", "*") ~>
       Header("Access-Control-Allow-Headers", "X-Socrata-Host, X-Socrata-RequestId") ~>
       result
