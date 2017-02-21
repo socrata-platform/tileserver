@@ -3,6 +3,7 @@ package services
 
 import java.nio.charset.StandardCharsets.UTF_8
 import javax.servlet.http.HttpServletRequest
+
 import scala.util.control.NoStackTrace
 import scala.util.{Failure, Success}
 
@@ -104,6 +105,33 @@ class TileServiceTest
         // ".txt" should be supported, but its output format is unspecified.
         case Txt => ()
       }
+    }
+  }
+
+  test("Correct headers are returned on OPTIONS call") {
+    import gen.Extensions._
+
+    forAll { (ext: Extension) =>
+      val upstream = mocks.FeatureIteratorResponse(Iterator.empty)
+      val client = testcommon.mocks.StaticCuratedClient(upstream)
+
+      val overscan: Int = Unused
+      val params: Map[String, String] = Map('$' + "style" -> Unused,
+        '$' + "overscan" -> overscan.toString)
+      val req: HttpRequest =
+        if (ext == Png) mocks.StaticRequest(params) else Unused
+
+      val resp = unpackResponse(TileService(Unused, GeoProvider(client)).
+        service(Unused,
+          Unused,
+          Unused,
+          Unused,
+          TypedPathComponent(Unused, ext)).
+        options(req))
+
+      resp.status must equal (OK.statusCode)
+      resp.headers("Access-Control-Allow-Origin") must equal ("*")
+      resp.headers("Access-Control-Allow-Headers") must equal ("X-Socrata-Host, X-Socrata-RequestId")
     }
   }
 
