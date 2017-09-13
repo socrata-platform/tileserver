@@ -6,7 +6,6 @@ import java.net.URLDecoder
 import java.nio.charset.StandardCharsets.UTF_8
 
 import com.rojoma.simplearm.v2.ResourceScope
-import org.apache.commons.codec.binary.Base64
 import org.apache.commons.io.IOUtils
 import org.slf4j.{Logger, LoggerFactory}
 import org.velvia.MsgPack
@@ -32,8 +31,8 @@ case class RenderProvider(http: HttpClient, baseUrl: RequestBuilder) {
     */
   def renderPng(rawTile: MapTile, info: RequestInfo): InputStream = {
     val style = info.style.get
-    val tile: Map[String, Seq[String]] = rawTile.map { case (layer, wkbs) =>
-      layer -> wkbs.map(Base64.encodeBase64String(_))
+    val tile: Map[String, Array[Array[Byte]]] = rawTile.map { case (layer, wkbs) =>
+      layer -> wkbs.toArray
     }
 
     val content: Map[String, Any] = Map("tile" -> tile,
