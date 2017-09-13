@@ -29,11 +29,8 @@ case class RenderProvider(http: HttpClient, baseUrl: RequestBuilder) {
     * @param rawTile a Map that contains the features as WKB.
     * @param info the request info to use while rendering the tile.
     */
-  def renderPng(rawTile: MapTile, info: RequestInfo): InputStream = {
+  def renderPng(tile: MapTile, info: RequestInfo): InputStream = {
     val style = info.style.get
-    val tile: Map[String, Array[Array[Byte]]] = rawTile.map { case (layer, wkbs) =>
-      layer -> wkbs.toArray
-    }
 
     val content: Map[String, Any] = Map("tile" -> tile,
                                         "zoom" -> info.zoom,
