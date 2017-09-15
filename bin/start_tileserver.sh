@@ -7,4 +7,4 @@ BINDIR=$(dirname "$REALPATH")
 
 JARFILE=$("$BINDIR"/build.sh "$@")
 
-java -Djava.net.preferIPv4Stack=true -jar "$JARFILE"
+java -Djava.net.preferIPv4Stack=true -Xmx512m -jar "$JARFILE"
