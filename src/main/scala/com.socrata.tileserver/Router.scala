@@ -28,6 +28,7 @@ case class Router(versionService: HttpService,
   /** Routing table. */
   val routes = Routes(
     Route("/version", versionService),
+    Route("/tiles/version", versionService),
     // domain/tiles/abcd-1234/pointColumn/z/x/y.pbf
     Route("/tiles/{String}/{String}/{Int}/{Int}/{{Int!tileTypes}}", tileService)
   )
