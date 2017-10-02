@@ -27,7 +27,8 @@ case class QuadTile(rawX: Int, rawY: Int, zoom: Int) {
     *
     * @param os overscan amount (in pixels)
     */
-  def north(os: Int): Double = mapper.lat(y * Size - os)
+  def north(os: Int): Double = north(os, y)
+  private def north(os: Int, y: Int): Double = mapper.lat(y * Size - os)
 
   /** East edge of the tile (lon).
     *
@@ -39,7 +40,8 @@ case class QuadTile(rawX: Int, rawY: Int, zoom: Int) {
     *
     * @param os overscan amount (in pixels)
     */
-  def south(os: Int): Double = mapper.lat(y * Size + Size + os)
+  def south(os: Int): Double = south(os, y)
+  private def south(os: Int, y: Int): Double = mapper.lat(y * Size + Size + os)
 
   /** West edge of the tile (lon).
     *
@@ -48,7 +50,7 @@ case class QuadTile(rawX: Int, rawY: Int, zoom: Int) {
   def west(os: Int):  Double = mapper.lon(x * Size - os)
 
   /** The width of pixels in degrees (lat/lon). */
-  val resolution: Double = Math.min(east(0) - west(0), south(0) - north(0)) / Size
+  val resolution: Double = (south(0, 0) - north(0, 0)) / Size
 
   /** The point (x, y) in tile (256x256) space.
     *
