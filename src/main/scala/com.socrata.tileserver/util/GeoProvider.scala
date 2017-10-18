@@ -100,8 +100,8 @@ object GeoProvider {
     //
     // This can cause points to jitter upon zooming,
     // so we don't want to do it unless we have to.
-    val select  = s"snap_to_grid(${info.geoColumn}, ${info.tile.resolution})"
-    val groupBy = s"snap_to_grid(${info.geoColumn}, ${info.tile.resolution})"
+    val select  = s"snap_for_zoom(${info.geoColumn}, ${info.tile.zoom})"
+    val groupBy = s"snap_for_zoom(${info.geoColumn}, ${info.tile.zoom})"
 
     val mondaraKey = '$' + "mondara"
 
