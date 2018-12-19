@@ -46,7 +46,7 @@ libraryDependencies ++= Seq(
 // Test dependencies.
 libraryDependencies ++= Seq(
   "org.mockito"              % "mockito-core"             % "1.10.19" % "test",
-  "org.scalacheck"          %% "scalacheck"               % "1.12.4"  % "test"
+  "org.scalacheck"          %% "scalacheck"               % "1.13.4"  % "test"
 )
 
 val TestOptionNoTraces = "-oD"

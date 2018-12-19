@@ -1,7 +1,7 @@
 package com.socrata.tileserver
 package util
 
-import org.scalatest.mock.MockitoSugar
+import org.scalatest.mockito.MockitoSugar
 
 import com.socrata.http.client.{RequestBuilder, Response}
 import com.socrata.http.server.util.RequestId.ReqIdHeader

@@ -2,7 +2,7 @@ package com.socrata.tileserver
 package handlers
 
 import org.mockito.Mockito.{verify, when}
-import org.scalatest.mock.MockitoSugar
+import org.scalatest.mockito.MockitoSugar
 
 import com.socrata.http.client.RequestBuilder
 import com.socrata.http.server.responses._
