@@ -5,9 +5,9 @@ organization := "com.socrata"
 scalaVersion := "2.11.7"
 crossScalaVersions := Seq("2.10.4", scalaVersion.value)
 
-resolvers ++= Seq(
-  "socrata sbt repo" at "https://repo.socrata.com/artifactory/socrata-sbt-repo/",
-  "socrata releases" at "https://repo.socrata.com/artifactory/libs-release/",
+externalResolvers := Seq(
+  "Socrata SBT Repo" at "https://repo.socrata.com/artifactory/socrata-sbt-repo/",
+  "Socrata Artifactory Libs Releases" at "https://repo.socrata.com/artifactory/libs-release/",
   "ecc" at "https://github.com/ElectronicChartCentre/ecc-mvn-repo/raw/master/releases"
 )
 
