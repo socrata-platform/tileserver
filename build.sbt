@@ -7,9 +7,7 @@ crossScalaVersions := Seq("2.10.4", scalaVersion.value)
 
 externalResolvers := Seq(
   "Socrata SBT Repo" at "https://repo.socrata.com/artifactory/socrata-sbt-repo/",
-  "Socrata Artifactory Libs Releases" at "https://repo.socrata.com/artifactory/libs-release/",
-  "ecc" at "https://github.com/ElectronicChartCentre/ecc-mvn-repo/raw/master/releases"
-)
+  "Socrata Artifactory Libs Releases" at "https://repo.socrata.com/artifactory/libs-release/")
 
 libraryDependencies ++= Seq(
   "ch.qos.logback"           % "logback-classic"          % "1.1.3",
