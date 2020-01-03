@@ -53,6 +53,14 @@ val TestOptionFullTraces = "-oDF"
 
 testOptions in Test += Tests.Argument(TestFrameworks.ScalaTest, TestOptionNoTraces)
 
+assemblyMergeStrategy in assembly := {
+  case PathList("module-info.class") =>
+    MergeStrategy.discard
+  case other =>
+    val oldStrategy = (assemblyMergeStrategy in assembly).value
+    oldStrategy(other)
+}
+
 enablePlugins(sbtbuildinfo.BuildInfoPlugin)
 // Setup revolver.
 Revolver.settings
