@@ -1,4 +1,4 @@
-FROM socrata/java8
+FROM socrata/java8-bionic
 
 # Service specifif settings.
 ENV SERVER_NAME tileserver
@@ -21,7 +21,7 @@ ENV MAX_META_SIZE 128m
 
 # Threads currently use about 100m each.
 ENV MIN_THREADS 3
-ENV MAX_THREADS 5               
+ENV MAX_THREADS 5
 ENV QUERY_TIMEOUT 1m
 ENV JMX_PORT 2049
 EXPOSE 2049
