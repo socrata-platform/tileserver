@@ -8,7 +8,15 @@ import com.socrata.http.server.{HttpRequest, HttpResponse}
 /** Removes all headers that aren't known to be safe to duplicate. */
 object HeaderFilter {
   private val inHeaders =
-    Set("Authorization", "Cookie", "If-Modified-Since", "X-App-Token").map(_.toLowerCase)
+    Set(
+      "Authorization",
+      "Cookie",
+      "If-Modified-Since",
+      "X-App-Token",
+      "X-Forwarded-For",
+      "X-Forwarded-Proto"
+    ).map(_.toLowerCase)
+
   private val outHeaders =
     Set("Cache-Control", "Expires", "Last-Modified").map(_.toLowerCase)
 
