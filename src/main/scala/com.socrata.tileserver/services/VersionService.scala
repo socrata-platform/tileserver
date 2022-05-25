@@ -24,6 +24,6 @@ object VersionService extends SimpleResource {
              Map("health" -> "alive",
                  "version" -> BuildInfo.version,
                  "scalaVersion" -> BuildInfo.scalaVersion,
-                 "buildTime" -> new DateTime(BuildInfo.buildTime).toString())))
+                 "buildTime" -> new DateTime(BuildInfo.builtAtMillis).toString())))
   }
 }

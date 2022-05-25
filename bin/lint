@@ -1,3 +1,0 @@
-#!/bin/bash
-
-PROJECT=tileserver ops-tools/jenkins/sbt-build/sbt-stylecheck
