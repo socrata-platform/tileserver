@@ -1,4 +1,7 @@
-externalResolvers ++= Seq(Resolver.url("socrata ivy releases", url("https://repo.socrata.com/artifactory/ivy-libs-release-local"))(Resolver.ivyStylePatterns))
+addSbtPlugin("com.github.sbt" % "sbt-release" % "1.1.0")
 
-addSbtPlugin("com.socrata" % "socrata-sbt-plugins" %"1.6.8")
-addSbtPlugin("io.spray" % "sbt-revolver" % "0.7.2")
+addSbtPlugin("com.eed3si9n" % "sbt-assembly" % "1.2.0")
+
+addSbtPlugin("io.spray" % "sbt-revolver" % "0.9.1")
+
+addSbtPlugin("com.eed3si9n" % "sbt-buildinfo" % "0.11.0")
