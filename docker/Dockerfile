@@ -1,4 +1,4 @@
-FROM socrata/java8-bionic
+FROM socrata/java8-focal
 
 # Service specifif settings.
 ENV SERVER_NAME tileserver
