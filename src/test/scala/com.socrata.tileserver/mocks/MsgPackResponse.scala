@@ -3,7 +3,7 @@ package mocks
 
 import java.io.{ByteArrayOutputStream, DataOutputStream}
 
-import com.rojoma.simplearm.util.using
+import com.rojoma.simplearm.v2._
 import com.vividsolutions.jts.geom.{Coordinate, GeometryFactory}
 import com.vividsolutions.jts.io.WKBWriter
 import org.velvia.MsgPack
