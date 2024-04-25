@@ -1,8 +1,0 @@
-#!/bin/bash
-set -ex
-
-PROJECT=tileserver ops-tools/jenkins/sbt-build/sbt-assembly
-
-if [ "$PUSH_DOCKER_IMAGE" ] && $PUSH_DOCKER_IMAGE; then
-    ops-tools/jenkins/dockerize/dockerize-marathon dockerize.properties
-fi
