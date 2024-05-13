@@ -8,7 +8,6 @@ boolean lastStage
 // Utility Libraries
 def sbtbuild = new com.socrata.SBTBuild(steps, service, project_wd)
 def dockerize = new com.socrata.Dockerize(steps, service, BUILD_NUMBER)
-def releaseTag = new com.socrata.ReleaseTag(steps, service)
 
 pipeline {
   options {
@@ -18,11 +17,9 @@ pipeline {
     timeout(time: 20, unit: 'MINUTES')
   }
   parameters {
-    string(name: 'AGENT', defaultValue: 'build-worker', description: 'Which build agent to use?')
+    string(name: 'AGENT', defaultValue: 'build-worker', description: 'Which build agent to use')
     string(name: 'BRANCH_SPECIFIER', defaultValue: 'origin/main', description: 'Use this branch for building the artifact.')
     booleanParam(name: 'RELEASE_BUILD', defaultValue: false, description: 'Are we building a release candidate?')
-    booleanParam(name: 'RELEASE_DRY_RUN', defaultValue: false, description: 'To test out the release build without creating a new tag.')
-    string(name: 'RELEASE_NAME', defaultValue: '', description: 'For release builds, the release name which is used for the git tag and the deploy tag.')
   }
   agent {
     label params.AGENT
@@ -32,6 +29,23 @@ pipeline {
     SCALA_VERSION = '2.12'
   }
   stages {
+    stage('Checkout Release Tag') {
+      when {
+        expression { return params.RELEASE_BUILD }
+      }
+      steps {
+        script {
+          String repoURL = sh(script: "git config --get remote.origin.url", returnStdout: true).trim()
+          String closestTag = sh(script: "git describe --abbrev=0", returnStdout: true).trim()
+          steps.checkout([$class: 'GitSCM',
+            branches: [[name: "refs/tags/${closestTag}"]],
+            extensions: [[$class: 'LocalBranch', localBranch: "**"]],
+            gitTool: 'Default',
+            userRemoteConfigs: [[credentialsId: 'pipelines-token', url: repoURL]]
+          ])
+        }
+      }
+    }
     stage('Build') {
       steps {
         script {
@@ -48,46 +62,18 @@ pipeline {
       steps {
         script {
           lastStage = env.STAGE_NAME
-          if (params.RELEASE_BUILD) {
-            env.DOCKER_TAG = dockerize.dockerBuildWithSpecificTag(
-              tag: params.RELEASE_NAME,
-              path: sbtbuild.getDockerPath(),
-              artifacts: [sbtbuild.getDockerArtifact()]
-            )
-          } else {
-            env.DOCKER_TAG = dockerize.dockerBuildWithDefaultTag(
-              version: 'STAGING',
-              sha: env.GIT_COMMIT,
-              path: sbtbuild.getDockerPath(),
-              artifacts: [sbtbuild.getDockerArtifact()]
-            )
-          }
-        }
-      }
-      post {
-        success {
-          script {
-            if (params.RELEASE_BUILD) {
-              env.GIT_TAG = releaseTag.getFormattedTag(params.RELEASE_NAME)
-              if (releaseTag.doesReleaseTagExist(params.RELEASE_NAME)) {
-                echo "REBUILD: Tag ${env.GIT_TAG} already exists"
-                return
-              }
-              if (params.RELEASE_DRY_RUN) {
-                echo "DRY RUN: Would have created ${env.GIT_TAG} and pushed it to the repo"
-                currentBuild.description = "${service}:${params.RELEASE_NAME} - DRY RUN"
-                return
-              }
-              releaseTag.create(params.RELEASE_NAME)
-            }
-          }
+          env.DOCKER_TAG = dockerize.dockerBuildWithDefaultTag(
+            version: sbtbuild.getServiceVersion(),
+            sha: env.GIT_COMMIT,
+            path: sbtbuild.getDockerPath(),
+            artifacts: [sbtbuild.getDockerArtifact()]
+          )
         }
       }
     }
     stage('Publish') {
       when {
         not { expression { isPr } }
-        not { expression { return params.RELEASE_BUILD && params.RELEASE_DRY_RUN } }
       }
       steps {
         script {
@@ -106,7 +92,6 @@ pipeline {
     stage('Deploy') {
       when {
         not { expression { isPr } }
-        not { expression { return params.RELEASE_BUILD && params.RELEASE_DRY_RUN } }
       }
       steps {
         script {
@@ -124,9 +109,9 @@ pipeline {
   post {
     failure {
       script {
-        if (env.JOB_NAME.contains("${service}/main")) {
+        if (!isPr) {
           teamsMessage(
-            message: "Build [${currentBuild.fullDisplayName}](${env.BUILD_URL}) has failed in stage ${lastStage}",
+            message: "[${currentBuild.fullDisplayName}](${env.BUILD_URL}) has failed in stage ${lastStage}",
             webhookCredentialID: WEBHOOK_ID
           )
         }
