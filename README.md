@@ -47,3 +47,11 @@ access to a running instance.
 Both of these are configured in `/src/main/resources/reference.conf`
 and default to `localhost` and have commented out lines to point to
 staging.
+
+## Releases
+
+To tag a release to be built and deployed to RC:
+
+1. Create a branch from main and run `sbt release`.
+1. Follow the prompts to bump the version, which will create two commits.
+1. Create a PR and get it merged to main.
