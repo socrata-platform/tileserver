@@ -56,3 +56,5 @@ enablePlugins(BuildInfoPlugin)
 buildInfoOptions := Seq(
   BuildInfoOption.BuildTime,
 )
+
+assembly/assemblyJarName := s"${name.value}-assembly.jar"
