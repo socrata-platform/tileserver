@@ -1,4 +1,4 @@
-@Library('socrata-pipeline-library@9.6.1') _
+@Library('socrata-pipeline-library@9.7.0') _
 
 commonPipeline(
     jobName: 'tileserver',
